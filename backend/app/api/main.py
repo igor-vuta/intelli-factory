@@ -8,7 +8,10 @@ Author: Igor Vuta (P2773339)
 Date: February 2026
 """
 
+import asyncio
+import os
 import subprocess
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,13 +44,28 @@ app.include_router(automations.router, prefix="/api/automations", tags=["automat
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 
+def _configure_prisma_query_engine_binary() -> None:
+    if os.getenv("PRISMA_QUERY_ENGINE_BINARY"):
+        return
+
+    candidates = sorted(
+        Path.home().glob(".cache/prisma-python/binaries/**/prisma-query-engine-debian-openssl-3.0.x"),
+        reverse=True,
+    )
+    if candidates:
+        os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(candidates[0])
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
+    _configure_prisma_query_engine_binary()
+
     try:
-        await prisma.connect()
+        await asyncio.wait_for(prisma.connect(), timeout=30)
     except BinaryNotFoundError:
-        subprocess.run(["prisma", "py", "fetch"], check=True)
-        await prisma.connect()
+        subprocess.run(["prisma", "py", "fetch"], check=True, timeout=120)
+        _configure_prisma_query_engine_binary()
+        await asyncio.wait_for(prisma.connect(), timeout=30)
 
 
 @app.on_event("shutdown")
