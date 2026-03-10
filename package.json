@@ -20,7 +20,7 @@
     "format:py": "bash scripts/format-python.sh",
     "test": "echo \"Tests pending for Week 2+\"",
     "commit": "cz commit",
-    "prepare": "husky install"
+    "prepare": "husky install || true"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
