@@ -174,6 +174,20 @@ def _send_verification_email_brevo_api_sync(recipient_email: str, verification_l
 
 
 async def _dispatch_verification_email(recipient_email: str, verification_link: str) -> str:
+    if os.getenv("BREVO_API_KEY"):
+        try:
+            sent_api = await asyncio.to_thread(
+                _send_verification_email_brevo_api_sync,
+                recipient_email,
+                verification_link,
+            )
+        except Exception:
+            logger.exception("Failed sending verification email via Brevo API to %s", recipient_email)
+            sent_api = False
+
+        if sent_api:
+            return "sent"
+
     try:
         sent = await asyncio.to_thread(
             _send_verification_email_sync,
@@ -187,18 +201,21 @@ async def _dispatch_verification_email(recipient_email: str, verification_link: 
     if sent:
         return "sent"
 
-    try:
-        sent_api = await asyncio.to_thread(
-            _send_verification_email_brevo_api_sync,
-            recipient_email,
-            verification_link,
-        )
-    except Exception:
-        logger.exception("Failed sending verification email via Brevo API to %s", recipient_email)
-        sent_api = False
+    if not os.getenv("BREVO_API_KEY"):
+        logger.info("BREVO_API_KEY is not configured; skipping Brevo API fallback")
+    else:
+        try:
+            sent_api = await asyncio.to_thread(
+                _send_verification_email_brevo_api_sync,
+                recipient_email,
+                verification_link,
+            )
+        except Exception:
+            logger.exception("Failed sending verification email via Brevo API to %s", recipient_email)
+            sent_api = False
 
-    if sent_api:
-        return "sent"
+        if sent_api:
+            return "sent"
 
     logger.info("DEV EMAIL VERIFICATION LINK for %s: %s", recipient_email, verification_link)
     return "logged"
