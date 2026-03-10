@@ -1,0 +1,36 @@
+# Python
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node/Next
+node_modules/
+.next/
+.next/cache/
+
+# Logs / OS
+*.log
+.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+backend/app/api/.env
+frontend/.env.local
+
+# IDEs
+.vscode/
+.idea/
+
+# Ruff cache
+.ruff_cache/
+
+# Keys
+secure-keys/
+
+# Markdown policy: only README can be committed
+*.md
+!README.md

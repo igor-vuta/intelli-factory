@@ -1,0 +1,622 @@
+generator client {
+  provider                    = "prisma-client-py"
+  enable_experimental_decimal = true
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  FACTORY
+  LOGIST
+  ADMIN
+}
+
+enum EntityStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum RequestStatus {
+  PENDING
+  PAIRING_IN_PROGRESS
+  MATCHED
+  CONTRACT_DRAFTED
+  CONTRACT_SIGNING
+  FULLY_SIGNED
+  AWAITING_PAYMENT
+  PAYMENT_CONFIRMED
+  FULFILLMENT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum CandidateStatus {
+  PENDING
+  REJECTED
+  ACCEPTED
+  EXPIRED
+}
+
+enum TransactionStatus {
+  CONTRACT_DRAFTED
+  CONTRACT_SIGNING
+  FULLY_SIGNED
+  AWAITING_PAYMENT
+  PAYMENT_CONFIRMED
+  FULFILLMENT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum VerificationTokenType {
+  EMAIL_VERIFICATION
+}
+
+enum SignatureStatus {
+  PENDING
+  SIGNED
+  DECLINED
+}
+
+model User {
+  id                String   @id @default(uuid()) @db.Uuid
+  email             String   @unique
+  password_hash     String
+  role              UserRole
+  is_email_verified Boolean  @default(false)
+
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+
+  customer_profile  CustomerProfile?
+  factory_profile   FactoryProfile?
+  logist_profile    LogistProfile?
+
+  sessions                   Session[]
+  email_verification_tokens  VerificationToken[]
+  signatures                 Signature[]
+  audit_events               EventLog[]
+
+  @@index([role])
+  @@index([deleted_at])
+}
+
+model Session {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String   @db.Uuid
+  session_token_hash String   @unique
+  expires_at         DateTime
+  last_seen_at       DateTime @default(now())
+  revoked_at         DateTime?
+  ip_address         String?
+  user_agent         String?
+
+  created_at         DateTime @default(now())
+
+  user               User     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, revoked_at])
+  @@index([expires_at])
+}
+
+model VerificationToken {
+  id          String                @id @default(uuid()) @db.Uuid
+  user_id     String                @db.Uuid
+  token_hash  String                @unique
+  token_type  VerificationTokenType @default(EMAIL_VERIFICATION)
+  expires_at  DateTime
+  consumed_at DateTime?
+  created_at  DateTime              @default(now())
+
+  user        User                  @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, token_type])
+  @@index([expires_at, consumed_at])
+}
+
+model CustomerProfile {
+  id                 String    @id @default(uuid()) @db.Uuid
+  user_id            String    @unique @db.Uuid
+  display_name       String
+  registration_country_code String? @db.VarChar(2)
+  phone              String?
+  primary_address_id String?   @db.Uuid
+
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+  deleted_at         DateTime?
+
+  user               User      @relation(fields: [user_id], references: [id])
+  primary_address    Address?  @relation("CustomerPrimaryAddress", fields: [primary_address_id], references: [id])
+
+  requests           Request[]
+
+  @@index([deleted_at])
+}
+
+model FactoryProfile {
+  id                 String    @id @default(uuid()) @db.Uuid
+  user_id            String    @unique @db.Uuid
+  legal_name         String
+  registration_country_code String? @db.VarChar(2)
+  contact_name       String?
+  phone              String?
+  primary_address_id String?   @db.Uuid
+
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+  deleted_at         DateTime?
+
+  user               User      @relation(fields: [user_id], references: [id])
+  primary_address    Address?  @relation("FactoryPrimaryAddress", fields: [primary_address_id], references: [id])
+
+  inventory_entries  InventoryEntry[]
+
+  @@index([deleted_at])
+}
+
+model LogistProfile {
+  id                 String    @id @default(uuid()) @db.Uuid
+  user_id            String    @unique @db.Uuid
+  company_name       String
+  registration_country_code String? @db.VarChar(2)
+  contact_name       String?
+  phone              String?
+  primary_address_id String?   @db.Uuid
+
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+  deleted_at         DateTime?
+
+  user               User      @relation(fields: [user_id], references: [id])
+  primary_address    Address?  @relation("LogistPrimaryAddress", fields: [primary_address_id], references: [id])
+
+  logistic_offers    LogisticOffer[]
+
+  @@index([deleted_at])
+}
+
+model Country {
+  id            String               @id @default(uuid()) @db.Uuid
+  iso2          String               @unique @db.VarChar(2)
+  iso3          String               @unique @db.VarChar(3)
+  default_name  String
+  is_active     Boolean              @default(true)
+
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @updatedAt
+
+  regions       Region[]
+  translations  CountryTranslation[]
+  addresses     Address[]
+  coverage_areas LogisticsCoverageArea[]
+
+  @@index([is_active])
+}
+
+model CountryTranslation {
+  id          String   @id @default(uuid()) @db.Uuid
+  country_id  String   @db.Uuid
+  locale      String
+  name        String
+
+  country     Country  @relation(fields: [country_id], references: [id])
+
+  @@unique([country_id, locale])
+  @@index([locale])
+}
+
+model Region {
+  id            String              @id @default(uuid()) @db.Uuid
+  country_id    String              @db.Uuid
+  code          String
+  default_name  String
+  is_active     Boolean             @default(true)
+
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  country       Country             @relation(fields: [country_id], references: [id])
+  cities        City[]
+  translations  RegionTranslation[]
+  addresses     Address[]
+  coverage_areas LogisticsCoverageArea[]
+
+  @@unique([country_id, code])
+  @@index([is_active])
+}
+
+model RegionTranslation {
+  id         String   @id @default(uuid()) @db.Uuid
+  region_id  String   @db.Uuid
+  locale     String
+  name       String
+
+  region     Region   @relation(fields: [region_id], references: [id])
+
+  @@unique([region_id, locale])
+  @@index([locale])
+}
+
+model City {
+  id            String           @id @default(uuid()) @db.Uuid
+  region_id     String           @db.Uuid
+  default_name  String
+  is_active     Boolean          @default(true)
+
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
+
+  region        Region           @relation(fields: [region_id], references: [id])
+  translations  CityTranslation[]
+  addresses     Address[]
+  coverage_areas LogisticsCoverageArea[]
+
+  @@unique([region_id, default_name])
+  @@index([is_active])
+}
+
+model CityTranslation {
+  id       String   @id @default(uuid()) @db.Uuid
+  city_id  String   @db.Uuid
+  locale   String
+  name     String
+
+  city     City     @relation(fields: [city_id], references: [id])
+
+  @@unique([city_id, locale])
+  @@index([locale])
+}
+
+model Address {
+  id                          String            @id @default(uuid()) @db.Uuid
+  country_id                  String            @db.Uuid
+  region_id                   String            @db.Uuid
+  city_id                     String            @db.Uuid
+  street                      String
+  postal_code                 String?
+  latitude                    Decimal?          @db.Decimal(10, 7)
+  longitude                   Decimal?          @db.Decimal(10, 7)
+
+  created_at                  DateTime          @default(now())
+  updated_at                  DateTime          @updatedAt
+  deleted_at                  DateTime?
+
+  country                     Country           @relation(fields: [country_id], references: [id])
+  region                      Region            @relation(fields: [region_id], references: [id])
+  city                        City              @relation(fields: [city_id], references: [id])
+
+  customer_primary_for        CustomerProfile[] @relation("CustomerPrimaryAddress")
+  factory_primary_for         FactoryProfile[]  @relation("FactoryPrimaryAddress")
+  logist_primary_for          LogistProfile[]   @relation("LogistPrimaryAddress")
+
+  inventory_entries           InventoryEntry[]
+  requests_destination        Request[]
+
+  @@index([country_id, region_id, city_id])
+  @@index([deleted_at])
+}
+
+model Category {
+  id               String                @id @default(uuid()) @db.Uuid
+  slug             String                @unique
+  default_name     String
+  parent_id        String?               @db.Uuid
+  status           EntityStatus          @default(ACTIVE)
+
+  created_at       DateTime              @default(now())
+  updated_at       DateTime              @updatedAt
+  deleted_at       DateTime?
+
+  parent           Category?             @relation("CategoryTree", fields: [parent_id], references: [id])
+  children         Category[]            @relation("CategoryTree")
+  items            Item[]
+  translations     CategoryTranslation[]
+  requests         Request[]
+
+  @@index([status, deleted_at])
+}
+
+model CategoryTranslation {
+  id           String    @id @default(uuid()) @db.Uuid
+  category_id  String    @db.Uuid
+  locale       String
+  name         String
+
+  category     Category  @relation(fields: [category_id], references: [id])
+
+  @@unique([category_id, locale])
+  @@index([locale])
+}
+
+model Item {
+  id                        String             @id @default(uuid()) @db.Uuid
+  category_id               String             @db.Uuid
+  name                      String
+  normalized_name           String
+  characteristics_schema    Json?
+  unit                      String?
+  status                    EntityStatus       @default(ACTIVE)
+
+  created_at                DateTime           @default(now())
+  updated_at                DateTime           @updatedAt
+  deleted_at                DateTime?
+
+  category                  Category           @relation(fields: [category_id], references: [id])
+  translations              ItemTranslation[]
+  inventory_entries         InventoryEntry[]
+  requests                  Request[]
+
+  @@unique([category_id, normalized_name])
+  @@index([status, deleted_at])
+}
+
+model ItemTranslation {
+  id       String   @id @default(uuid()) @db.Uuid
+  item_id  String   @db.Uuid
+  locale   String
+  name     String
+
+  item     Item     @relation(fields: [item_id], references: [id])
+
+  @@unique([item_id, locale])
+  @@index([locale])
+}
+
+model Currency {
+  code                  String   @id @db.VarChar(3)
+  name                  String
+  symbol                String?
+  decimals              Int      @default(2)
+  is_base_currency      Boolean  @default(false)
+  exchange_rate_to_base Decimal  @db.Decimal(18, 8)
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  inventory_entries     InventoryEntry[]
+  logistic_offers       LogisticOffer[]
+  requests              Request[]
+  candidates            MatchCandidate[]
+  payments              Payment[]
+}
+
+model InventoryEntry {
+  id                    String         @id @default(uuid()) @db.Uuid
+  factory_profile_id    String         @db.Uuid
+  item_id               String         @db.Uuid
+  stock_address_id      String         @db.Uuid
+  quantity_available    Decimal        @db.Decimal(18, 4)
+  price_per_unit        Decimal        @db.Decimal(18, 4)
+  currency_code         String         @db.VarChar(3)
+  characteristics_json  Json?
+  status                EntityStatus   @default(PENDING)
+
+  created_at            DateTime       @default(now())
+  updated_at            DateTime       @updatedAt
+  deleted_at            DateTime?
+
+  factory_profile       FactoryProfile @relation(fields: [factory_profile_id], references: [id])
+  item                  Item           @relation(fields: [item_id], references: [id])
+  stock_address         Address        @relation(fields: [stock_address_id], references: [id])
+  currency              Currency       @relation(fields: [currency_code], references: [code])
+  candidates            MatchCandidate[]
+
+  @@index([factory_profile_id, status, deleted_at])
+  @@index([item_id, status, deleted_at])
+  @@index([stock_address_id])
+}
+
+model Request {
+  id                           String         @id @default(uuid()) @db.Uuid
+  customer_profile_id          String         @db.Uuid
+  category_id                  String         @db.Uuid
+  item_id                      String?        @db.Uuid
+  requested_name_text          String?
+  requested_characteristics_json Json?
+  quantity                     Decimal        @db.Decimal(18, 4)
+  destination_address_id       String         @db.Uuid
+  preferred_currency_code      String         @db.VarChar(3)
+  status                       RequestStatus  @default(PENDING)
+
+  created_at                   DateTime       @default(now())
+  updated_at                   DateTime       @updatedAt
+  deleted_at                   DateTime?
+
+  customer_profile             CustomerProfile @relation(fields: [customer_profile_id], references: [id])
+  category                     Category        @relation(fields: [category_id], references: [id])
+  item                         Item?           @relation(fields: [item_id], references: [id])
+  destination_address          Address         @relation(fields: [destination_address_id], references: [id])
+  preferred_currency           Currency        @relation(fields: [preferred_currency_code], references: [code])
+
+  candidates                   MatchCandidate[]
+  transaction                  Transaction?
+
+  @@index([customer_profile_id, status, deleted_at])
+  @@index([category_id, item_id, status])
+}
+
+model LogisticOffer {
+  id                   String                @id @default(uuid()) @db.Uuid
+  logist_profile_id    String                @db.Uuid
+  title                String
+  description          String?
+  base_price           Decimal               @db.Decimal(18, 4)
+  price_per_km         Decimal?              @db.Decimal(18, 4)
+  price_per_kg         Decimal?              @db.Decimal(18, 4)
+  estimated_days_min   Int?
+  estimated_days_max   Int?
+  reliability_score    Float                 @db.DoublePrecision
+  currency_code        String                @db.VarChar(3)
+  status               EntityStatus          @default(PENDING)
+
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @updatedAt
+  deleted_at           DateTime?
+
+  logist_profile       LogistProfile         @relation(fields: [logist_profile_id], references: [id])
+  currency             Currency              @relation(fields: [currency_code], references: [code])
+  covered_areas        LogisticsCoverageArea[]
+  candidates           MatchCandidate[]
+
+  @@index([logist_profile_id, status, deleted_at])
+}
+
+model LogisticsCoverageArea {
+  id                String         @id @default(uuid()) @db.Uuid
+  logistic_offer_id String         @db.Uuid
+  country_id        String         @db.Uuid
+  region_id         String?        @db.Uuid
+  city_id           String?        @db.Uuid
+  street_pattern    String?
+  status            EntityStatus   @default(ACTIVE)
+
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  deleted_at        DateTime?
+
+  logistic_offer    LogisticOffer  @relation(fields: [logistic_offer_id], references: [id])
+  country           Country        @relation(fields: [country_id], references: [id])
+  region            Region?        @relation(fields: [region_id], references: [id])
+  city              City?          @relation(fields: [city_id], references: [id])
+
+  @@index([logistic_offer_id, status, deleted_at])
+  @@index([country_id, region_id, city_id])
+}
+
+model MatchCandidate {
+  id                    String          @id @default(uuid()) @db.Uuid
+  request_id            String          @db.Uuid
+  inventory_entry_id    String          @db.Uuid
+  logistic_offer_id     String          @db.Uuid
+
+  total_cost            Decimal         @db.Decimal(18, 4)
+  delivery_days         Int
+  reliability_score     Float           @db.DoublePrecision
+  fitness_score         Float           @db.DoublePrecision
+  currency_code         String          @db.VarChar(3)
+  status                CandidateStatus @default(PENDING)
+
+  created_at            DateTime        @default(now())
+  updated_at            DateTime        @updatedAt
+  deleted_at            DateTime?
+
+  request               Request         @relation(fields: [request_id], references: [id])
+  inventory_entry       InventoryEntry  @relation(fields: [inventory_entry_id], references: [id])
+  logistic_offer        LogisticOffer   @relation(fields: [logistic_offer_id], references: [id])
+  currency              Currency        @relation(fields: [currency_code], references: [code])
+  selected_by_tx        Transaction[]
+
+  @@index([request_id, status, deleted_at])
+  @@index([fitness_score])
+}
+
+model Transaction {
+  id                    String            @id @default(uuid()) @db.Uuid
+  request_id            String            @unique @db.Uuid
+  selected_candidate_id String?           @db.Uuid
+  status                TransactionStatus @default(CONTRACT_DRAFTED)
+
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+  deleted_at            DateTime?
+
+  request               Request           @relation(fields: [request_id], references: [id])
+  selected_candidate    MatchCandidate?   @relation(fields: [selected_candidate_id], references: [id])
+
+  contract_packet       ContractPacket?
+  signatures            Signature[]
+  payments              Payment[]
+  event_logs            EventLog[]
+
+  @@index([status, deleted_at])
+}
+
+model ContractPacket {
+  id                    String      @id @default(uuid()) @db.Uuid
+  transaction_id        String      @unique @db.Uuid
+  version               Int         @default(1)
+  document_hash         String
+  terms_json            Json
+  generated_at          DateTime    @default(now())
+  expires_at            DateTime?
+
+  transaction           Transaction @relation(fields: [transaction_id], references: [id])
+
+  @@index([generated_at])
+}
+
+model Signature {
+  id                    String          @id @default(uuid()) @db.Uuid
+  transaction_id        String          @db.Uuid
+  user_id               String          @db.Uuid
+  role_at_signing       UserRole
+  status                SignatureStatus @default(PENDING)
+  signed_at             DateTime?
+  ip_address            String?
+  user_agent            String?
+
+  created_at            DateTime        @default(now())
+  updated_at            DateTime        @updatedAt
+
+  transaction           Transaction     @relation(fields: [transaction_id], references: [id])
+  user                  User            @relation(fields: [user_id], references: [id])
+
+  @@unique([transaction_id, user_id])
+  @@index([transaction_id, status])
+}
+
+model Payment {
+  id                    String        @id @default(uuid()) @db.Uuid
+  transaction_id        String        @db.Uuid
+  amount                Decimal       @db.Decimal(18, 4)
+  currency_code         String        @db.VarChar(3)
+  status                PaymentStatus @default(PENDING)
+  provider_reference    String?
+  paid_at               DateTime?
+
+  created_at            DateTime      @default(now())
+  updated_at            DateTime      @updatedAt
+
+  transaction           Transaction   @relation(fields: [transaction_id], references: [id])
+  currency              Currency      @relation(fields: [currency_code], references: [code])
+
+  @@index([transaction_id, status])
+}
+
+model EventLog {
+  id                    String       @id @default(uuid()) @db.Uuid
+  actor_user_id         String?      @db.Uuid
+  transaction_id        String?      @db.Uuid
+  entity_type           String
+  entity_id             String
+  event_type            String
+  payload_json          Json?
+  created_at            DateTime     @default(now())
+
+  actor_user            User?        @relation(fields: [actor_user_id], references: [id])
+  transaction           Transaction? @relation(fields: [transaction_id], references: [id])
+
+  @@index([entity_type, entity_id])
+  @@index([event_type, created_at])
+}

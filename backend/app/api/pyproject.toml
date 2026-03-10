@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "intelli-factory"
+version = "0.1.0"
+description = "Multi-objective optimization platform for supply chain matching"
+authors = ["Igor Vuta <igor@intelli-factory.local>"]
+package-mode = false
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+prisma = "^0.13.0"
+pydantic-settings = "^2.1.0"
+deap = "^1.4.1"
+numpy = "^1.24.0"
+pydantic = "^2.5.0"
+python-multipart = "^0.0.6"
+slowapi = "^0.1.9"
+
+[tool.mypy]
+python_version = "3.12"
+
+[[tool.mypy.overrides]]
+module = ["deap", "deap.*"]
+ignore_missing_imports = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+black = "^23.0.0"
+ruff = "^0.1.0"
+mypy = "^1.7.0"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

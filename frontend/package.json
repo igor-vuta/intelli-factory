@@ -1,0 +1,36 @@
+{
+  "name": "intelli-factory-frontend",
+  "version": "0.1.0",
+  "description": "Multi-objective optimization platform for supply chain matching - Frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "next": "^16.1.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "9.39.3",
+    "eslint-config-next": "16.1.6",
+    "postcss": "^8.4.0",
+    "prettier": "^3.0.0",
+    "tailwindcss": "^3.3.0"
+  },
+  "overrides": {
+    "eslint": "9.39.3",
+    "glob": "^10.4.6",
+    "minimatch": "^9.0.7"
+  }
+}

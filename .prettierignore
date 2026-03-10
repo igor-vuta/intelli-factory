@@ -1,0 +1,6 @@
+backend/app/api/.mypy_cache
+backend/app/api/.pytest_cache
+backend/app/api/.ruff_cache
+backend/app/api/__pycache__
+frontend/.next
+node_modules

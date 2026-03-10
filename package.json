@@ -1,0 +1,46 @@
+{
+  "name": "intelli-factory",
+  "version": "0.1.0",
+  "description": "AI-optimized supply chain matching platform - Project root",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "cd backend/app/api && poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint:ts && npm run lint:eslint && npm run lint:py",
+    "lint:ts": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "lint:eslint": "npm run lint --workspace=frontend",
+    "lint:py": "bash scripts/lint-python.sh",
+    "format": "npm run format:ts && npm run format:py",
+    "format:ts": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:py": "bash scripts/format-python.sh",
+    "test": "echo \"Tests pending for Week 2+\"",
+    "commit": "cz commit",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@types/node": "^25.3.3",
+    "concurrently": "^8.2.0",
+    "eslint": "9.39.3",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.0.0"
+  },
+  "overrides": {
+    "eslint": "9.39.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}

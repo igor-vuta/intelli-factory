@@ -1,0 +1,16 @@
+[lint]
+select = [
+  "E",    # Error
+  "W",    # Warning
+  "F",    # Pyflakes
+  "I",    # isort (imports)
+  "N",    # pep8-naming
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear
+]
+ignore = ["E501"]  # Line too long (handled by formatter)
+line-length = 100
+target-version = "py314"
+
+[format]
+indent-size = 2
