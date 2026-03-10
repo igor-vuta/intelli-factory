@@ -8,8 +8,11 @@ Author: Igor Vuta (P2773339)
 Date: February 2026
 """
 
+import subprocess
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prisma.engine.errors import BinaryNotFoundError
 
 from db import prisma
 from routers import auth, automations
@@ -40,7 +43,11 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    await prisma.connect()
+    try:
+        await prisma.connect()
+    except BinaryNotFoundError:
+        subprocess.run(["prisma", "py", "fetch"], check=True)
+        await prisma.connect()
 
 
 @app.on_event("shutdown")
