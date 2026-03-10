@@ -10,7 +10,6 @@ Date: February 2026
 
 import asyncio
 import os
-import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -48,10 +47,17 @@ def _configure_prisma_query_engine_binary() -> None:
     if os.getenv("PRISMA_QUERY_ENGINE_BINARY"):
         return
 
-    candidates = sorted(
-        Path.home().glob(".cache/prisma-python/binaries/**/prisma-query-engine-debian-openssl-3.0.x"),
-        reverse=True,
-    )
+    candidates = []
+    home_cache = Path.home() / ".cache" / "prisma-python" / "binaries"
+    render_cache = Path("/opt/render/.cache/prisma-python/binaries")
+
+    if home_cache.exists():
+        candidates.extend(home_cache.glob("**/prisma-query-engine-debian-openssl-3.0.x"))
+
+    if render_cache.exists():
+        candidates.extend(render_cache.glob("**/prisma-query-engine-debian-openssl-3.0.x"))
+
+    candidates = sorted(candidates, reverse=True)
     if candidates:
         os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(candidates[0])
 
@@ -63,7 +69,6 @@ async def startup_event() -> None:
     try:
         await asyncio.wait_for(prisma.connect(), timeout=30)
     except BinaryNotFoundError:
-        subprocess.run(["prisma", "py", "fetch"], check=True, timeout=120)
         _configure_prisma_query_engine_binary()
         await asyncio.wait_for(prisma.connect(), timeout=30)
 
