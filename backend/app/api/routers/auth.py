@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import logging
 import os
 import secrets
@@ -8,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from typing import Literal
+from urllib import request as urllib_request
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from prisma.engine.errors import AlreadyConnectedError
@@ -138,6 +140,39 @@ def _send_verification_email_sync(recipient_email: str, verification_link: str) 
     return True
 
 
+def _send_verification_email_brevo_api_sync(recipient_email: str, verification_link: str) -> bool:
+    brevo_api_key = os.getenv("BREVO_API_KEY")
+    smtp_from_email = os.getenv("SMTP_FROM_EMAIL")
+
+    if not brevo_api_key or not smtp_from_email:
+        return False
+
+    payload = {
+        "sender": {"email": smtp_from_email},
+        "to": [{"email": recipient_email}],
+        "subject": "Verify your Intelli-Factory account",
+        "textContent": (
+            "Welcome to Intelli-Factory.\n\n"
+            f"Verify your email by opening this link:\n{verification_link}\n\n"
+            "If you did not create this account, you can ignore this email."
+        ),
+    }
+
+    req = urllib_request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "accept": "application/json",
+            "api-key": brevo_api_key,
+            "content-type": "application/json",
+        },
+        method="POST",
+    )
+
+    with urllib_request.urlopen(req, timeout=20) as response:
+        return 200 <= response.status < 300
+
+
 async def _dispatch_verification_email(recipient_email: str, verification_link: str) -> str:
     try:
         sent = await asyncio.to_thread(
@@ -150,6 +185,19 @@ async def _dispatch_verification_email(recipient_email: str, verification_link: 
         sent = False
 
     if sent:
+        return "sent"
+
+    try:
+        sent_api = await asyncio.to_thread(
+            _send_verification_email_brevo_api_sync,
+            recipient_email,
+            verification_link,
+        )
+    except Exception:
+        logger.exception("Failed sending verification email via Brevo API to %s", recipient_email)
+        sent_api = False
+
+    if sent_api:
         return "sent"
 
     logger.info("DEV EMAIL VERIFICATION LINK for %s: %s", recipient_email, verification_link)
