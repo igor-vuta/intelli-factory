@@ -20,6 +20,8 @@ from prisma.engine.errors import BinaryNotFoundError
 from db import prisma
 from routers import auth, automations
 
+_prisma_connect_task: asyncio.Task | None = None
+
 # Initialize FastAPI application
 app = FastAPI(
     title="Intelli-Factory API",
@@ -70,20 +72,33 @@ def _configure_prisma_query_engine_binary() -> None:
         os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(local_binary)
 
 
+async def _connect_prisma_background() -> None:
+    for _ in range(3):
+        try:
+            _configure_prisma_query_engine_binary()
+            await asyncio.wait_for(prisma.connect(), timeout=30)
+            return
+        except BinaryNotFoundError:
+            await asyncio.sleep(5)
+        except Exception:
+            await asyncio.sleep(5)
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
-    _configure_prisma_query_engine_binary()
-
-    try:
-        await asyncio.wait_for(prisma.connect(), timeout=30)
-    except BinaryNotFoundError:
-        _configure_prisma_query_engine_binary()
-        await asyncio.wait_for(prisma.connect(), timeout=30)
+    global _prisma_connect_task
+    _prisma_connect_task = asyncio.create_task(_connect_prisma_background())
 
 
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
-    await prisma.disconnect()
+    if _prisma_connect_task and not _prisma_connect_task.done():
+        _prisma_connect_task.cancel()
+
+    try:
+        await prisma.disconnect()
+    except Exception:
+        pass
 
 
 @app.get("/")
