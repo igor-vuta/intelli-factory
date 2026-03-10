@@ -22,6 +22,11 @@ from routers import auth, automations
 
 _prisma_connect_task: asyncio.Task | None = None
 
+
+def _get_cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "http://localhost:3000,localhost")
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
 # Initialize FastAPI application
 app = FastAPI(
     title="Intelli-Factory API",
@@ -35,7 +40,7 @@ app = FastAPI(
 # TODO: Restrict origins in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "localhost"],
+    allow_origins=_get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
