@@ -10,6 +10,7 @@ Date: February 2026
 
 import asyncio
 import os
+import shutil
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -59,7 +60,14 @@ def _configure_prisma_query_engine_binary() -> None:
 
     candidates = sorted(candidates, reverse=True)
     if candidates:
-        os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(candidates[0])
+        source_binary = candidates[0]
+        local_binary = Path(__file__).resolve().parent / "prisma-query-engine-debian-openssl-3.0.x"
+
+        if not local_binary.exists():
+            shutil.copy2(source_binary, local_binary)
+            local_binary.chmod(0o755)
+
+        os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(local_binary)
 
 
 @app.on_event("startup")
