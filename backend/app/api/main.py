@@ -59,11 +59,18 @@ def _configure_prisma_query_engine_binary() -> None:
     home_cache = Path.home() / ".cache" / "prisma-python" / "binaries"
     render_cache = Path("/opt/render/.cache/prisma-python/binaries")
 
+    patterns = (
+        "**/prisma-query-engine-debian-openssl-3.0.x",
+        "**/query-engine-debian-openssl-3.0.x",
+    )
+
     if home_cache.exists():
-        candidates.extend(home_cache.glob("**/prisma-query-engine-debian-openssl-3.0.x"))
+        for pattern in patterns:
+            candidates.extend(home_cache.glob(pattern))
 
     if render_cache.exists():
-        candidates.extend(render_cache.glob("**/prisma-query-engine-debian-openssl-3.0.x"))
+        for pattern in patterns:
+            candidates.extend(render_cache.glob(pattern))
 
     candidates = sorted(candidates, reverse=True)
     if candidates:
