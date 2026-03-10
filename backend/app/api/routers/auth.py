@@ -10,6 +10,7 @@ from email.message import EmailMessage
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from prisma.engine.errors import AlreadyConnectedError
 from pydantic import BaseModel, Field
 
 from db import prisma
@@ -18,6 +19,8 @@ from db import prisma
 async def _ensure_db_connection() -> None:
     try:
         await prisma.connect()
+    except AlreadyConnectedError:
+        return
     except Exception:
         logger.exception("Database connection unavailable")
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database unavailable")
