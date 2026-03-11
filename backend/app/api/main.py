@@ -79,6 +79,14 @@ def _configure_prisma_query_engine_binary() -> None:
     if os.getenv("PRISMA_QUERY_ENGINE_BINARY"):
         return
 
+    # Check if the binary was pre-copied into the project source dir during build
+    local_binary = Path(__file__).resolve().parent / "prisma-query-engine-debian-openssl-3.0.x"
+    if local_binary.exists():
+        os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(local_binary)
+        logger.info("Using pre-built Prisma binary at %s", local_binary)
+        return
+
+    # Fall back: search the Prisma cache dirs (populated by prisma py fetch at runtime)
     candidates = []
     home_cache = Path.home() / ".cache" / "prisma-python" / "binaries"
     render_cache = Path("/opt/render/.cache/prisma-python/binaries")
@@ -99,13 +107,11 @@ def _configure_prisma_query_engine_binary() -> None:
     candidates = sorted(candidates, reverse=True)
     if candidates:
         source_binary = candidates[0]
-        local_binary = Path(__file__).resolve().parent / "prisma-query-engine-debian-openssl-3.0.x"
-
         if not local_binary.exists():
             shutil.copy2(source_binary, local_binary)
             local_binary.chmod(0o755)
-
         os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(local_binary)
+        logger.info("Copied Prisma binary from cache to %s", local_binary)
 
 
 async def _fetch_prisma_binary() -> bool:
