@@ -31,13 +31,33 @@ async def _ensure_db_connection() -> None:
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 logger = logging.getLogger(__name__)
 
-SESSION_COOKIE_NAME = "if_session"
-SESSION_TTL_DAYS = 7
-VERIFY_TOKEN_TTL_HOURS = 24
-RESEND_WINDOW_MINUTES = 15
-RESEND_LIMIT_PER_USER_WINDOW = 3
-RESEND_LIMIT_PER_IP_WINDOW = 10
+# ============================================================================
+# SESSION AND AUTH CONFIGURATION
+# ============================================================================
 
+SESSION_COOKIE_NAME = "if_session"
+# Session TTL: 24 hours (per Phase 1 Discovery - Q24)
+SESSION_TTL_DAYS = 1
+SESSION_TTL_HOURS = 24
+
+# Email verification token expiration: 24 hours
+VERIFY_TOKEN_TTL_HOURS = 24
+
+# ============================================================================
+# RATE LIMITING AND LOCKOUT CONFIGURATION
+# ============================================================================
+
+# Email verification resending rate limits
+RESEND_WINDOW_MINUTES = 15
+RESEND_LIMIT_PER_USER_WINDOW = 3  # Max 3 resend attempts per 15-min window per email
+RESEND_LIMIT_PER_IP_WINDOW = 10   # Max 10 resend attempts per 15-min window per IP
+
+# Login attempt tracking for account lockout (Phase 1 Discovery - Q23)
+LOGIN_FAILURE_THRESHOLD = 5        # After 5 failed attempts, lock account
+LOGIN_LOCKOUT_DURATION_MINUTES = 15  # Account locked for 15 minutes
+LOGIN_ATTEMPT_WINDOW_MINUTES = 15  # Count failures within this window
+
+# In-memory tracking of rate limit attempts (these are cleaned up periodically in production)
 _resend_attempts_by_ip: dict[str, list[datetime]] = defaultdict(list)
 _resend_attempts_by_email: dict[str, list[datetime]] = defaultdict(list)
 
@@ -94,6 +114,10 @@ class CountryItemResponse(BaseModel):
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _is_production_env() -> bool:
+    return os.getenv("API_ENV", "development").lower() == "production"
 
 
 def _verification_base_url(request: Request) -> str:
@@ -202,7 +226,7 @@ async def _dispatch_verification_email(recipient_email: str, verification_link: 
         return "sent"
 
     if not os.getenv("BREVO_API_KEY"):
-        logger.info("BREVO_API_KEY is not configured; skipping Brevo API fallback")
+        logger.warning("BREVO_API_KEY is not configured; skipping Brevo API fallback")
     else:
         try:
             sent_api = await asyncio.to_thread(
@@ -217,7 +241,7 @@ async def _dispatch_verification_email(recipient_email: str, verification_link: 
         if sent_api:
             return "sent"
 
-    logger.info("DEV EMAIL VERIFICATION LINK for %s: %s", recipient_email, verification_link)
+    logger.warning("DEV EMAIL VERIFICATION LINK for %s: %s", recipient_email, verification_link)
     return "logged"
 
 
@@ -247,6 +271,69 @@ async def _create_email_verification_token(user_id: str, invalidate_existing: bo
     )
 
     return raw_token
+
+
+# ============================================================================
+# LOGIN LOCKOUT AND ATTEMPT TRACKING HELPERS
+# ============================================================================
+
+async def _check_login_lockout(email: str) -> bool:
+    """
+    Check if a user account is locked due to too many failed login attempts.
+    
+    Lockout logic:
+    - If 5+ failed attempts within the last 15 minutes, the account is locked
+    - User can retry after 15 minutes have passed since the oldest attempt in the window
+    
+    Args:
+        email: The email address to check
+        
+    Returns:
+        True if account is locked, False otherwise
+    """
+    now = _now()
+    lockout_window = now - timedelta(minutes=LOGIN_ATTEMPT_WINDOW_MINUTES)
+    
+    # Get failed login attempts within the lockout window
+    recent_failures = await prisma.loginattempt.find_many(
+        where={
+            "email": email.lower().strip(),
+            "was_successful": False,
+            "attempted_at": {"gte": lockout_window},
+        },
+        order={"attempted_at": "desc"},
+    )
+    
+    # If 5 or more failures, account is locked
+    return len(recent_failures) >= LOGIN_FAILURE_THRESHOLD
+
+
+async def _record_login_attempt(
+    email: str,
+    was_successful: bool,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> None:
+    """
+    Record a login attempt in the database for rate limiting and security monitoring.
+    
+    This is used to track failed login attempts and enforce account lockout
+    after too many failures in a short time window.
+    
+    Args:
+        email: The email address of the login attempt
+        was_successful: Whether the login attempt succeeded
+        ip_address: IP address from which the attempt originated
+        user_agent: User-Agent header from the request
+    """
+    await prisma.loginattempt.create(
+        data={
+            "email": email.lower().strip(),
+            "was_successful": was_successful,
+            "ip_address": ip_address,
+            "user_agent": user_agent,
+        }
+    )
 
 
 def _check_ip_resend_rate_limit(ip_address: str | None) -> None:
@@ -337,32 +424,85 @@ async def _create_role_profile(
         return
 
 
-async def _get_user_by_session_token(raw_token: str):
+async def _get_user_by_session_token(raw_token: str, user_agent: str | None = None):
+    """
+    Retrieve user and session from a session token.
+    
+    Performs comprehensive session validation:
+    - Token hash lookup in database
+    - Session expiration check (24 hours)
+    - Session revocation status check
+    - User existence and status check
+    - User-Agent binding validation (optional but recommended)
+    
+    The User-Agent binding helps prevent session fixation attacks by ensuring
+    the same browser/client is used for the session. While not enforced strictly
+    (as User-Agent can change with updates), it provides an additional signal
+    for anomaly detection.
+    
+    Args:
+        raw_token: Raw session token from client
+        user_agent: Current User-Agent header (for binding validation)
+        
+    Returns:
+        Tuple of (user, session) if valid, None if invalid/expired/revoked
+    """
     token_hash = _hash_token(raw_token)
     session = await prisma.session.find_unique(where={"session_token_hash": token_hash})
     if not session:
         return None
 
     now = datetime.now(timezone.utc)
+    
+    # Check if session is revoked or expired
     if session.revoked_at is not None or session.expires_at <= now:
         return None
 
+    # Check if user still exists and is not deleted
     user = await prisma.user.find_unique(where={"id": session.user_id})
     if not user or user.deleted_at is not None:
         return None
+
+    # Optional: Validate User-Agent binding (logs warning if mismatch but doesn't reject)
+    # This helps detect suspicious session usage
+    if user_agent and session.user_agent and session.user_agent != user_agent:
+        logger.warning(
+            f"User-Agent mismatch for session {session.id}: "
+            f"stored={session.user_agent}, current={user_agent}"
+        )
 
     return user, session
 
 
 def _set_session_cookie(response: Response, token: str) -> None:
+    """
+    Set the HttpOnly session cookie with security flags.
+    
+    Security Features:
+    - HttpOnly: Cookie cannot be accessed by JavaScript (prevents XSS attacks)
+    - Secure: Cookie only sent over HTTPS (enabled in production)
+    - SameSite=Lax: Prevents CSRF attacks while allowing necessary cross-site requests
+    - Max-Age: 24 hours - matches SESSION_TTL_HOURS
+    - Path=/: Available across entire API domain
+    
+    The Secure flag is automatically set based on API_ENV:
+    - Production (API_ENV=production): Secure=True (HTTPS enforced)
+    - Development (API_ENV=development): Secure=False (allows HTTP for local dev)
+    
+    Args:
+        response: FastAPI Response object to set cookie on
+        token: Raw session token (will be stored as-is in cookie, hashed server-side)
+    """
+    is_production = os.getenv("API_ENV", "development").lower() == "production"
+    
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=False,
-        samesite="lax",
-        max_age=SESSION_TTL_DAYS * 24 * 60 * 60,
-        path="/",
+        secure=is_production,  # Secure flag: True in production, False in development
+        samesite="lax",        # Phase 1 Discovery Q21 - SameSite=Lax for balance of security & functionality
+        max_age=SESSION_TTL_HOURS * 60 * 60,  # 24 hours in seconds
+        path="/",              # Available across entire domain
     )
 
 
@@ -436,6 +576,15 @@ async def register(payload: RegisterRequest, request: Request):
             message="Registration successful. Check your inbox for a verification email.",
         )
 
+    if not _is_production_env():
+        return RegisterResponse(
+            status="success",
+            message=(
+                "Registration successful. Email provider is not configured in development. "
+                f"Open this verification link: {verification_link}"
+            ),
+        )
+
     return RegisterResponse(
         status="success",
         message="Registration successful. Email is not configured yet, verification link is logged in backend output.",
@@ -458,7 +607,13 @@ async def resend_verification(payload: ResendVerificationRequest, request: Reque
 
     verify_token = await _create_email_verification_token(user.id, invalidate_existing=True)
     verification_link = _build_verification_link(request, verify_token)
-    await _dispatch_verification_email(user.email, verification_link)
+    delivery_mode = await _dispatch_verification_email(user.email, verification_link)
+
+    if delivery_mode == "logged" and not _is_production_env():
+        return MessageResponse(
+            status="success",
+            message=f"Development mode verification link: {verification_link}",
+        )
 
     return MessageResponse(
         status="success",
@@ -498,36 +653,118 @@ async def verify_email_link(token: str):
 
 @router.post("/login", response_model=AuthStatusResponse)
 async def login(payload: LoginRequest, request: Request, response: Response):
-    user = await prisma.user.find_unique(where={"email": payload.email.lower().strip()})
-
+    """
+    Login endpoint that authenticates a user and creates a session.
+    
+    Security Features:
+    - Password verification with PBKDF2 hashing (600k iterations)
+    - Account lockout after 5 failed attempts within 15 minutes
+    - Session token stored as SHA256 hash only (never stored in plaintext)
+    - HttpOnly, Secure (in production), SameSite=Lax cookie
+    - User-Agent binding for session validation
+    - Login attempt tracking for security monitoring
+    
+    Request:
+        email: User email address
+        password: User password
+        
+    Response:
+        status: "success" on successful authentication
+        user: Authenticated user data (id, email, role, is_email_verified)
+        
+    Errors:
+        401: Invalid credentials or account locked
+        403: Email not verified
+    """
+    normalized_email = payload.email.lower().strip()
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    
+    # Check if account is locked due to too many failed login attempts
+    is_locked = await _check_login_lockout(normalized_email)
+    if is_locked:
+        # Log the lockout event
+        await _record_login_attempt(
+            normalized_email,
+            was_successful=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        logger.warning(f"Login attempt on locked account: {normalized_email} from {ip_address}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account temporarily locked due to too many failed attempts. Try again in 15 minutes.",
+        )
+    
+    # Look up user by email
+    user = await prisma.user.find_unique(where={"email": normalized_email})
     if not user or user.deleted_at is not None:
+        # Record failed attempt
+        await _record_login_attempt(
+            normalized_email,
+            was_successful=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        logger.info(f"Login attempt with invalid credentials for: {normalized_email}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    # Verify password
     if not _verify_password(payload.password, user.password_hash):
+        # Record failed attempt
+        await _record_login_attempt(
+            normalized_email,
+            was_successful=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        logger.info(f"Login attempt with wrong password for: {normalized_email}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    # Check if email is verified (Phase 1 Discovery Q22 - unverified users restricted)
     if not user.is_email_verified:
+        # Record the failed attempt (unverified email)
+        await _record_login_attempt(
+            normalized_email,
+            was_successful=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        logger.info(f"Login attempt with unverified email: {normalized_email}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email is not verified",
         )
 
+    # All checks passed - create session
     raw_session_token = secrets.token_urlsafe(48)
     session_token_hash = _hash_token(raw_session_token)
     now = _now()
 
+    # Record successful login attempt
+    await _record_login_attempt(
+        normalized_email,
+        was_successful=True,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    # Create session in database with all security context
     await prisma.session.create(
         data={
             "user_id": user.id,
             "session_token_hash": session_token_hash,
-            "expires_at": now + timedelta(days=SESSION_TTL_DAYS),
+            "expires_at": now + timedelta(hours=SESSION_TTL_HOURS),
             "last_seen_at": now,
-            "ip_address": request.client.host if request.client else None,
-            "user_agent": request.headers.get("user-agent"),
+            "ip_address": ip_address,
+            "user_agent": user_agent,
         }
     )
 
+    # Set secure HttpOnly cookie with session token
     _set_session_cookie(response, raw_session_token)
+
+    logger.info(f"Successful login for user: {user.id} ({user.email})")
 
     return AuthStatusResponse(
         status="success",
@@ -542,18 +779,87 @@ async def login(payload: LoginRequest, request: Request, response: Response):
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(request: Request, response: Response):
+    """
+    Logout endpoint that revokes the current session.
+    
+    This endpoint revokes only the session associated with the current cookie,
+    allowing the user to remain logged in on other devices.
+    
+    Response:
+        status: "success"
+        message: Logout confirmation message
+    """
     raw_session_token = request.cookies.get(SESSION_COOKIE_NAME)
 
     if raw_session_token:
         token_hash = _hash_token(raw_session_token)
-        await prisma.session.update_many(
+        # Revoke the current session by setting revoked_at timestamp
+        session = await prisma.session.update_many(
             where={"session_token_hash": token_hash, "revoked_at": None},
             data={"revoked_at": _now()},
         )
+        logger.info(f"User logged out: {session}")
 
+    # Delete the session cookie from client
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
 
     return MessageResponse(status="success", message="Logged out")
+
+
+@router.post("/logout-all", response_model=MessageResponse)
+async def logout_all(request: Request, response: Response):
+    """
+    Logout-all endpoint that revokes all active sessions for the current user.
+    
+    This endpoint revokes all sessions across all devices/browsers for maximum security.
+    Use this when:
+    - User suspects account compromise
+    - User has changed password (Phase 3 will enforce auto logout-all)
+    - User is ending their account access across all devices
+    
+    Security:
+    - Requires valid authentication via current session cookie
+    - Only the authenticated user can revoke their own sessions
+    - All revoked sessions become immediately invalid
+    
+    Response:
+        status: "success"
+        message: Confirmation that all sessions have been revoked
+        
+    Errors:
+        401: Not authenticated (no valid session)
+    """
+    raw_session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_session_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    # Validate the current session and get user (with User-Agent binding check)
+    user_agent = request.headers.get("user-agent")
+    user_and_session = await _get_user_by_session_token(raw_session_token, user_agent)
+    if not user_and_session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+
+    user, current_session = user_and_session
+
+    # Revoke all active sessions for this user
+    now = _now()
+    revoked_count = await prisma.session.update_many(
+        where={
+            "user_id": user.id,
+            "revoked_at": None,  # Only revoke active sessions
+        },
+        data={"revoked_at": now},
+    )
+
+    # Delete the session cookie from client
+    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
+
+    logger.info(f"User {user.id} ({user.email}) logged out from all sessions. Revoked {revoked_count} sessions.")
+
+    return MessageResponse(
+        status="success",
+        message=f"Logged out from all devices. {revoked_count} sessions revoked.",
+    )
 
 
 @router.get("/me", response_model=AuthStatusResponse)
@@ -562,7 +868,8 @@ async def me(request: Request):
     if not raw_session_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    user_and_session = await _get_user_by_session_token(raw_session_token)
+    user_agent = request.headers.get("user-agent")
+    user_and_session = await _get_user_by_session_token(raw_session_token, user_agent)
     if not user_and_session:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
 

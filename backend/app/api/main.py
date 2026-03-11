@@ -13,6 +13,7 @@ import os
 import shutil
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prisma.engine.errors import BinaryNotFoundError
@@ -21,6 +22,8 @@ from db import prisma
 from routers import auth, automations
 
 _prisma_connect_task: asyncio.Task | None = None
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=True)
 
 
 def _get_cors_origins() -> list[str]:

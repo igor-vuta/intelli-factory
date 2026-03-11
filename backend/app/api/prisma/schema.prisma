@@ -119,6 +119,29 @@ model Session {
   @@index([expires_at])
 }
 
+model LoginAttempt {
+  /// Unique identifier for this login attempt record
+  id                String   @id @default(uuid()) @db.Uuid
+  
+  /// Email address of the user attempting to login
+  email             String   @db.VarChar(320)
+  
+  /// IP address from which the login attempt originated
+  ip_address        String?
+  
+  /// User-Agent header from the login request
+  user_agent        String?
+  
+  /// Whether this attempt succeeded
+  was_successful    Boolean  @default(false)
+  
+  /// Timestamp when this attempt occurred
+  attempted_at      DateTime @default(now())
+
+  @@index([email, attempted_at])
+  @@index([ip_address, attempted_at])
+}
+
 model VerificationToken {
   id          String                @id @default(uuid()) @db.Uuid
   user_id     String                @db.Uuid

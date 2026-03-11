@@ -31,6 +31,9 @@ frontend/.env.local
 # Keys
 secure-keys/
 
+# Local test cookie artifacts
+backend/app/api/cookies*.txt
+
 # Markdown policy: only README can be committed
 *.md
 !README.md
