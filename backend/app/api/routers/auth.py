@@ -294,15 +294,26 @@ async def _check_login_lockout(email: str) -> bool:
     now = _now()
     lockout_window = now - timedelta(minutes=LOGIN_ATTEMPT_WINDOW_MINUTES)
     
-    # Get failed login attempts within the lockout window
-    recent_failures = await prisma.loginattempt.find_many(
-        where={
-            "email": email.lower().strip(),
-            "was_successful": False,
-            "attempted_at": {"gte": lockout_window},
-        },
-        order={"attempted_at": "desc"},
-    )
+    # Get failed login attempts within the lockout window.
+    # If the LoginAttempt table is not migrated yet in an environment,
+    # fail open (no lockout) instead of crashing authentication.
+    try:
+        recent_failures = await prisma.loginattempt.find_many(
+            where={
+                "email": email.lower().strip(),
+                "was_successful": False,
+                "attempted_at": {"gte": lockout_window},
+            },
+            order={"attempted_at": "desc"},
+        )
+    except Exception as exc:
+        error_text = f"{exc.__class__.__name__}: {exc}"
+        if "LoginAttempt" in error_text or "TableNotFound" in error_text:
+            logger.warning(
+                "LoginAttempt table is missing; lockout check skipped until migrations are applied"
+            )
+            return False
+        raise
     
     # If 5 or more failures, account is locked
     return len(recent_failures) >= LOGIN_FAILURE_THRESHOLD
@@ -326,14 +337,23 @@ async def _record_login_attempt(
         ip_address: IP address from which the attempt originated
         user_agent: User-Agent header from the request
     """
-    await prisma.loginattempt.create(
-        data={
-            "email": email.lower().strip(),
-            "was_successful": was_successful,
-            "ip_address": ip_address,
-            "user_agent": user_agent,
-        }
-    )
+    try:
+        await prisma.loginattempt.create(
+            data={
+                "email": email.lower().strip(),
+                "was_successful": was_successful,
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+            }
+        )
+    except Exception as exc:
+        error_text = f"{exc.__class__.__name__}: {exc}"
+        if "LoginAttempt" in error_text or "TableNotFound" in error_text:
+            logger.warning(
+                "LoginAttempt table is missing; login-attempt audit write skipped until migrations are applied"
+            )
+            return
+        raise
 
 
 def _check_ip_resend_rate_limit(ip_address: str | None) -> None:
