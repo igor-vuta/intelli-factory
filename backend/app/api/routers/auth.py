@@ -21,17 +21,17 @@ from db import prisma
 async def _ensure_db_connection() -> None:
     last_error: Exception | None = None
 
-    for attempt in range(1, 4):
+    for attempt in range(1, 9):
         try:
-            await prisma.connect()
+            await asyncio.wait_for(prisma.connect(), timeout=10)
             return
         except AlreadyConnectedError:
             return
         except Exception as exc:
             last_error = exc
-            logger.warning("Database connect attempt %s/3 failed", attempt)
-            if attempt < 3:
-                await asyncio.sleep(0.5 * attempt)
+            logger.warning("Database connect attempt %s/8 failed", attempt)
+            if attempt < 8:
+                await asyncio.sleep(min(0.5 * (2 ** (attempt - 1)), 5))
 
     logger.exception("Database connection unavailable after retries", exc_info=last_error)
     raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database unavailable")
