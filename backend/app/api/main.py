@@ -9,9 +9,13 @@ Date: February 2026
 """
 
 import asyncio
+import logging
 import os
 import shutil
+import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -104,16 +108,52 @@ def _configure_prisma_query_engine_binary() -> None:
         os.environ["PRISMA_QUERY_ENGINE_BINARY"] = str(local_binary)
 
 
+async def _fetch_prisma_binary() -> bool:
+    """Run `prisma py fetch` to download the query engine binary. Returns True on success."""
+    try:
+        logger.info("Fetching Prisma query engine binary via `prisma py fetch` ...")
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "prisma",
+            "py",
+            "fetch",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        if proc.returncode == 0:
+            logger.info("prisma py fetch succeeded")
+            return True
+        logger.error(
+            "prisma py fetch failed (rc=%s): %s",
+            proc.returncode,
+            (stderr or b"").decode(errors="replace"),
+        )
+    except Exception as exc:
+        logger.error("prisma py fetch raised: %s", exc)
+    return False
+
+
 async def _connect_prisma_background() -> None:
-    for _ in range(3):
+    fetched = False
+    for attempt in range(1, 4):
         try:
             _configure_prisma_query_engine_binary()
             await asyncio.wait_for(prisma.connect(), timeout=30)
+            logger.info("Prisma connected successfully on background attempt %s", attempt)
             return
         except BinaryNotFoundError:
+            if not fetched:
+                logger.warning("Prisma binary not found on attempt %s — running prisma py fetch", attempt)
+                fetched = await _fetch_prisma_binary()
+            else:
+                logger.warning("Prisma binary still missing after fetch, attempt %s", attempt)
+                await asyncio.sleep(5)
+        except Exception as exc:
+            logger.warning("Prisma connect failed on attempt %s: %s", attempt, exc)
             await asyncio.sleep(5)
-        except Exception:
-            await asyncio.sleep(5)
+    logger.error("Prisma background connect exhausted all attempts")
 
 
 @app.on_event("startup")

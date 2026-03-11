@@ -5,6 +5,7 @@ import logging
 import os
 import secrets
 import smtplib
+import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
@@ -12,10 +13,47 @@ from typing import Literal
 from urllib import request as urllib_request
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from prisma.engine.errors import AlreadyConnectedError
+from prisma.engine.errors import AlreadyConnectedError, BinaryNotFoundError
 from pydantic import BaseModel, Field
 
 from db import prisma
+
+logger = logging.getLogger(__name__)
+
+# Guard: attempt prisma py fetch at most once per process lifetime
+_binary_fetch_attempted = False
+_binary_fetch_lock = asyncio.Lock()
+
+
+async def _fetch_prisma_binary_once() -> None:
+    """Run `prisma py fetch` exactly once per process if the binary is missing."""
+    global _binary_fetch_attempted
+    async with _binary_fetch_lock:
+        if _binary_fetch_attempted:
+            return
+        _binary_fetch_attempted = True
+        try:
+            logger.warning("Prisma binary missing — running prisma py fetch (inline fallback) ...")
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable,
+                "-m",
+                "prisma",
+                "py",
+                "fetch",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+            if proc.returncode == 0:
+                logger.info("Inline prisma py fetch succeeded")
+            else:
+                logger.error(
+                    "Inline prisma py fetch failed (rc=%s): %s",
+                    proc.returncode,
+                    (stderr or b"").decode(errors="replace"),
+                )
+        except Exception as exc:
+            logger.error("Inline prisma py fetch raised: %s", exc)
 
 
 async def _ensure_db_connection() -> None:
@@ -27,6 +65,11 @@ async def _ensure_db_connection() -> None:
             return
         except AlreadyConnectedError:
             return
+        except BinaryNotFoundError as exc:
+            last_error = exc
+            logger.warning("Prisma binary not found on attempt %s/8 — will fetch", attempt)
+            await _fetch_prisma_binary_once()
+            # After fetch, loop around and retry immediately (no extra sleep needed)
         except Exception as exc:
             last_error = exc
             logger.warning("Database connect attempt %s/8 failed", attempt)
@@ -38,7 +81,6 @@ async def _ensure_db_connection() -> None:
 
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
-logger = logging.getLogger(__name__)
 
 # ============================================================================
 # SESSION AND AUTH CONFIGURATION
