@@ -1,10 +1,16 @@
 # Intelli-Factory: Multi-Objective Optimization Platform for Supply Chain Matching
 
-**Project Status:** Development (Target Completion: 22 May 2026)  
+**Project Status:** Phase 1 Complete – Deployment Live (Target Completion: 22 May 2026)  
 **Student:** Igor Vuta (P2773339)  
 **Supervisor:** Shengxiang Yang  
-**University:** De Montfort University
+**University:** De Montfort University  
 **Course:** BSc (Hons) Computer Science
+
+### Live Deployments
+
+- **Frontend:** https://intelli-factory-frontend.vercel.app/ (Vercel)
+- **Backend:** https://intelli-factory-api.onrender.com (Render, free tier – 50s spin-up)
+- **Database:** PostgreSQL 15 (Aiven)
 
 ---
 
@@ -52,8 +58,11 @@ Intelli-Factory automates this process with:
 ### Infrastructure
 
 - **Containerization:** Docker & Docker Compose (local dev)
-- **Deployment:** Google Cloud Run (via Pulumi IaC)
+- **Frontend Deployment:** Vercel (auto-deploy from GitHub main)
+- **Backend Deployment:** Render (auto-deploy from GitHub main, free tier)
+- **Database:** Aiven Managed PostgreSQL 15
 - **Version Control:** Git + GitHub
+- **Email Service:** Brevo SMTP for verification emails
 
 ### Development Tools
 
@@ -198,29 +207,35 @@ curl -X POST http://localhost:8000/api/automations/optimize \
 
 ## Key Features
 
-### ✅ Implemented (Week 1-2)
+### ✅ Phase 1 Complete (Authentication & Session Management)
 
-- FastAPI backend with genetic algorithm optimization
-- Next.js frontend with form submission
-- PostgreSQL database with product/manufacturer/provider data
-- DEAP integration with multi-objective fitness function
-- Cost (50%) + Speed (30%) + Reliability (20%) weighting
-- Docker containerization for easy deployment
-- Development tooling (linting, formatting, git hooks)
+- FastAPI backend with Prisma ORM
+- Next.js 14 frontend with TypeScript
+- PostgreSQL database with Prisma schema
+- **User Registration** - signup with email verification
+- **Email Verification** - Brevo SMTP integration
+- **Session Authentication** - HttpOnly cookies, 24h TTL
+- **Account Lockout** - 5 failed attempts → 15-minute lockout
+- **Role-based Access Control** - customer, factory_operator, logistics_partner, admin roles
+- **Landing Page** - public marketing page with theme selector
+- **Docker containerization** for local development
+- Development tooling (linting with Ruff, formatting, conventional commits)
 
-### 🟡 In Progress (Week 2-4)
+### 🟡 Phase 2–3 In Progress (Access Control & UI)
 
-- Enhanced synthetic dataset (50+ products, 15+ manufacturers)
-- Comparative analysis study (vs greedy/heuristic baselines)
-- Comprehensive error handling and input validation
-- API documentation (Swagger/OpenAPI)
+- Enhanced role dashboards (customer, factory operator, logistics partner, admin)
+- Form submission and validation
+- Backend API expansion for order/request lifecycle
+- Frontend page scaffolding for all user roles
+- Countries list fix for registration page (this week)
 
-### ⏳ Planned (Week 5-7)
+### ⏳ Phase 4–7 Planned (Algorithm, Testing, Deployment)
 
-- Main Report & Appendices documentation
-- User acceptance testing
-- Deployment to Google Cloud Run
-- Viva demonstration preparation
+- Matching algorithm implementation (DEAP genetic algorithms)
+- Synthetic data generation (100+ products, 10+ suppliers, 8+ logistics providers)
+- Comprehensive testing (unit, integration, UAT)
+- Production hardening and security audit
+- Final report writing and viva preparation
 
 ---
 
@@ -284,37 +299,55 @@ npm run test
 ```bash
 docker-compose up       # Starts PostgreSQL
 # In separate terminals:
-cd backend/app/api && uvicorn main:app --reload
-cd frontend && npm run dev
+cd backend/app/api && poetry install && poetry run uvicorn main:app --reload
+cd frontend && npm install && npm run dev
 ```
 
-### Production (Google Cloud Run)
+### Production (Live)
 
-```bash
-# Using Pulumi IaC
-cd backend/app/api
-pulumi up                               # Deploy infrastructure
-pulumi stack output url                 # Get API URL
-```
+**Frontend:** Deployed to Vercel at https://intelli-factory-frontend.vercel.app/
 
-See `backend/app/api/__main__.py` for infrastructure code.
+- Auto-deploys on push to `main` branch
+- Environment: Next.js 14 on Vercel serverless
+
+**Backend:** Deployed to Render at https://intelli-factory-api.onrender.com
+
+- Auto-deploys on push to `main` branch
+- Environment: FastAPI on Render free tier (~50s spin-up on first request)
+- Binary caching: Prisma query engine auto-fetched on startup
+
+**Database:** Hosted on Aiven
+
+- PostgreSQL 15 managed service
+- Connection via `DATABASE_URL` environment variable
+- Automatic backups and high availability
 
 ---
 
 ## Project Timeline
 
-| Week | Focus                                 | Status         |
-| ---- | ------------------------------------- | -------------- |
-| 1    | Documentation structure, code cleanup | ✅ Done        |
-| 2    | Code comments, dependency updates     | 🟡 In Progress |
-| 3    | Synthetic data expansion              | ⏳ Scheduled   |
-| 4    | Comparative study implementation      | ⏳ Scheduled   |
-| 5    | Error handling & UX polish            | ⏳ Scheduled   |
-| 6-7  | Main Report writing                   | ⏳ Scheduled   |
-| 8    | Viva preparation                      | ⏳ Scheduled   |
-| 9    | Final submission & buffer             | ⏳ Scheduled   |
+**Start Date:** 11 February 2026  
+**Report Deadline:** 22 May 2026  
+**Current Week:** 5 of 14
 
-**Deadline:** 22 May 2026
+| Phase | Focus                                            | Week(s) | Status         |
+| ----- | ------------------------------------------------ | ------- | -------------- |
+| 1     | Authentication, session, email verification      | W1–W5   | ✅ Complete    |
+| 2     | Backend API expansion, access control            | W5–W10  | 🟡 In Progress |
+| 3     | Frontend UI for all roles, form integration      | W6–W11  | 🟡 In Progress |
+| 4     | Matching algorithm (DEAP), fitness functions     | W9–W12  | ⏳ Planned     |
+| 5     | Synthetic data generation, comprehensive testing | W8–W14  | ⏳ Planned     |
+| 6     | User acceptance testing, security hardening      | W10–W13 | ⏳ Planned     |
+| 7     | Production deployment, release                   | W11–W13 | ⏳ Planned     |
+
+**Key Milestones:**
+
+- 13 Mar 2026 (W5): Contract & ethics submission ✅ (tomorrow)
+- 24 Mar 2026 (W6): Literature review finalized
+- 31 Mar 2026 (W7): System design approved
+- 7 Apr 2026 (W10): Phases 1–3 complete
+- 22 May 2026 (W14): Report & code submission (deadline)
+- 15 Jun 2026 (W18): Viva examination
 
 ---
 
@@ -339,6 +372,6 @@ See `backend/app/api/__main__.py` for infrastructure code.
 
 ---
 
-**Last Updated:** 28 February 2026  
-**Project Status:** Development in progress  
-**Next Milestone:** Comparative analysis study (Week 4)
+**Last Updated:** 12 March 2026  
+**Project Status:** Phase 1 Complete – Deployment Live  
+**Next Milestone:** Forms Submission (13 Mar), Phases 2–3 (W6–W11)
