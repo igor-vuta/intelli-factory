@@ -15,8 +15,6 @@ import shutil
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +22,8 @@ from prisma.engine.errors import BinaryNotFoundError
 
 from db import prisma
 from routers import auth, automations
+
+logger = logging.getLogger(__name__)
 
 _prisma_connect_task: asyncio.Task | None = None
 
