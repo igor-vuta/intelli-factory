@@ -156,6 +156,16 @@ export default function LoginPage() {
               {copy.createOne}
             </Link>
           </div>
+
+          <div className="mt-3 flex items-center justify-between text-sm text-[rgb(var(--muted))]">
+            <span>{copy.needVerification}</span>
+            <Link
+              href={`/verify-email?lang=${locale}`}
+              className="text-[rgb(var(--accent))] hover:underline"
+            >
+              {copy.resendVerificationAction}
+            </Link>
+          </div>
         </section>
 
         <Link href="/" className="text-center text-sm text-[rgb(var(--muted))] hover:underline">
