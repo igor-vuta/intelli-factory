@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 import { resendVerificationEmail, verifyEmail } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
@@ -13,15 +13,20 @@ export default function VerifyEmailPage() {
   const copy = t(locale);
 
   const [theme] = useState<Theme>('midnightCore');
-  const [token, setToken] = useState(() => {
-    const value = router.query.token;
-    return typeof value === 'string' ? value : '';
-  });
+  const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const value = router.query.token;
+    if (typeof value === 'string') {
+      setToken(value);
+    }
+  }, [router.isReady, router.query.token]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
