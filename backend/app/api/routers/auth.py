@@ -62,9 +62,8 @@ async def _ensure_db_connection() -> None:
     for attempt in range(1, 9):
         try:
             await asyncio.wait_for(prisma.connect(), timeout=10)
-            return
         except AlreadyConnectedError:
-            return
+            pass
         except BinaryNotFoundError as exc:
             last_error = exc
             logger.warning("Prisma binary not found on attempt %s/8 — will fetch", attempt)
@@ -73,6 +72,21 @@ async def _ensure_db_connection() -> None:
         except Exception as exc:
             last_error = exc
             logger.warning("Database connect attempt %s/8 failed", attempt)
+            if attempt < 8:
+                await asyncio.sleep(min(0.5 * (2 ** (attempt - 1)), 5))
+            continue
+
+        try:
+            # Probe query ensures Prisma query engine is actually reachable.
+            await prisma.user.count()
+            return
+        except Exception as exc:
+            last_error = exc
+            logger.warning("Database probe attempt %s/8 failed", attempt)
+            try:
+                await prisma.disconnect()
+            except Exception:
+                pass
             if attempt < 8:
                 await asyncio.sleep(min(0.5 * (2 ** (attempt - 1)), 5))
 

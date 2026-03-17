@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prisma.engine.errors import BinaryNotFoundError
 
 from db import prisma
-from routers import auth, automations
+from routers import auth, automations, pairing, requests
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,8 @@ app.add_middleware(
 # Include routers
 app.include_router(automations.router, prefix="/api/automations", tags=["automations"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(requests.router, prefix="/api/requests", tags=["requests"])
+app.include_router(pairing.router, prefix="/api/pairing", tags=["pairing"])
 
 
 def _configure_prisma_query_engine_binary() -> None:

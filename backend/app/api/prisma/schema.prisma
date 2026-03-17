@@ -531,12 +531,20 @@ model MatchCandidate {
   id                    String          @id @default(uuid()) @db.Uuid
   request_id            String          @db.Uuid
   inventory_entry_id    String          @db.Uuid
-  logistic_offer_id     String          @db.Uuid
+  logistic_offer_id     String?         @db.Uuid   // null = factory bid only, awaiting logist quote
 
-  total_cost            Decimal         @db.Decimal(18, 4)
-  delivery_days         Int
-  reliability_score     Float           @db.DoublePrecision
-  fitness_score         Float           @db.DoublePrecision
+  /// Quantity factory is offering for this specific request
+  quoted_quantity       Decimal?        @db.Decimal(18, 4)
+  /// Optional note from the factory
+  factory_note          String?
+  /// Logistics delivery cost (null until logist quotes)
+  delivery_price        Decimal?        @db.Decimal(18, 4)
+
+  /// Total cost (goods + delivery). Null until logist quotes.
+  total_cost            Decimal?        @db.Decimal(18, 4)
+  delivery_days         Int?
+  reliability_score     Float?          @db.DoublePrecision
+  fitness_score         Float?          @db.DoublePrecision
   currency_code         String          @db.VarChar(3)
   status                CandidateStatus @default(PENDING)
 
@@ -546,7 +554,7 @@ model MatchCandidate {
 
   request               Request         @relation(fields: [request_id], references: [id])
   inventory_entry       InventoryEntry  @relation(fields: [inventory_entry_id], references: [id])
-  logistic_offer        LogisticOffer   @relation(fields: [logistic_offer_id], references: [id])
+  logistic_offer        LogisticOffer?  @relation(fields: [logistic_offer_id], references: [id])
   currency              Currency        @relation(fields: [currency_code], references: [code])
   selected_by_tx        Transaction[]
 
