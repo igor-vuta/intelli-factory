@@ -162,6 +162,8 @@ model CustomerProfile {
   user_id            String    @unique @db.Uuid
   display_name       String
   registration_country_code String? @db.VarChar(2)
+  registration_address String?
+  preferred_currency_code String? @db.VarChar(3)
   phone              String?
   primary_address_id String?   @db.Uuid
 
@@ -171,6 +173,7 @@ model CustomerProfile {
 
   user               User      @relation(fields: [user_id], references: [id])
   primary_address    Address?  @relation("CustomerPrimaryAddress", fields: [primary_address_id], references: [id])
+  preferred_currency Currency? @relation("CustomerPreferredCurrency", fields: [preferred_currency_code], references: [code])
 
   requests           Request[]
 
@@ -182,6 +185,8 @@ model FactoryProfile {
   user_id            String    @unique @db.Uuid
   legal_name         String
   registration_country_code String? @db.VarChar(2)
+  registration_address String?
+  preferred_currency_code String? @db.VarChar(3)
   contact_name       String?
   phone              String?
   primary_address_id String?   @db.Uuid
@@ -192,6 +197,7 @@ model FactoryProfile {
 
   user               User      @relation(fields: [user_id], references: [id])
   primary_address    Address?  @relation("FactoryPrimaryAddress", fields: [primary_address_id], references: [id])
+  preferred_currency Currency? @relation("FactoryPreferredCurrency", fields: [preferred_currency_code], references: [code])
 
   inventory_entries  InventoryEntry[]
 
@@ -203,6 +209,8 @@ model LogistProfile {
   user_id            String    @unique @db.Uuid
   company_name       String
   registration_country_code String? @db.VarChar(2)
+  registration_address String?
+  preferred_currency_code String? @db.VarChar(3)
   contact_name       String?
   phone              String?
   primary_address_id String?   @db.Uuid
@@ -213,6 +221,7 @@ model LogistProfile {
 
   user               User      @relation(fields: [user_id], references: [id])
   primary_address    Address?  @relation("LogistPrimaryAddress", fields: [primary_address_id], references: [id])
+  preferred_currency Currency? @relation("LogistPreferredCurrency", fields: [preferred_currency_code], references: [code])
 
   logistic_offers    LogisticOffer[]
 
@@ -422,6 +431,9 @@ model Currency {
   requests              Request[]
   candidates            MatchCandidate[]
   payments              Payment[]
+  customer_profiles     CustomerProfile[] @relation("CustomerPreferredCurrency")
+  factory_profiles      FactoryProfile[]  @relation("FactoryPreferredCurrency")
+  logist_profiles       LogistProfile[]   @relation("LogistPreferredCurrency")
 }
 
 model InventoryEntry {

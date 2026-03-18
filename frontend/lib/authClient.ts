@@ -22,6 +22,11 @@ export type CountryItem = {
   label: string;
 };
 
+export type CurrencyItem = {
+  code: string;
+  name: string;
+};
+
 export type BootstrapCategory = {
   id: string;
   name: string;
@@ -161,6 +166,8 @@ export function register(input: {
   role: UserRole;
   display_name: string;
   country_code: string;
+  address: string;
+  preferred_currency_code: string;
 }) {
   return request<ApiMessage>('/auth/register', {
     method: 'POST',
@@ -201,6 +208,10 @@ export function logout() {
 
 export function getCountries(locale: 'en' | 'ru' | 'kk') {
   return request<CountryItem[]>(`/auth/countries?locale=${locale}`);
+}
+
+export function getCurrencies() {
+  return request<CurrencyItem[]>('/auth/currencies');
 }
 
 export function getRequestsBootstrap() {

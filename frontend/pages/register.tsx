@@ -3,7 +3,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-import { getCountries, register, type CountryItem, type UserRole } from '../lib/authClient';
+import {
+  getCountries,
+  getCurrencies,
+  register,
+  type CountryItem,
+  type CurrencyItem,
+  type UserRole,
+} from '../lib/authClient';
 import { getLocaleFromQuery, supportedLocales, t } from '../lib/i18n';
 import { THEME_CLASSES, type Theme } from '../styles/themePresets';
 
@@ -25,9 +32,13 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('CUSTOMER');
   const [countryCode, setCountryCode] = useState('');
+  const [address, setAddress] = useState('');
+  const [currencyCode, setCurrencyCode] = useState('');
   const [countries, setCountries] = useState<CountryItem[]>([]);
+  const [currencies, setCurrencies] = useState<CurrencyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [countriesLoading, setCountriesLoading] = useState(true);
+  const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -71,6 +82,37 @@ export default function RegisterPage() {
     };
   }, [locale]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadCurrencies() {
+      setCurrenciesLoading(true);
+      try {
+        const response = await getCurrencies();
+        if (!isActive) return;
+        setCurrencies(response);
+        setCurrencyCode((prev) => {
+          const hasCurrent = response.some((item) => item.code === prev);
+          return hasCurrent ? prev : response[0]?.code || '';
+        });
+      } catch {
+        if (!isActive) return;
+        setCurrencies([]);
+        setError('Failed to load currencies. Please refresh and try again.');
+      } finally {
+        if (isActive) {
+          setCurrenciesLoading(false);
+        }
+      }
+    }
+
+    void loadCurrencies();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -86,6 +128,16 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!address.trim()) {
+      setError(copy.addressHint);
+      return;
+    }
+
+    if (!currencyCode) {
+      setError(copy.currencyHint);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -95,6 +147,8 @@ export default function RegisterPage() {
         role,
         display_name: displayName,
         country_code: countryCode,
+        address: address.trim(),
+        preferred_currency_code: currencyCode,
       });
 
       setSuccess(copy.successRegister);
@@ -219,6 +273,42 @@ export default function RegisterPage() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.countryHint}</p>
+            </div>
+
+            <div>
+              <label htmlFor="address" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                {copy.address}
+              </label>
+              <input
+                id="address"
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+              />
+              <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.addressHint}</p>
+            </div>
+
+            <div>
+              <label htmlFor="currency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                {copy.currency}
+              </label>
+              <select
+                id="currency"
+                value={currencyCode}
+                onChange={(e) => setCurrencyCode(e.target.value)}
+                required
+                disabled={currenciesLoading || currencies.length === 0}
+                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+              >
+                {currencies.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.code} — {item.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.currencyHint}</p>
             </div>
 
             <div>

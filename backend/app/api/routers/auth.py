@@ -135,6 +135,8 @@ class RegisterRequest(BaseModel):
     role: UserRole
     display_name: str = Field(..., min_length=2, max_length=120)
     country_code: str = Field(..., min_length=2, max_length=2)
+    address: str = Field(..., min_length=3, max_length=300)
+    preferred_currency_code: str = Field(..., min_length=3, max_length=3)
 
 
 class RegisterResponse(BaseModel):
@@ -175,6 +177,11 @@ class MessageResponse(BaseModel):
 class CountryItemResponse(BaseModel):
     code: str
     label: str
+
+
+class CurrencyItemResponse(BaseModel):
+    code: str
+    name: str
 
 
 def _now() -> datetime:
@@ -477,6 +484,8 @@ async def _create_role_profile(
     role: UserRole,
     display_name: str,
     country_code: str,
+    address: str,
+    preferred_currency_code: str,
 ) -> None:
     if role == "CUSTOMER":
         await prisma.customerprofile.create(
@@ -484,6 +493,8 @@ async def _create_role_profile(
                 "user_id": user_id,
                 "display_name": display_name,
                 "registration_country_code": country_code,
+                "registration_address": address,
+                "preferred_currency": {"connect": {"code": preferred_currency_code}},
             }
         )
         return
@@ -494,6 +505,8 @@ async def _create_role_profile(
                 "user_id": user_id,
                 "legal_name": display_name,
                 "registration_country_code": country_code,
+                "registration_address": address,
+                "preferred_currency": {"connect": {"code": preferred_currency_code}},
             }
         )
         return
@@ -504,6 +517,8 @@ async def _create_role_profile(
                 "user_id": user_id,
                 "company_name": display_name,
                 "registration_country_code": country_code,
+                "registration_address": address,
+                "preferred_currency": {"connect": {"code": preferred_currency_code}},
             }
         )
         return
@@ -622,15 +637,29 @@ async def countries(locale: Literal["en", "ru", "kk"] = "en"):
     ]
 
 
+@router.get("/currencies", response_model=list[CurrencyItemResponse])
+async def currencies():
+    rows = await prisma.currency.find_many(order={"code": "asc"}, take=50)
+    return [CurrencyItemResponse(code=row.code, name=row.name) for row in rows]
+
+
 @router.post("/register", response_model=RegisterResponse)
 async def register(payload: RegisterRequest, request: Request):
     normalized_country_code = payload.country_code.strip().upper()
+    normalized_currency_code = payload.preferred_currency_code.strip().upper()
 
     country = await prisma.country.find_unique(where={"iso2": normalized_country_code})
     if not country or not country.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported or inactive country code",
+        )
+
+    currency = await prisma.currency.find_unique(where={"code": normalized_currency_code})
+    if not currency:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported currency code",
         )
 
     existing_user = await prisma.user.find_unique(where={"email": payload.email.lower().strip()})
@@ -651,6 +680,8 @@ async def register(payload: RegisterRequest, request: Request):
         payload.role,
         payload.display_name.strip(),
         normalized_country_code,
+        payload.address.strip(),
+        normalized_currency_code,
     )
 
     verify_token = await _create_email_verification_token(user.id, invalidate_existing=True)
