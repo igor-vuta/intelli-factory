@@ -1,4 +1,5 @@
 import asyncio
+from decimal import Decimal
 import hashlib
 import json
 import logging
@@ -184,6 +185,13 @@ class CurrencyItemResponse(BaseModel):
     name: str
 
 
+DEFAULT_CURRENCIES: tuple[tuple[str, str, str, bool, Decimal], ...] = (
+    ("USD", "US Dollar", "$", True, Decimal("1.0")),
+    ("EUR", "Euro", "EUR", False, Decimal("1.08")),
+    ("KZT", "Kazakhstani Tenge", "KZT", False, Decimal("0.0022")),
+)
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -201,6 +209,34 @@ def _verification_base_url(request: Request) -> str:
 
 def _build_verification_link(request: Request, raw_token: str) -> str:
     return f"{_verification_base_url(request)}?token={raw_token}"
+
+
+async def _ensure_default_currencies() -> None:
+    existing = await prisma.currency.find_many(take=1)
+    if existing:
+        return
+
+    for code, name, symbol, is_base, rate in DEFAULT_CURRENCIES:
+        await prisma.currency.upsert(
+            where={"code": code},
+            data={
+                "create": {
+                    "code": code,
+                    "name": name,
+                    "symbol": symbol,
+                    "decimals": 2,
+                    "is_base_currency": is_base,
+                    "exchange_rate_to_base": rate,
+                },
+                "update": {
+                    "name": name,
+                    "symbol": symbol,
+                    "decimals": 2,
+                    "is_base_currency": is_base,
+                    "exchange_rate_to_base": rate,
+                },
+            },
+        )
 
 
 def _send_verification_email_sync(recipient_email: str, verification_link: str) -> bool:
@@ -639,6 +675,7 @@ async def countries(locale: Literal["en", "ru", "kk"] = "en"):
 
 @router.get("/currencies", response_model=list[CurrencyItemResponse])
 async def currencies():
+    await _ensure_default_currencies()
     rows = await prisma.currency.find_many(order={"code": "asc"}, take=50)
     return [CurrencyItemResponse(code=row.code, name=row.name) for row in rows]
 
@@ -647,6 +684,8 @@ async def currencies():
 async def register(payload: RegisterRequest, request: Request):
     normalized_country_code = payload.country_code.strip().upper()
     normalized_currency_code = payload.preferred_currency_code.strip().upper()
+
+    await _ensure_default_currencies()
 
     country = await prisma.country.find_unique(where={"iso2": normalized_country_code})
     if not country or not country.is_active:
