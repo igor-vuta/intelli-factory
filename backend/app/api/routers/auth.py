@@ -566,7 +566,8 @@ def _set_session_cookie(response: Response, token: str) -> None:
     Security Features:
     - HttpOnly: Cookie cannot be accessed by JavaScript (prevents XSS attacks)
     - Secure: Cookie only sent over HTTPS (enabled in production)
-    - SameSite=Lax: Prevents CSRF attacks while allowing necessary cross-site requests
+    - SameSite=None (production): allows cross-site frontend -> API cookie auth
+    - SameSite=Lax (development): safer default for local same-site usage
     - Max-Age: 24 hours - matches SESSION_TTL_HOURS
     - Path=/: Available across entire API domain
     
@@ -579,13 +580,14 @@ def _set_session_cookie(response: Response, token: str) -> None:
         token: Raw session token (will be stored as-is in cookie, hashed server-side)
     """
     is_production = os.getenv("API_ENV", "development").lower() == "production"
+    samesite = "none" if is_production else "lax"
     
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
         secure=is_production,  # Secure flag: True in production, False in development
-        samesite="lax",        # Phase 1 Discovery Q21 - SameSite=Lax for balance of security & functionality
+        samesite=samesite,
         max_age=SESSION_TTL_HOURS * 60 * 60,  # 24 hours in seconds
         path="/",              # Available across entire domain
     )
