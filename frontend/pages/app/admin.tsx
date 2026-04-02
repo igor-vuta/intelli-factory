@@ -1,9 +1,17 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-import { listRequests, logout, me, type RequestSummary } from '../../lib/authClient';
+import {
+  compareBaselines,
+  listRequests,
+  logout,
+  me,
+  type BaselineComparePriority,
+  type BaselineCompareResponse,
+  type RequestSummary,
+} from '../../lib/authClient';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 import { THEME_CLASSES, type Theme } from '../../styles/themePresets';
 
@@ -16,6 +24,12 @@ export default function AdminWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestSummary[]>([]);
+  const [sku, setSku] = useState('textile-001');
+  const [quantity, setQuantity] = useState('100');
+  const [priority, setPriority] = useState<BaselineComparePriority>('balanced');
+  const [comparing, setComparing] = useState(false);
+  const [compareError, setCompareError] = useState<string | null>(null);
+  const [compareResult, setCompareResult] = useState<BaselineCompareResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +67,36 @@ export default function AdminWorkspacePage() {
   async function handleLogout() {
     await logout();
     await router.push(`/login?lang=${locale}`);
+  }
+
+  async function handleCompare(event: FormEvent) {
+    event.preventDefault();
+    setCompareError(null);
+
+    const parsedQty = Number(quantity);
+    if (!sku.trim()) {
+      setCompareError('SKU is required');
+      return;
+    }
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+      setCompareError('Quantity must be greater than 0');
+      return;
+    }
+
+    setComparing(true);
+    try {
+      const result = await compareBaselines({
+        sku: sku.trim(),
+        quantity: parsedQty,
+        priority,
+      });
+      setCompareResult(result);
+    } catch (err) {
+      setCompareResult(null);
+      setCompareError(err instanceof Error ? err.message : 'Comparison request failed');
+    } finally {
+      setComparing(false);
+    }
   }
 
   const statusStats = useMemo(() => {
@@ -176,6 +220,112 @@ export default function AdminWorkspacePage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
+                <h2 className="text-xl font-semibold">Baseline Comparison</h2>
+                <p className="mt-1 text-sm text-[rgb(var(--muted))]">
+                  Compare greedy and heuristic manual-selection strategies for a SKU.
+                </p>
+
+                <form onSubmit={handleCompare} className="mt-4 grid gap-3 sm:grid-cols-4">
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">SKU</label>
+                    <input
+                      value={sku}
+                      onChange={(e) => setSku(e.target.value)}
+                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                      placeholder="textile-001"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Priority</label>
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value as BaselineComparePriority)}
+                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                    >
+                      <option value="balanced">balanced</option>
+                      <option value="cost">cost</option>
+                      <option value="speed">speed</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={comparing}
+                    className="btn btn-primary text-sm sm:col-span-4"
+                  >
+                    {comparing ? 'Running comparison…' : 'Run Comparison'}
+                  </button>
+                </form>
+
+                {compareError && (
+                  <p className="mt-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                    {compareError}
+                  </p>
+                )}
+
+                {compareResult && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
+                      <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
+                        Greedy (Cost Only)
+                      </p>
+                      <p className="mt-2 text-sm">
+                        Provider: {compareResult.greedy.logistics_provider}
+                      </p>
+                      <p className="text-sm">Manufacturer: {compareResult.greedy.manufacturer}</p>
+                      <p className="text-sm">
+                        Total cost: {compareResult.greedy.total_cost.toFixed(2)}
+                      </p>
+                      <p className="text-sm">
+                        Delivery days: {compareResult.greedy.delivery_days.toFixed(2)}
+                      </p>
+                      <p className="text-sm">
+                        Reliability: {compareResult.greedy.reliability_score.toFixed(3)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
+                      <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
+                        Heuristic (Weighted)
+                      </p>
+                      <p className="mt-2 text-sm">
+                        Provider: {compareResult.heuristic.logistics_provider}
+                      </p>
+                      <p className="text-sm">
+                        Manufacturer: {compareResult.heuristic.manufacturer}
+                      </p>
+                      <p className="text-sm">
+                        Total cost: {compareResult.heuristic.total_cost.toFixed(2)}
+                      </p>
+                      <p className="text-sm">
+                        Delivery days: {compareResult.heuristic.delivery_days.toFixed(2)}
+                      </p>
+                      <p className="text-sm">
+                        Reliability: {compareResult.heuristic.reliability_score.toFixed(3)}
+                      </p>
+                      <p className="text-sm">
+                        Score: {compareResult.heuristic.heuristic_score.toFixed(4)}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

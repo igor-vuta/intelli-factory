@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import Combobox, { type ComboboxOption } from '../../components/Combobox';
 import {
@@ -35,6 +35,10 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
   const [offerIdSelected, setOfferIdSelected] = useState(myOffers[0]?.id ?? '');
   const [deliveryPrice, setDeliveryPrice] = useState('40');
   const [deliveryDays, setDeliveryDays] = useState('3');
+
+  useEffect(() => {
+    setOfferIdSelected(myOffers[0]?.id ?? '');
+  }, [myOffers]);
 
   const offerOptions = useMemo<ComboboxOption[]>(
     () =>
@@ -108,6 +112,12 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {myOffers.length === 0 && (
+            <p className="rounded-lg bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+              No logistics offers are available. Create one first, then return to quoting.
+            </p>
+          )}
+
           <Combobox
             options={offerOptions}
             value={offerIdSelected}
@@ -166,7 +176,11 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
             <button type="button" onClick={onClose} className="btn btn-ghost flex-1 text-sm">
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="btn btn-primary flex-1 text-sm">
+            <button
+              type="submit"
+              disabled={submitting || myOffers.length === 0}
+              className="btn btn-primary flex-1 text-sm"
+            >
               {submitting ? 'Submitting\u2026' : 'Submit Quote'}
             </button>
           </div>
@@ -205,15 +219,15 @@ export default function LogistWorkspacePage() {
   const [reliabilityScore, setReliabilityScore] = useState('0.92');
   const [currencyCode, setCurrencyCode] = useState('USD');
 
-  async function refreshOffers() {
+  const refreshOffers = useCallback(async () => {
     const rows = await listMyLogisticOffers();
     setOffers(rows);
-  }
+  }, []);
 
-  async function refreshFactoryBids() {
+  const refreshFactoryBids = useCallback(async () => {
     const rows = await getFactoryBidsNeedingLogistics();
     setFactoryBids(rows);
-  }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,6 +262,19 @@ export default function LogistWorkspacePage() {
     };
   }, [locale, router]);
 
+  useEffect(() => {
+    if (loading) return;
+
+    const intervalId = window.setInterval(() => {
+      void refreshFactoryBids();
+      void refreshOffers();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loading, refreshFactoryBids, refreshOffers]);
+
   async function handleLogout() {
     await logout();
     await router.push(`/login?lang=${locale}`);
@@ -262,6 +289,8 @@ export default function LogistWorkspacePage() {
     const parsedReliability = Number(reliabilityScore);
     const parsedDaysMin = Number(estimatedDaysMin);
     const parsedDaysMax = Number(estimatedDaysMax);
+    const parsedPricePerKm = Number(pricePerKm);
+    const parsedPricePerKg = Number(pricePerKg);
 
     if (!title.trim()) {
       setError('Title is required');
@@ -271,12 +300,32 @@ export default function LogistWorkspacePage() {
       setError('Base price must be \u2265 0');
       return;
     }
+    if (!Number.isFinite(parsedPricePerKm) || parsedPricePerKm < 0) {
+      setError('Price per km must be \u2265 0');
+      return;
+    }
+    if (!Number.isFinite(parsedPricePerKg) || parsedPricePerKg < 0) {
+      setError('Price per kg must be \u2265 0');
+      return;
+    }
     if (!Number.isFinite(parsedReliability) || parsedReliability < 0 || parsedReliability > 1) {
       setError('Reliability must be 0\u20131');
       return;
     }
+    if (!Number.isFinite(parsedDaysMin) || parsedDaysMin < 1) {
+      setError('Min days must be \u2265 1');
+      return;
+    }
+    if (!Number.isFinite(parsedDaysMax) || parsedDaysMax < 1) {
+      setError('Max days must be \u2265 1');
+      return;
+    }
     if (parsedDaysMin > parsedDaysMax) {
       setError('Min days cannot exceed max days');
+      return;
+    }
+    if (!currencyCode) {
+      setError('Select a currency');
       return;
     }
 
@@ -286,8 +335,8 @@ export default function LogistWorkspacePage() {
         title: title.trim(),
         description: description.trim() || undefined,
         base_price: parsedBasePrice,
-        price_per_km: Number(pricePerKm),
-        price_per_kg: Number(pricePerKg),
+        price_per_km: parsedPricePerKm,
+        price_per_kg: parsedPricePerKg,
         estimated_days_min: parsedDaysMin,
         estimated_days_max: parsedDaysMax,
         reliability_score: parsedReliability,
@@ -295,6 +344,7 @@ export default function LogistWorkspacePage() {
       });
       setSuccess('Logistic offer created');
       await refreshOffers();
+      await refreshFactoryBids();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create offer');
     } finally {
@@ -541,12 +591,19 @@ export default function LogistWorkspacePage() {
                 </div>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || currencies.length === 0}
                   className="btn btn-primary sm:col-span-2 text-sm"
                 >
                   {submitting ? 'Creating\u2026' : 'Add Logistic Offer'}
                 </button>
               </form>
+
+              {currencies.length === 0 && (
+                <p className="mt-3 rounded-lg bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+                  No currencies available in bootstrap data. Registration and quoting require at
+                  least one currency.
+                </p>
+              )}
 
               {offers.length > 0 && (
                 <div className="mt-6 overflow-x-auto">

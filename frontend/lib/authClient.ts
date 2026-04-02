@@ -138,6 +138,26 @@ export type LogisticOfferItem = {
   created_at: string;
 };
 
+export type BaselineComparePriority = 'balanced' | 'cost' | 'speed';
+
+export type BaselineResult = {
+  strategy: 'greedy' | 'heuristic';
+  manufacturer: string;
+  logistics_provider: string;
+  total_cost: number;
+  delivery_days: number;
+  reliability_score: number;
+  heuristic_score: number;
+};
+
+export type BaselineCompareResponse = {
+  status: string;
+  sku: string;
+  quantity: number;
+  greedy: BaselineResult;
+  heuristic: BaselineResult;
+};
+
 const apiBase = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -353,4 +373,15 @@ export function selectCandidate(candidateId: string) {
       body: JSON.stringify({ candidate_id: candidateId }),
     }
   );
+}
+
+export function compareBaselines(payload: {
+  sku: string;
+  quantity: number;
+  priority: BaselineComparePriority;
+}) {
+  return request<BaselineCompareResponse>('/comparison/baselines', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import Combobox, { type ComboboxOption } from '../../components/Combobox';
 import SearchableInput from '../../components/SearchableInput';
@@ -36,21 +36,31 @@ const STATUS_COLOR: Record<string, string> = {
 
 type ProposalsModalProps = {
   requestId: string;
+  requestStatus: string;
   candidates: MatchCandidate[];
   loadingCandidates: boolean;
+  loadError: string | null;
+  onRefresh: () => Promise<void>;
   onClose: () => void;
   onSelected: () => Promise<void>;
 };
 
 function ProposalsModal({
   requestId,
+  requestStatus,
   candidates,
   loadingCandidates,
+  loadError,
+  onRefresh,
   onClose,
   onSelected,
 }: ProposalsModalProps) {
   const [selecting, setSelecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const acceptedCandidate = useMemo(
+    () => candidates.find((c) => c.status === 'ACCEPTED'),
+    [candidates]
+  );
 
   async function handleSelect(candidateId: string) {
     setError(null);
@@ -81,24 +91,47 @@ function ProposalsModal({
               Request {requestId.slice(0, 8)}… &mdash; Select the best offer.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void onRefresh()}
+              className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 text-xs text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/20"
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {error && (
           <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
         )}
 
+        {loadError && (
+          <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            {loadError}
+          </p>
+        )}
+
+        {acceptedCandidate && (
+          <p className="mb-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+            A proposal is already selected for this request.
+          </p>
+        )}
+
         {loadingCandidates ? (
           <p className="text-sm text-[rgb(var(--muted))]">Loading proposals…</p>
         ) : candidates.length === 0 ? (
           <p className="text-sm text-[rgb(var(--muted))]">
-            No complete proposals yet. Factories have bid but logistics quotes are pending.
+            {requestStatus === 'MATCHED'
+              ? 'Request is matched, but no proposal rows were returned. Try refresh.'
+              : 'No complete proposals yet. Factories have bid but logistics quotes are pending.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -145,11 +178,18 @@ function ProposalsModal({
                       <td className="py-2">
                         <button
                           type="button"
-                          disabled={selecting === c.id}
+                          disabled={
+                            selecting === c.id ||
+                            (acceptedCandidate != null && acceptedCandidate.id !== c.id)
+                          }
                           onClick={() => void handleSelect(c.id)}
                           className="rounded-md border border-emerald-700/60 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-50"
                         >
-                          {selecting === c.id ? 'Selecting…' : 'Select'}
+                          {c.status === 'ACCEPTED'
+                            ? 'Selected'
+                            : selecting === c.id
+                              ? 'Selecting…'
+                              : 'Select'}
                         </button>
                       </td>
                     </tr>
@@ -425,23 +465,31 @@ export default function CustomerWorkspacePage() {
   const [proposalsRequestId, setProposalsRequestId] = useState<string | null>(null);
   const [candidatesMap, setCandidatesMap] = useState<Record<string, MatchCandidate[]>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [proposalsError, setProposalsError] = useState<string | null>(null);
+
+  const refreshRequests = useCallback(async () => {
+    const rows = await listRequests();
+    setRequests(rows);
+  }, []);
+
+  const refreshCandidatesForRequest = useCallback(async (requestId: string) => {
+    try {
+      setProposalsError(null);
+      const rows = await listCandidatesForRequest(requestId);
+      setCandidatesMap((prev) => ({ ...prev, [requestId]: rows }));
+    } catch (err) {
+      setProposalsError(err instanceof Error ? err.message : 'Failed to load proposals');
+    }
+  }, []);
 
   async function openProposals(requestId: string) {
     setProposalsRequestId(requestId);
-    if (!candidatesMap[requestId]) {
-      setLoadingCandidates(true);
-      try {
-        const rows = await listCandidatesForRequest(requestId);
-        setCandidatesMap((prev) => ({ ...prev, [requestId]: rows }));
-      } finally {
-        setLoadingCandidates(false);
-      }
+    setLoadingCandidates(true);
+    try {
+      await refreshCandidatesForRequest(requestId);
+    } finally {
+      setLoadingCandidates(false);
     }
-  }
-
-  async function refreshRequests() {
-    const rows = await listRequests();
-    setRequests(rows);
   }
 
   useEffect(() => {
@@ -479,6 +527,21 @@ export default function CustomerWorkspacePage() {
       cancelled = true;
     };
   }, [locale, router]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const intervalId = window.setInterval(() => {
+      void refreshRequests();
+      if (proposalsRequestId) {
+        void refreshCandidatesForRequest(proposalsRequestId);
+      }
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loading, proposalsRequestId, refreshCandidatesForRequest, refreshRequests]);
 
   async function handleLogout() {
     await logout();
@@ -654,6 +717,7 @@ export default function CustomerWorkspacePage() {
           candidates={candidatesMap[proposalsRequestId] ?? []}
           loadingCandidates={loadingCandidates}
           onClose={() => setProposalsRequestId(null)}
+          requestStatus={requests.find((row) => row.id === proposalsRequestId)?.status ?? 'PENDING'}
           onSelected={async () => {
             await refreshRequests();
             setCandidatesMap((prev) => {
@@ -661,6 +725,16 @@ export default function CustomerWorkspacePage() {
               delete next[proposalsRequestId];
               return next;
             });
+          }}
+          loadError={proposalsError}
+          onRefresh={async () => {
+            if (!proposalsRequestId) return;
+            setLoadingCandidates(true);
+            try {
+              await refreshCandidatesForRequest(proposalsRequestId);
+            } finally {
+              setLoadingCandidates(false);
+            }
           }}
         />
       )}
