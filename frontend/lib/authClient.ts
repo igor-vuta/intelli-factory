@@ -158,6 +158,33 @@ export type BaselineCompareResponse = {
   heuristic: BaselineResult;
 };
 
+export type ComparisonCatalogResponse = {
+  status: string;
+  skus: string[];
+  priorities: BaselineComparePriority[];
+  destinations: string[];
+};
+
+export type OptimizePriority = 'balanced' | 'cost' | 'speed';
+
+export type OptimizeSolution = {
+  rank: number;
+  manufacturer: string;
+  logistics_provider: string;
+  total_cost: number;
+  delivery_days: number;
+  reliability_score: number;
+  fitness_score: number;
+};
+
+export type OptimizeResponse = {
+  status: string;
+  order_id?: string;
+  solutions?: OptimizeSolution[];
+  error_code?: string;
+  message?: string;
+};
+
 const apiBase = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -381,6 +408,22 @@ export function compareBaselines(payload: {
   priority: BaselineComparePriority;
 }) {
   return request<BaselineCompareResponse>('/comparison/baselines', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getComparisonCatalog() {
+  return request<ComparisonCatalogResponse>('/comparison/catalog');
+}
+
+export function optimizeSupply(payload: {
+  sku: string;
+  destination: string;
+  quantity: number;
+  priority: OptimizePriority;
+}) {
+  return request<OptimizeResponse>('/automations/optimize', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

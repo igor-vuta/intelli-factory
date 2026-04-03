@@ -5,11 +5,15 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 import {
   compareBaselines,
+  getComparisonCatalog,
   listRequests,
   logout,
   me,
   type BaselineComparePriority,
   type BaselineCompareResponse,
+  optimizeSupply,
+  type OptimizePriority,
+  type OptimizeSolution,
   type RequestSummary,
 } from '../../lib/authClient';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
@@ -24,12 +28,16 @@ export default function AdminWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestSummary[]>([]);
-  const [sku, setSku] = useState('textile-001');
+  const [availableSkus, setAvailableSkus] = useState<string[]>([]);
+  const [availableDestinations, setAvailableDestinations] = useState<string[]>([]);
+  const [sku, setSku] = useState('');
+  const [destination, setDestination] = useState('');
   const [quantity, setQuantity] = useState('100');
   const [priority, setPriority] = useState<BaselineComparePriority>('balanced');
   const [comparing, setComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [compareResult, setCompareResult] = useState<BaselineCompareResponse | null>(null);
+  const [optimizerResult, setOptimizerResult] = useState<OptimizeSolution | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,8 +52,16 @@ export default function AdminWorkspacePage() {
           return;
         }
 
-        const rows = await listRequests();
-        if (!cancelled) setRequests(rows);
+        const [rows, catalog] = await Promise.all([listRequests(), getComparisonCatalog()]);
+        if (!cancelled) {
+          setRequests(rows);
+          setAvailableSkus(catalog.skus);
+          setAvailableDestinations(catalog.destinations);
+          setSku((prev) => (prev && catalog.skus.includes(prev) ? prev : (catalog.skus[0] ?? '')));
+          setDestination((prev) =>
+            prev && catalog.destinations.includes(prev) ? prev : (catalog.destinations[0] ?? '')
+          );
+        }
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -78,6 +94,10 @@ export default function AdminWorkspacePage() {
       setCompareError('SKU is required');
       return;
     }
+    if (!destination.trim()) {
+      setCompareError('Destination is required');
+      return;
+    }
     if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
       setCompareError('Quantity must be greater than 0');
       return;
@@ -85,14 +105,30 @@ export default function AdminWorkspacePage() {
 
     setComparing(true);
     try {
-      const result = await compareBaselines({
-        sku: sku.trim(),
-        quantity: parsedQty,
-        priority,
-      });
-      setCompareResult(result);
+      const [baseline, optimized] = await Promise.all([
+        compareBaselines({
+          sku: sku.trim(),
+          quantity: parsedQty,
+          priority,
+        }),
+        optimizeSupply({
+          sku: sku.trim(),
+          destination: destination.trim(),
+          quantity: parsedQty,
+          priority: priority as OptimizePriority,
+        }),
+      ]);
+
+      const bestSolution = optimized.solutions?.[0];
+      if (!bestSolution) {
+        throw new Error('Optimizer returned no solutions for this input');
+      }
+
+      setCompareResult(baseline);
+      setOptimizerResult(bestSolution);
     } catch (err) {
       setCompareResult(null);
+      setOptimizerResult(null);
       setCompareError(err instanceof Error ? err.message : 'Comparison request failed');
     } finally {
       setComparing(false);
@@ -119,6 +155,52 @@ export default function AdminWorkspacePage() {
 
     return summary;
   }, [requests]);
+
+  const comparisonRows = useMemo(() => {
+    if (!compareResult) return [];
+
+    const rows = [
+      {
+        label: 'Greedy',
+        total_cost: compareResult.greedy.total_cost,
+        delivery_days: compareResult.greedy.delivery_days,
+        reliability_score: compareResult.greedy.reliability_score,
+      },
+      {
+        label: 'Heuristic',
+        total_cost: compareResult.heuristic.total_cost,
+        delivery_days: compareResult.heuristic.delivery_days,
+        reliability_score: compareResult.heuristic.reliability_score,
+      },
+    ];
+
+    if (optimizerResult) {
+      rows.push({
+        label: 'Optimizer',
+        total_cost: optimizerResult.total_cost,
+        delivery_days: optimizerResult.delivery_days,
+        reliability_score: optimizerResult.reliability_score,
+      });
+    }
+
+    return rows;
+  }, [compareResult, optimizerResult]);
+
+  const winners = useMemo(() => {
+    if (comparisonRows.length === 0) return null;
+
+    const byCost = [...comparisonRows].sort((a, b) => a.total_cost - b.total_cost)[0];
+    const bySpeed = [...comparisonRows].sort((a, b) => a.delivery_days - b.delivery_days)[0];
+    const byReliability = [...comparisonRows].sort(
+      (a, b) => b.reliability_score - a.reliability_score
+    )[0];
+
+    return {
+      byCost,
+      bySpeed,
+      byReliability,
+    };
+  }, [comparisonRows]);
 
   return (
     <main
@@ -225,19 +307,50 @@ export default function AdminWorkspacePage() {
               <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
                 <h2 className="text-xl font-semibold">Baseline Comparison</h2>
                 <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                  Compare greedy and heuristic manual-selection strategies for a SKU.
+                  Compare greedy, heuristic, and DEAP optimizer outputs side-by-side.
                 </p>
 
                 <form onSubmit={handleCompare} className="mt-4 grid gap-3 sm:grid-cols-4">
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="mb-1 block text-xs text-[rgb(var(--muted))]">SKU</label>
-                    <input
+                    <select
                       value={sku}
                       onChange={(e) => setSku(e.target.value)}
                       className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                      placeholder="textile-001"
                       required
-                    />
+                    >
+                      {availableSkus.length === 0 ? (
+                        <option value="">No SKUs available</option>
+                      ) : (
+                        availableSkus.map((entry) => (
+                          <option key={entry} value={entry}>
+                            {entry}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
+                      Destination
+                    </label>
+                    <select
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                      required
+                    >
+                      {availableDestinations.length === 0 ? (
+                        <option value="">No destinations available</option>
+                      ) : (
+                        availableDestinations.map((entry) => (
+                          <option key={entry} value={entry}>
+                            {entry}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </div>
 
                   <div>
@@ -267,12 +380,25 @@ export default function AdminWorkspacePage() {
 
                   <button
                     type="submit"
-                    disabled={comparing}
+                    disabled={
+                      comparing ||
+                      availableSkus.length === 0 ||
+                      availableDestinations.length === 0 ||
+                      !sku ||
+                      !destination
+                    }
                     className="btn btn-primary text-sm sm:col-span-4"
                   >
                     {comparing ? 'Running comparison…' : 'Run Comparison'}
                   </button>
                 </form>
+
+                {(availableSkus.length === 0 || availableDestinations.length === 0) && (
+                  <p className="mt-3 rounded-lg bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+                    Comparison catalog is not available from backend. Verify /api/comparison/catalog
+                    is reachable.
+                  </p>
+                )}
 
                 {compareError && (
                   <p className="mt-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
@@ -281,50 +407,95 @@ export default function AdminWorkspacePage() {
                 )}
 
                 {compareResult && (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                      <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
-                        Greedy (Cost Only)
-                      </p>
-                      <p className="mt-2 text-sm">
-                        Provider: {compareResult.greedy.logistics_provider}
-                      </p>
-                      <p className="text-sm">Manufacturer: {compareResult.greedy.manufacturer}</p>
-                      <p className="text-sm">
-                        Total cost: {compareResult.greedy.total_cost.toFixed(2)}
-                      </p>
-                      <p className="text-sm">
-                        Delivery days: {compareResult.greedy.delivery_days.toFixed(2)}
-                      </p>
-                      <p className="text-sm">
-                        Reliability: {compareResult.greedy.reliability_score.toFixed(3)}
-                      </p>
-                    </div>
+                  <>
+                    {winners && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                        <p className="rounded-lg border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
+                          Lowest cost:{' '}
+                          <span className="text-[rgb(var(--text))]">{winners.byCost.label}</span>
+                        </p>
+                        <p className="rounded-lg border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
+                          Fastest delivery:{' '}
+                          <span className="text-[rgb(var(--text))]">{winners.bySpeed.label}</span>
+                        </p>
+                        <p className="rounded-lg border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
+                          Best reliability:{' '}
+                          <span className="text-[rgb(var(--text))]">
+                            {winners.byReliability.label}
+                          </span>
+                        </p>
+                      </div>
+                    )}
 
-                    <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                      <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
-                        Heuristic (Weighted)
-                      </p>
-                      <p className="mt-2 text-sm">
-                        Provider: {compareResult.heuristic.logistics_provider}
-                      </p>
-                      <p className="text-sm">
-                        Manufacturer: {compareResult.heuristic.manufacturer}
-                      </p>
-                      <p className="text-sm">
-                        Total cost: {compareResult.heuristic.total_cost.toFixed(2)}
-                      </p>
-                      <p className="text-sm">
-                        Delivery days: {compareResult.heuristic.delivery_days.toFixed(2)}
-                      </p>
-                      <p className="text-sm">
-                        Reliability: {compareResult.heuristic.reliability_score.toFixed(3)}
-                      </p>
-                      <p className="text-sm">
-                        Score: {compareResult.heuristic.heuristic_score.toFixed(4)}
-                      </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
+                        <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
+                          Greedy (Cost Only)
+                        </p>
+                        <p className="mt-2 text-sm">
+                          Provider: {compareResult.greedy.logistics_provider}
+                        </p>
+                        <p className="text-sm">Manufacturer: {compareResult.greedy.manufacturer}</p>
+                        <p className="text-sm">
+                          Total cost: {compareResult.greedy.total_cost.toFixed(2)}
+                        </p>
+                        <p className="text-sm">
+                          Delivery days: {compareResult.greedy.delivery_days.toFixed(2)}
+                        </p>
+                        <p className="text-sm">
+                          Reliability: {compareResult.greedy.reliability_score.toFixed(3)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
+                        <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
+                          Heuristic (Weighted)
+                        </p>
+                        <p className="mt-2 text-sm">
+                          Provider: {compareResult.heuristic.logistics_provider}
+                        </p>
+                        <p className="text-sm">
+                          Manufacturer: {compareResult.heuristic.manufacturer}
+                        </p>
+                        <p className="text-sm">
+                          Total cost: {compareResult.heuristic.total_cost.toFixed(2)}
+                        </p>
+                        <p className="text-sm">
+                          Delivery days: {compareResult.heuristic.delivery_days.toFixed(2)}
+                        </p>
+                        <p className="text-sm">
+                          Reliability: {compareResult.heuristic.reliability_score.toFixed(3)}
+                        </p>
+                        <p className="text-sm">
+                          Score: {compareResult.heuristic.heuristic_score.toFixed(4)}
+                        </p>
+                      </div>
+
+                      {optimizerResult && (
+                        <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
+                          <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
+                            Evolutionary (DEAP Optimize)
+                          </p>
+                          <p className="mt-2 text-sm">
+                            Provider: {optimizerResult.logistics_provider}
+                          </p>
+                          <p className="text-sm">Manufacturer: {optimizerResult.manufacturer}</p>
+                          <p className="text-sm">
+                            Total cost: {optimizerResult.total_cost.toFixed(2)}
+                          </p>
+                          <p className="text-sm">
+                            Delivery days: {optimizerResult.delivery_days.toFixed(2)}
+                          </p>
+                          <p className="text-sm">
+                            Reliability: {optimizerResult.reliability_score.toFixed(3)}
+                          </p>
+                          <p className="text-sm">
+                            Fitness: {optimizerResult.fitness_score.toFixed(3)}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </>

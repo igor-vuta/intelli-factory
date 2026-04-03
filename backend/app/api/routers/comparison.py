@@ -40,6 +40,13 @@ class BaselineCompareResponse(BaseModel):
     heuristic: BaselineResult
 
 
+class ComparisonCatalogResponse(BaseModel):
+    status: str
+    skus: list[str]
+    priorities: list[Priority]
+    destinations: list[str]
+
+
 def _evaluate_option(sku: str, quantity: int, logistics_provider: str) -> dict[str, float | str]:
     product = PRODUCTS[sku]
     manufacturer = product["manufacturer"]
@@ -129,4 +136,16 @@ async def compare_baselines(payload: BaselineCompareRequest):
         quantity=payload.quantity,
         greedy=BaselineResult(strategy="greedy", **greedy),
         heuristic=BaselineResult(strategy="heuristic", **heuristic),
+    )
+
+
+@router.get("/catalog", response_model=ComparisonCatalogResponse)
+async def comparison_catalog():
+    # Keep the frontend aligned with the same SKU universe used by both
+    # comparison baselines and optimizer mock data.
+    return ComparisonCatalogResponse(
+        status="success",
+        skus=sorted(PRODUCTS.keys()),
+        priorities=["balanced", "cost", "speed"],
+        destinations=["almaty"],
     )

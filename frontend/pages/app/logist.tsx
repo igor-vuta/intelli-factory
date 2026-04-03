@@ -44,7 +44,7 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
     () =>
       myOffers.map((o) => ({
         id: o.id,
-        label: `${o.title} \u2014 base ${o.base_price} ${o.currency_code}`,
+        label: `${o.title} - base ${o.base_price} ${o.currency_code}`,
       })),
     [myOffers]
   );
@@ -59,11 +59,11 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
       return;
     }
     if (!Number.isFinite(dp) || dp < 0) {
-      setError('Delivery price must be \u2265 0');
+      setError('Delivery price must be >= 0');
       return;
     }
     if (!Number.isFinite(dd) || dd < 1) {
-      setError('Delivery days must be \u2265 1');
+      setError('Delivery days must be >= 1');
       return;
     }
 
@@ -97,8 +97,8 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
           <div>
             <h2 className="text-lg font-semibold">Quote Delivery</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Factory: {bid.factory_legal_name ?? 'N/A'} \u2014 Item: {bid.item_name ?? 'N/A'}
-              {' \u2014 '}
+              Factory: {bid.factory_legal_name ?? 'N/A'} - Item: {bid.item_name ?? 'N/A'}
+              {' - '}
               {bid.quoted_quantity} units @ {bid.inventory_price_per_unit} {bid.currency_code}
             </p>
           </div>
@@ -181,7 +181,7 @@ function QuoteModal({ bid, myOffers, onClose, onQuoted }: QuoteModalProps) {
               disabled={submitting || myOffers.length === 0}
               className="btn btn-primary flex-1 text-sm"
             >
-              {submitting ? 'Submitting\u2026' : 'Submit Quote'}
+              {submitting ? 'Submitting...' : 'Submit Quote'}
             </button>
           </div>
         </form>
@@ -297,27 +297,27 @@ export default function LogistWorkspacePage() {
       return;
     }
     if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
-      setError('Base price must be \u2265 0');
+      setError('Base price must be >= 0');
       return;
     }
     if (!Number.isFinite(parsedPricePerKm) || parsedPricePerKm < 0) {
-      setError('Price per km must be \u2265 0');
+      setError('Price per km must be >= 0');
       return;
     }
     if (!Number.isFinite(parsedPricePerKg) || parsedPricePerKg < 0) {
-      setError('Price per kg must be \u2265 0');
+      setError('Price per kg must be >= 0');
       return;
     }
     if (!Number.isFinite(parsedReliability) || parsedReliability < 0 || parsedReliability > 1) {
-      setError('Reliability must be 0\u20131');
+      setError('Reliability must be 0-1');
       return;
     }
     if (!Number.isFinite(parsedDaysMin) || parsedDaysMin < 1) {
-      setError('Min days must be \u2265 1');
+      setError('Min days must be >= 1');
       return;
     }
     if (!Number.isFinite(parsedDaysMax) || parsedDaysMax < 1) {
-      setError('Max days must be \u2265 1');
+      setError('Max days must be >= 1');
       return;
     }
     if (parsedDaysMin > parsedDaysMax) {
@@ -594,7 +594,7 @@ export default function LogistWorkspacePage() {
                   disabled={submitting || currencies.length === 0}
                   className="btn btn-primary sm:col-span-2 text-sm"
                 >
-                  {submitting ? 'Creating\u2026' : 'Add Logistic Offer'}
+                  {submitting ? 'Creating...' : 'Add Logistic Offer'}
                 </button>
               </form>
 
@@ -628,7 +628,7 @@ export default function LogistWorkspacePage() {
                             {o.base_price} {o.currency_code}
                           </td>
                           <td className="py-2 pr-3">
-                            {o.estimated_days_min ?? '-'}\u2013{o.estimated_days_max ?? '-'}
+                            {o.estimated_days_min ?? '-'}-{o.estimated_days_max ?? '-'}
                           </td>
                           <td className="py-2 pr-3">{o.reliability_score}</td>
                           <td className="py-2">{o.status}</td>

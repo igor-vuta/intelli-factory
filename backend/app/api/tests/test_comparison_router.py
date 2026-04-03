@@ -58,3 +58,22 @@ async def test_compare_baselines_rejects_unknown_sku():
 
     assert response.status_code == 400
     assert "not found" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_comparison_catalog_exposes_supported_values():
+    app = FastAPI()
+    app.include_router(comparison_router.router, prefix="/api/comparison")
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/api/comparison/catalog")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    assert "textile-001" in payload["skus"]
+    assert payload["priorities"] == ["balanced", "cost", "speed"]
+    assert "almaty" in payload["destinations"]
