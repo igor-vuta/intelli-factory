@@ -14,7 +14,10 @@ import {
 import { getLocaleFromQuery, supportedLocales, t } from '../lib/i18n';
 import { THEME_CLASSES, type Theme } from '../styles/themePresets';
 
-const roles: { value: UserRole; label: string }[] = [
+const roles: {
+  value: UserRole;
+  label: string;
+}[] = [
   { value: 'CUSTOMER', label: 'Customer' },
   { value: 'FACTORY', label: 'Factory' },
   { value: 'LOGIST', label: 'Logist' },

@@ -365,7 +365,10 @@ export function getOpenRequests() {
 }
 
 export function createFactoryBid(payload: FactoryBidPayload) {
-  return request<{ status: string; candidate_id: string }>('/pairing/factory-bids', {
+  return request<{
+    status: string;
+    candidate_id: string;
+  }>('/pairing/factory-bids', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -381,7 +384,10 @@ export function getFactoryBidsNeedingLogistics() {
 }
 
 export function createLogistQuote(payload: LogistQuotePayload) {
-  return request<{ status: string; candidate_id: string }>('/pairing/logist-quotes', {
+  return request<{
+    status: string;
+    candidate_id: string;
+  }>('/pairing/logist-quotes', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -393,13 +399,16 @@ export function listCandidatesForRequest(requestId: string) {
 }
 
 export function selectCandidate(candidateId: string) {
-  return request<{ status: string; transaction_id: string; message: string }>(
-    '/pairing/select-candidate',
-    {
-      method: 'POST',
-      body: JSON.stringify({ candidate_id: candidateId }),
-    }
-  );
+  return request<{
+    status: string;
+    transaction_id: string;
+    message: string;
+  }>('/pairing/select-candidate', {
+    method: 'POST',
+    body: JSON.stringify({
+      candidate_id: candidateId,
+    }),
+  });
 }
 
 export function compareBaselines(payload: {

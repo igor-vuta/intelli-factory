@@ -308,7 +308,11 @@ export default function FactoryWorkspacePage() {
     [categories]
   );
   const categoryOptions = useMemo<ComboboxOption[]>(
-    () => categories.map((c) => ({ id: c.id, label: c.name })),
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        label: c.name,
+      })),
     [categories]
   );
   const itemSuggestions = useMemo<ComboboxOption[]>(() => {

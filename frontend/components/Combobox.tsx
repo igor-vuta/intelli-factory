@@ -119,7 +119,12 @@ export default function Combobox({
             <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl">
               {allowEmpty && (
                 <li
-                  onMouseDown={() => handleSelect({ id: '', label: '' })}
+                  onMouseDown={() =>
+                    handleSelect({
+                      id: '',
+                      label: '',
+                    })
+                  }
                   className="cursor-pointer px-3 py-2 text-sm text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/30"
                 >
                   — None

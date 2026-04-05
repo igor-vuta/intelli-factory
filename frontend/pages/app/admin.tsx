@@ -289,7 +289,8 @@ export default function AdminWorkspacePage() {
                       <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
                         <td className="py-2 pr-3 font-mono text-xs">{row.id.slice(0, 8)}...</td>
                         <td className="py-2 pr-3 font-mono text-xs">
-                          {row.customer_profile_id.slice(0, 8)}...
+                          {row.customer_profile_id.slice(0, 8)}
+                          ...
                         </td>
                         <td className="py-2 pr-3">
                           {row.requested_name_text || row.item_id || 'N/A'}

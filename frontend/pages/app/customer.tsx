@@ -236,7 +236,11 @@ function NewRequestModal({
   const [addressId, setAddressId] = useState(addresses[0]?.id ?? '');
 
   const categoryOptions = useMemo<ComboboxOption[]>(
-    () => categories.map((c) => ({ id: c.id, label: c.name })),
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        label: c.name,
+      })),
     [categories]
   );
 
@@ -476,7 +480,10 @@ export default function CustomerWorkspacePage() {
     try {
       setProposalsError(null);
       const rows = await listCandidatesForRequest(requestId);
-      setCandidatesMap((prev) => ({ ...prev, [requestId]: rows }));
+      setCandidatesMap((prev) => ({
+        ...prev,
+        [requestId]: rows,
+      }));
     } catch (err) {
       setProposalsError(err instanceof Error ? err.message : 'Failed to load proposals');
     }
@@ -646,7 +653,8 @@ export default function CustomerWorkspacePage() {
                       {requests.map((row) => (
                         <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
                           <td className="py-2 pr-4 font-mono text-xs">
-                            {row.id.slice(0, 8)}\u2026
+                            {row.id.slice(0, 8)}
+                            \u2026
                           </td>
                           <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
                             {row.category_name ?? '\u2014'}

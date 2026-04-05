@@ -18,7 +18,10 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Unhandled UI error', { error, errorInfo });
+    console.error('Unhandled UI error', {
+      error,
+      errorInfo,
+    });
   }
 
   handleReload = () => {

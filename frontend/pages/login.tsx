@@ -42,7 +42,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const auth = await login({ email, password });
+      const auth = await login({
+        email,
+        password,
+      });
       setSuccess(copy.successLogin);
       setTimeout(() => {
         void router.push(`${routeByRole(auth.user.role)}?lang=${locale}`);
