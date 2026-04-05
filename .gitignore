@@ -5,7 +5,7 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Node/Next
+# Next
 node_modules/
 .next/
 .next/cache/
@@ -34,6 +34,9 @@ secure-keys/
 # Local test cookie artifacts
 backend/app/api/cookies*.txt
 
-# Markdown policy: only README can be committed
+# Only README file is committed
 *.md
 !README.md
+
+# List of all project files
+file-list.txt
