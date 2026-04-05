@@ -40,3 +40,5 @@ backend/app/api/cookies*.txt
 
 # List of all project files
 file-list.txt
+# TypeScript incremental build cache
+*.tsbuildinfo
