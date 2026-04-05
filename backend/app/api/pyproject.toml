@@ -17,6 +17,7 @@ numpy = "^1.24.0"
 pydantic = "^2.5.0"
 python-multipart = "^0.0.6"
 slowapi = "^0.1.9"
+argon2-cffi = "^23.1.0"
 
 [tool.mypy]
 python_version = "3.12"

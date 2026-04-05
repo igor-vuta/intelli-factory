@@ -14,6 +14,8 @@ from typing import Literal
 from urllib import request as urllib_request
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from prisma.engine.errors import AlreadyConnectedError, BinaryNotFoundError
 from pydantic import BaseModel, Field
 
@@ -24,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Guard: attempt prisma py fetch at most once per process lifetime
 _binary_fetch_attempted = False
 _binary_fetch_lock = asyncio.Lock()
+_argon2_hasher = PasswordHasher()
 
 
 async def _fetch_prisma_binary_once() -> None:
@@ -494,25 +497,40 @@ def _hash_token(value: str) -> str:
 
 
 def _hash_password(password: str) -> str:
-    password_bytes = password.encode("utf-8")
-    salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password_bytes, salt, 600_000)
-    return f"pbkdf2_sha256${salt.hex()}${digest.hex()}"
+    return _argon2_hasher.hash(password)
 
 
-def _verify_password(password: str, encoded: str) -> bool:
+def _verify_password_and_upgrade(password: str, encoded: str) -> tuple[bool, str | None]:
+    if encoded.startswith("$argon2"):
+        try:
+            verified = _argon2_hasher.verify(encoded, password)
+        except (VerifyMismatchError, InvalidHashError):
+            return False, None
+
+        if not verified:
+            return False, None
+
+        if _argon2_hasher.check_needs_rehash(encoded):
+            return True, _hash_password(password)
+
+        return True, None
+
+    # Backward-compatible verification for existing PBKDF2 hashes.
     try:
         algorithm, salt_hex, digest_hex = encoded.split("$", 2)
     except ValueError:
-        return False
+        return False, None
 
     if algorithm != "pbkdf2_sha256":
-        return False
+        return False, None
 
     salt = bytes.fromhex(salt_hex)
     expected_digest = bytes.fromhex(digest_hex)
     candidate_digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 600_000)
-    return secrets.compare_digest(candidate_digest, expected_digest)
+    if not secrets.compare_digest(candidate_digest, expected_digest):
+        return False, None
+
+    return True, _hash_password(password)
 
 
 async def _create_role_profile(
@@ -530,7 +548,7 @@ async def _create_role_profile(
                 "display_name": display_name,
                 "registration_country_code": country_code,
                 "registration_address": address,
-                "preferred_currency": {"connect": {"code": preferred_currency_code}},
+                "preferred_currency_code": preferred_currency_code,
             }
         )
         return
@@ -542,7 +560,7 @@ async def _create_role_profile(
                 "legal_name": display_name,
                 "registration_country_code": country_code,
                 "registration_address": address,
-                "preferred_currency": {"connect": {"code": preferred_currency_code}},
+                "preferred_currency_code": preferred_currency_code,
             }
         )
         return
@@ -554,7 +572,7 @@ async def _create_role_profile(
                 "company_name": display_name,
                 "registration_country_code": country_code,
                 "registration_address": address,
-                "preferred_currency": {"connect": {"code": preferred_currency_code}},
+                "preferred_currency_code": preferred_currency_code,
             }
         )
         return
@@ -866,8 +884,12 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         logger.info(f"Login attempt with invalid credentials for: {normalized_email}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    # Verify password
-    if not _verify_password(payload.password, user.password_hash):
+    # Verify password (supports legacy PBKDF2 and transparently migrates to Argon2).
+    password_valid, upgraded_password_hash = _verify_password_and_upgrade(
+        payload.password,
+        user.password_hash,
+    )
+    if not password_valid:
         # Record failed attempt
         await _record_login_attempt(
             normalized_email,
@@ -877,6 +899,12 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         )
         logger.info(f"Login attempt with wrong password for: {normalized_email}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    if upgraded_password_hash is not None:
+        await prisma.user.update(
+            where={"id": user.id},
+            data={"password_hash": upgraded_password_hash},
+        )
 
     # Check if email is verified (Phase 1 Discovery Q22 - unverified users restricted)
     if not user.is_email_verified:

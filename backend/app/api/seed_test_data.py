@@ -7,18 +7,17 @@ Run from backend/app/api:
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import secrets
 from decimal import Decimal
 
+from argon2 import PasswordHasher
 from prisma import Prisma
 
 
+_argon2_hasher = PasswordHasher()
+
+
 def _hash_password(password: str) -> str:
-    password_bytes = password.encode("utf-8")
-    salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password_bytes, salt, 600_000)
-    return f"pbkdf2_sha256${salt.hex()}${digest.hex()}"
+    return _argon2_hasher.hash(password)
 
 
 async def _ensure_region(prisma: Prisma, country_id: str, code: str, default_name: str):
