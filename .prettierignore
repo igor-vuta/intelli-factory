@@ -4,3 +4,4 @@ backend/app/api/.ruff_cache
 backend/app/api/__pycache__
 frontend/.next
 node_modules
+frontend/next-env.d.ts
