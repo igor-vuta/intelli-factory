@@ -1,9 +1,3 @@
-"""Seed reference geo data for auth registration and localization.
-
-Run from backend/app/api:
-    poetry run python seed_reference_geo.py
-"""
-
 from prisma import Prisma
 
 COUNTRIES = [

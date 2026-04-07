@@ -120,22 +120,11 @@ model Session {
 }
 
 model LoginAttempt {
-  /// Unique identifier for this login attempt record
   id                String   @id @default(uuid()) @db.Uuid
-  
-  /// Email address of the user attempting to login
   email             String   @db.VarChar(320)
-  
-  /// IP address from which the login attempt originated
   ip_address        String?
-  
-  /// User-Agent header from the login request
   user_agent        String?
-  
-  /// Whether this attempt succeeded
   was_successful    Boolean  @default(false)
-  
-  /// Timestamp when this attempt occurred
   attempted_at      DateTime @default(now())
 
   @@index([email, attempted_at])
@@ -543,16 +532,11 @@ model MatchCandidate {
   id                    String          @id @default(uuid()) @db.Uuid
   request_id            String          @db.Uuid
   inventory_entry_id    String          @db.Uuid
-  logistic_offer_id     String?         @db.Uuid   // null = factory bid only, awaiting logist quote
-
-  /// Quantity factory is offering for this specific request
+  logistic_offer_id     String?         @db.Uuid
   quoted_quantity       Decimal?        @db.Decimal(18, 4)
-  /// Optional note from the factory
   factory_note          String?
-  /// Logistics delivery cost (null until logist quotes)
   delivery_price        Decimal?        @db.Decimal(18, 4)
 
-  /// Total cost (goods + delivery). Null until logist quotes.
   total_cost            Decimal?        @db.Decimal(18, 4)
   delivery_days         Int?
   reliability_score     Float?          @db.DoublePrecision
