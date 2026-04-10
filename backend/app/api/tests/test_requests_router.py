@@ -38,7 +38,7 @@ def _build_base_prisma_mocks():
     fake.currency = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_unique=AsyncMock())
     fake.address = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_first=AsyncMock())
     fake.customerprofile = SimpleNamespace(find_unique=AsyncMock())
-    fake.item = SimpleNamespace(find_first=AsyncMock())
+    fake.item = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_first=AsyncMock())
     fake.request = SimpleNamespace(create=AsyncMock(), find_many=AsyncMock(), find_unique=AsyncMock(), update=AsyncMock())
     fake.factoryprofile = SimpleNamespace(find_unique=AsyncMock())
     fake.inventoryentry = SimpleNamespace(create=AsyncMock(), find_many=AsyncMock())
@@ -89,17 +89,20 @@ async def test_bootstrap_returns_catalog_data(monkeypatch):
 
 @pytest.mark.anyio
 async def test_create_request_success_for_verified_customer(monkeypatch):
+    category_id = "11111111-1111-1111-1111-111111111111"
+    destination_address_id = "22222222-2222-2222-2222-222222222222"
+
     user = SimpleNamespace(id="u1", role="CUSTOMER", is_email_verified=True)
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
     fake_prisma.customerprofile.find_unique = AsyncMock(
-        return_value=SimpleNamespace(id="cp-1", primary_address_id="addr-1")
+        return_value=SimpleNamespace(id="cp-1", primary_address_id=destination_address_id)
     )
     fake_prisma.category.find_first = AsyncMock(
-        return_value=SimpleNamespace(id="cat-1", status="ACTIVE", deleted_at=None)
+        return_value=SimpleNamespace(id=category_id, status="ACTIVE", deleted_at=None)
     )
-    fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id="addr-1"))
+    fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id=destination_address_id))
     fake_prisma.currency.find_unique = AsyncMock(return_value=SimpleNamespace(code="USD"))
     fake_prisma.request.create = AsyncMock(return_value=SimpleNamespace(id="req-1"))
 
@@ -112,10 +115,10 @@ async def test_create_request_success_for_verified_customer(monkeypatch):
         response = await client.post(
             "/api/requests/",
             json={
-                "category_id": "cat-1",
+                    "category_id": category_id,
                 "requested_name_text": "Custom textile batch",
                 "quantity": 100,
-                "destination_address_id": "addr-1",
+                    "destination_address_id": destination_address_id,
                 "preferred_currency_code": "USD",
             },
         )
@@ -155,13 +158,16 @@ async def test_create_request_requires_verified_email(monkeypatch):
 
 @pytest.mark.anyio
 async def test_factory_can_create_inventory_entry(monkeypatch):
+    item_id = "33333333-3333-3333-3333-333333333333"
+    stock_address_id = "44444444-4444-4444-4444-444444444444"
+
     user = SimpleNamespace(id="factory-user", role="FACTORY", is_email_verified=True)
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
     fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1"))
-    fake_prisma.item.find_first = AsyncMock(return_value=SimpleNamespace(id="item-1"))
-    fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id="addr-1"))
+    fake_prisma.item.find_first = AsyncMock(return_value=SimpleNamespace(id=item_id))
+    fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id=stock_address_id))
     fake_prisma.currency.find_unique = AsyncMock(return_value=SimpleNamespace(code="USD"))
     fake_prisma.inventoryentry.create = AsyncMock(return_value=SimpleNamespace(id="inv-1"))
 
@@ -174,8 +180,8 @@ async def test_factory_can_create_inventory_entry(monkeypatch):
         response = await client.post(
             "/api/requests/inventory-entries",
             json={
-                "item_id": "item-1",
-                "stock_address_id": "addr-1",
+                    "item_id": item_id,
+                    "stock_address_id": stock_address_id,
                 "quantity_available": 500,
                 "price_per_unit": 22.5,
                 "currency_code": "USD",
