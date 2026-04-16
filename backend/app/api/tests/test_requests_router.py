@@ -27,6 +27,7 @@ def anyio_backend():
 def _make_app_with_user(user):
     app = FastAPI()
     app.include_router(requests_router.router, prefix="/api/requests")
+    app.dependency_overrides[requests_router._ensure_db_connection] = lambda: None
     app.dependency_overrides[requests_router._require_authenticated_user] = lambda: user
     return app
 

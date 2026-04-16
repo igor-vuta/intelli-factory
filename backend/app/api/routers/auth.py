@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import secrets
 from typing import Literal
@@ -9,9 +8,7 @@ from pydantic import BaseModel, Field
 
 from db import prisma
 from services.auth_constants import (
-    LOGIN_LOCKOUT_DURATION_MINUTES,
     SESSION_COOKIE_NAME,
-    SESSION_TTL_DAYS,
     SESSION_TTL_HOURS,
 )
 from services.auth_db_guard import ensure_db_connection as _ensure_db_connection
@@ -270,37 +267,12 @@ async def verify_email_link(token: str):
 
 @router.post("/login", response_model=AuthStatusResponse)
 async def login(payload: LoginRequest, request: Request, response: Response):
-    """
-    Login endpoint that authenticates a user and creates a session.
-    
-    Security Features:
-    - Password verification with PBKDF2 hashing (600k iterations)
-    - Account lockout after 5 failed attempts within 15 minutes
-    - Session token stored as SHA256 hash only (never stored in plaintext)
-    - HttpOnly, Secure (in production), SameSite=Lax cookie
-    - User-Agent binding for session validation
-    - Login attempt tracking for security monitoring
-    
-    Request:
-        email: User email address
-        password: User password
-        
-    Response:
-        status: "success" on successful authentication
-        user: Authenticated user data (id, email, role, is_email_verified)
-        
-    Errors:
-        401: Invalid credentials or account locked
-        403: Email not verified
-    """
     normalized_email = payload.email.lower().strip()
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     
-    # Check if account is locked due to too many failed login attempts
     is_locked = await _check_login_lockout(normalized_email)
     if is_locked:
-        # Log the lockout event
         await _record_login_attempt(
             normalized_email,
             was_successful=False,
@@ -313,10 +285,8 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             detail="Account temporarily locked due to too many failed attempts. Try again in 15 minutes.",
         )
     
-    # Look up user by email
     user = await prisma.user.find_unique(where={"email": normalized_email})
     if not user or user.deleted_at is not None:
-        # Record failed attempt
         await _record_login_attempt(
             normalized_email,
             was_successful=False,
@@ -326,13 +296,11 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         logger.info(f"Login attempt with invalid credentials for: {normalized_email}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    # Verify password (supports legacy PBKDF2 and transparently migrates to Argon2).
     password_valid, upgraded_password_hash = _verify_password_and_upgrade(
         payload.password,
         user.password_hash,
     )
     if not password_valid:
-        # Record failed attempt
         await _record_login_attempt(
             normalized_email,
             was_successful=False,
@@ -348,9 +316,7 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             data={"password_hash": upgraded_password_hash},
         )
 
-    # Check if email is verified (Phase 1 Discovery Q22 - unverified users restricted)
     if not user.is_email_verified:
-        # Record the failed attempt (unverified email)
         await _record_login_attempt(
             normalized_email,
             was_successful=False,
@@ -363,12 +329,10 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             detail="Email is not verified",
         )
 
-    # All checks passed - create session
     raw_session_token = secrets.token_urlsafe(48)
     session_token_hash = _hash_token(raw_session_token)
     now = _now()
 
-    # Record successful login attempt
     await _record_login_attempt(
         normalized_email,
         was_successful=True,
@@ -376,7 +340,6 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         user_agent=user_agent,
     )
 
-    # Create session in database with all security context
     await prisma.session.create(
         data={
             "user_id": user.id,
@@ -388,7 +351,6 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         }
     )
 
-    # Set secure HttpOnly cookie with session token
     _set_session_cookie(response, raw_session_token)
 
     logger.info(f"Successful login for user: {user.id} ({user.email})")
@@ -406,28 +368,17 @@ async def login(payload: LoginRequest, request: Request, response: Response):
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(request: Request, response: Response):
-    """
-    Logout endpoint that revokes the current session.
-    
-    This endpoint revokes only the session associated with the current cookie,
-    allowing the user to remain logged in on other devices.
-    
-    Response:
-        status: "success"
-        message: Logout confirmation message
-    """
+
     raw_session_token = request.cookies.get(SESSION_COOKIE_NAME)
 
     if raw_session_token:
         token_hash = _hash_token(raw_session_token)
-        # Revoke the current session by setting revoked_at timestamp
         session = await prisma.session.update_many(
             where={"session_token_hash": token_hash, "revoked_at": None},
             data={"revoked_at": _now()},
         )
         logger.info(f"User logged out: {session}")
 
-    # Delete the session cookie from client
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
 
     return MessageResponse(status="success", message="Logged out")
@@ -435,32 +386,10 @@ async def logout(request: Request, response: Response):
 
 @router.post("/logout-all", response_model=MessageResponse)
 async def logout_all(request: Request, response: Response):
-    """
-    Logout-all endpoint that revokes all active sessions for the current user.
-    
-    This endpoint revokes all sessions across all devices/browsers for maximum security.
-    Use this when:
-    - User suspects account compromise
-    - User has changed password (Phase 3 will enforce auto logout-all)
-    - User is ending their account access across all devices
-    
-    Security:
-    - Requires valid authentication via current session cookie
-    - Only the authenticated user can revoke their own sessions
-    - All revoked sessions become immediately invalid
-    
-    Response:
-        status: "success"
-        message: Confirmation that all sessions have been revoked
-        
-    Errors:
-        401: Not authenticated (no valid session)
-    """
     raw_session_token = request.cookies.get(SESSION_COOKIE_NAME)
     if not raw_session_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    # Validate the current session and get user (with User-Agent binding check)
     user_agent = request.headers.get("user-agent")
     user_and_session = await _get_user_by_session_token(raw_session_token, user_agent)
     if not user_and_session:
@@ -468,17 +397,15 @@ async def logout_all(request: Request, response: Response):
 
     user, current_session = user_and_session
 
-    # Revoke all active sessions for this user
     now = _now()
     revoked_count = await prisma.session.update_many(
         where={
             "user_id": user.id,
-            "revoked_at": None,  # Only revoke active sessions
+            "revoked_at": None,
         },
         data={"revoked_at": now},
     )
 
-    # Delete the session cookie from client
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
 
     logger.info(f"User {user.id} ({user.email}) logged out from all sessions. Revoked {revoked_count} sessions.")

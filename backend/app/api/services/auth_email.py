@@ -10,8 +10,6 @@ from email.message import EmailMessage
 from typing import Literal
 from urllib import request as urllib_request
 
-from fastapi import Request
-
 from db import prisma
 from services.auth_constants import VERIFY_TOKEN_TTL_HOURS
 from services.auth_security import hash_token, now_utc
