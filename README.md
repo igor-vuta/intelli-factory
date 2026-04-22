@@ -1,140 +1,78 @@
-# Intelli-Factory
+# Intelli-Factory: Multi-Objective Optimization Platform for Supply Chain Matching
 
-<p align="center">
-   <img src="frontend/public/presets/logo.svg" alt="Intelli-Factory Logo" width="110" />
-</p>
+**Project Status:** Phase 1 Complete – Deployment Live (Target Completion: 22 May 2026)  
+**Student:** Igor Vuta (P2773339)  
+**Supervisor:** Shengxiang Yang  
+**University:** De Montfort University  
+**Course:** BSc (Hons) Computer Science
 
-<p align="center">
-   Multi-role supply-chain coordination platform for customer demand, factory supply, and logistics execution.
-</p>
+### Live Deployments
 
-<p align="center">
-   <a href="https://intelli-factory-frontend.vercel.app/"><img alt="Frontend" src="https://img.shields.io/badge/Frontend-Vercel-black?logo=vercel" /></a>
-   <a href="https://intelli-factory-api.onrender.com"><img alt="Backend" src="https://img.shields.io/badge/Backend-Render-46E3B7?logo=render&logoColor=black" /></a>
-   <img alt="Database" src="https://img.shields.io/badge/Database-PostgreSQL%2015-4169E1?logo=postgresql&logoColor=white" />
-</p>
+- **Frontend:** https://intelli-factory-frontend.vercel.app/ (Vercel)
+- **Backend:** https://intelli-factory-api.onrender.com (Render, free tier – 50s spin-up)
+- **Database:** PostgreSQL 15 (Aiven)
 
-## Executive Summary
+---
 
-Intelli-Factory is a B2B workflow platform that coordinates three roles in one transaction pipeline:
+## Project Overview
 
-1. Customer creates demand.
-2. Factory responds with supply offers.
-3. Logistics supplies delivery coverage and quote.
+Intelli-Factory is a B2B2C platform that automates supply chain coordination between manufacturers, customers, and logistics providers. By utilizing evolutionary computation algorithms, the system solves the "Supply Chain Trilemma" by finding optimal solutions that allocate preference to one aspect from: cost, delivery speed, and reliability in real-time.
 
-The long-term objective is an event-driven flow from request to payment-gated fulfillment, with optimization and transparent state progression.
+### The Problem
 
-## Platform Scope
+Supply chain coordinators in Almaty, Kazakhstan rely on manual phone calls and messaging to provide customer orders withfinal solutions to their specific request, that usually are not accessible on regular market. This process:
 
-Intelli-Factory defines an end-to-end supply-chain operating flow:
+- Takes significant amount of time to order, ususally hours
+- Produces suboptimal decisions
+- Doesn't scale with more providers
+- Lacks consistency and transparency
 
-- Request -> matching -> contract -> signatures -> payment -> fulfillment start.
-- Strong, secure, role-aware auth and session management.
-- Persistent lifecycle state and recoverable progress.
-- Schema-driven frontend and backend behavior.
+### The Solution
 
-## Platform Modules
+Intelli-Factory automates this process with:
 
-- Identity and access: registration, login, verification, and role-scoped workspace access.
-- Role workspaces: `customer`, `factory`, `logist`, and `admin` interfaces.
-- Operational flow: request creation, inventory publishing, logistics offers, and pairing lifecycle.
-- Transaction framework: contract, signature, payment, and fulfillment-oriented process model.
-- Data governance: schema-led rules for role cardinality, free-text catalog fallback, geo structure, and lifecycle policies.
+- **Multi-objective optimization** - balances cost, speed, and reliability
+- **Genetic algorithms** - finds Pareto-optimal solutions using DEAP
+- **Real-time API** - delivers results in < 1 second
+- **Clean web UI** - simple form for coordinators to request optimization
 
-## Architecture At A Glance
+---
 
-```text
-Next.js Frontend (Role Workspaces)
-               |
-               v
-FastAPI API (Auth, Requests, Pairing, Comparison)
-               |
-               v
-PostgreSQL (Prisma schema, migrations, seeded reference data)
-```
+## Technical Stack
 
-## Tech Stack
+### Backend
 
-### Application Layer
+- **Framework:** FastAPI (Python)
+- **Optimization:** DEAP (genetic algorithms)
+- **Database:** PostgreSQL 15 + Prisma ORM
+- **Server:** Uvicorn
+- **Language:** Python 3.12
 
-- ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white) Python API services and route orchestration.
-- ![Next.js](https://img.shields.io/badge/Next.js-Frontend-000000?logo=next.js&logoColor=white) Role-based web application.
-- ![TypeScript](https://img.shields.io/badge/TypeScript-Client-3178C6?logo=typescript&logoColor=white) Typed frontend code.
-- ![Python](https://img.shields.io/badge/Python-Server-3776AB?logo=python&logoColor=white) Backend implementation language.
+### Frontend
 
-### Data + Infrastructure
+- **Framework:** Next.js 14
+- **Language:** TypeScript / React
+- **Styling:** Tailwind
+- **Build Tool:** npm
 
-- ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white) Transactional data and lifecycle persistence.
-- ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white) Schema/migrations/client integration.
-- ![Docker](https://img.shields.io/badge/Docker-Local%20Dev-2496ED?logo=docker&logoColor=white) Reproducible local services.
-- ![Render](https://img.shields.io/badge/Render-API%20Hosting-46E3B7?logo=render&logoColor=black) Backend deployment.
-- ![Vercel](https://img.shields.io/badge/Vercel-Frontend%20Hosting-000000?logo=vercel&logoColor=white) Frontend deployment.
+### Infrastructure
 
-### Quality + Workflow
+- **Containerization:** Docker & Docker Compose (local dev)
+- **Frontend Deployment:** Vercel (auto-deploy from GitHub main)
+- **Backend Deployment:** Render (auto-deploy from GitHub main, free tier)
+- **Database:** Aiven Managed PostgreSQL 15
+- **Version Control:** Git + GitHub
+- **Email Service:** Brevo SMTP for verification emails
 
-- ![Ruff](https://img.shields.io/badge/Ruff-Lint%2FFormat-5C6BC0) Backend lint/format.
-- ![ESLint](https://img.shields.io/badge/ESLint-Frontend%20Lint-4B32C3?logo=eslint&logoColor=white) Frontend linting.
-- ![Husky](https://img.shields.io/badge/Husky-Git%20Hooks-3E3E3E) Commit pipeline checks.
-- ![Commitlint](https://img.shields.io/badge/Commitlint-Conventional%20Commits-2B2B2B) Commit-message governance.
-- ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white) Automation workflows.
+### Development Tools
 
-## Screenshot Gallery
+- **Linting:** ESLint (frontend), Ruff (backend)
+- **Formatting:** Prettier (frontend), Ruff (backend)
+- **Git Hooks:** Husky (pre-commit linting, commit-msg validation)
+- **Commit Linting:** Commitlint (conventional commits)
+- **Testing:** pytest (backend), Vitest (frontend)
 
-![Landing Page](docs/screenshots/01-landing-page.png)
-![Register And Verification](docs/screenshots/02-register-verify.png)
-![Customer Workspace](docs/screenshots/03-customer-workspace.png)
-![Factory Workspace](docs/screenshots/04-factory-workspace.png)
-![Logistics Workspace](docs/screenshots/05-logistics-workspace.png)
-
-## Capability Map
-
-<table>
-   <thead>
-      <tr>
-         <th align="left">Domain</th>
-         <th align="left">Scope</th>
-         <th align="left">Core Outcome</th>
-      </tr>
-   </thead>
-   <tbody>
-      <tr>
-         <td><img alt="Auth" src="https://img.shields.io/badge/Auth-Identity%20%26%20Access-0A66C2" /></td>
-         <td>Secure onboarding, verification, and role-aware access control</td>
-         <td>Trusted entry points and protected workspace access</td>
-      </tr>
-      <tr>
-         <td><img alt="Roles" src="https://img.shields.io/badge/Roles-Workspace%20Model-6F42C1" /></td>
-         <td>Customer, factory, logistics, and admin role interfaces</td>
-         <td>Clear responsibility boundaries per participant</td>
-      </tr>
-      <tr>
-         <td><img alt="Operations" src="https://img.shields.io/badge/Operations-Requests%20%7C%20Inventory%20%7C%20Logistics-1F883D" /></td>
-         <td>Schema-driven forms, operational data capture, and lifecycle actions</td>
-         <td>Structured input pipeline across all operational actors</td>
-      </tr>
-      <tr>
-         <td><img alt="Matching" src="https://img.shields.io/badge/Matching-Decision%20Engine-B45309" /></td>
-         <td>Event-driven feasibility, scoring, and lifecycle persistence</td>
-         <td>Coordinated demand-supply-delivery candidate generation</td>
-      </tr>
-      <tr>
-         <td><img alt="Real-time" src="https://img.shields.io/badge/Realtime-Event%20Delivery-0969DA" /></td>
-         <td>Role and transaction scoped status distribution patterns</td>
-         <td>Timely visibility of request and transaction state movement</td>
-      </tr>
-      <tr>
-         <td><img alt="Contracts" src="https://img.shields.io/badge/Contracts-Multi--Party%20Workflow-9A6700" /></td>
-         <td>Contract packet orchestration and signature workflow</td>
-         <td>Legally trackable multi-party agreement flow</td>
-      </tr>
-      <tr>
-         <td><img alt="Payments" src="https://img.shields.io/badge/Payments-Transaction%20Control-BC4C00" /></td>
-         <td>Payment-controlled transaction progression model</td>
-         <td>Commercial gating before fulfillment operations</td>
-      </tr>
-   </tbody>
-</table>
-
+---
 
 ## Quick Start
 
@@ -142,63 +80,298 @@ PostgreSQL (Prisma schema, migrations, seeded reference data)
 
 - Python 3.12+
 - Node.js 18+
-- Poetry
-- Docker + Docker Compose
+- Docker & Docker Compose
+- Git
 
-### Install + Run
+### Installation
+
+1. **Clone repository**
+
+   ```bash
+   git clone [repository-url]
+   cd intelli-factory
+   ```
+
+2. **Install Node.js dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Set up backend**
+
+   ```bash
+   cd backend/app/api
+   poetry install
+   ```
+
+4. **Set up database**
+
+   ```bash
+   # Start PostgreSQL container
+   docker-compose up -d
+
+   # Run migrations and seed data
+   poetry run prisma migrate dev
+   poetry run python seed.py
+   ```
+
+5. **Start backend only** (from `backend/app/api/`)
+
+   ```bash
+   poetry run uvicorn main:app --reload --port 8000
+   ```
+
+   Backend runs on `http://localhost:8000`
+
+6. **Start frontend only** (from project root)
+
+   ```bash
+   npm run dev:frontend
+   ```
+
+   Frontend runs on `http://localhost:3000`
+
+### Run Frontend and Backend
+
+From project root:
 
 ```bash
-git clone <repository-url>
-cd intelli-factory
-
-# frontend deps
-npm install
-
-# backend deps
-cd backend/app/api
-poetry install
-
-# back to repo root
-cd ../../..
-
-# run both services
+# Starts both services via concurrently
 npm run dev
 ```
 
-Frontend: `http://localhost:3000`  
-Backend docs: `http://localhost:8000/docs`
+### Run Frontend and Backend Separately
 
-### Optional: Separate Terminals
+From project root:
 
 ```bash
-# terminal 1
+# Terminal 1 - backend
 npm run dev:backend
 
-# terminal 2
+# Terminal 2 - frontend
 npm run dev:frontend
 ```
 
-## Configuration Notes
+```bash
+# frontend/.env.local
+BACKEND_API_URL=http://localhost:8000
+```
 
-- Frontend uses `NEXT_PUBLIC_BACKEND_API_URL` for API base URL.
-- Backend depends on `DATABASE_URL` and email SMTP variables for verification flow.
-- Deployment targets are configured for Vercel (frontend) and Render (backend).
+### Usage
+
+1. **Open browser** to `http://localhost:3000`
+2. **Fill in order form:**
+   - SKU: `textile-001` (or any SKU from database)
+   - Destination: `almaty`
+   - Quantity: `100`
+   - Priority: `balanced`
+3. **Click "Get Recommendations"**
+4. **View results** - sorted by overall fitness score
+
+### API Examples
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8000/api/automations/optimize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sku": "textile-001",
+    "destination": "almaty",
+    "quantity": 100,
+    "priority": "balanced"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "solutions": [
+    {
+      "rank": 1,
+      "manufacturer": "textile-factory-a",
+      "logistics_provider": "regional-courier",
+      "total_cost": 3200,
+      "delivery_days": 5,
+      "reliability_score": 0.92,
+      "fitness_score": 0.87
+    }
+  ]
+}
+```
+
+---
+
+## Key Features
+
+### ✅ Phase 1 Complete (Authentication & Session Management)
+
+- FastAPI backend with Prisma ORM
+- Next.js 14 frontend with TypeScript
+- PostgreSQL database with Prisma schema
+- **User Registration** - signup with email verification
+- **Email Verification** - Brevo SMTP integration
+- **Session Authentication** - HttpOnly cookies, 24h TTL
+- **Account Lockout** - 5 failed attempts → 15-minute lockout
+- **Role-based Access Control** - customer, factory_operator, logistics_partner, admin roles
+- **Landing Page** - public marketing page with theme selector
+- **Docker containerization** for local development
+- Development tooling (linting with Ruff, formatting, conventional commits)
+
+### 🟡 Phase 2–3 In Progress (Access Control & UI)
+
+- Enhanced role dashboards (customer, factory operator, logistics partner, admin)
+- Form submission and validation
+- Backend API expansion for order/request lifecycle
+- Frontend page scaffolding for all user roles
+- Countries list fix for registration page (this week)
+
+### ⏳ Phase 4–7 Planned (Algorithm, Testing, Deployment)
+
+- Matching algorithm implementation (DEAP genetic algorithms)
+- Synthetic data generation (100+ products, 10+ suppliers, 8+ logistics providers)
+- Comprehensive testing (unit, integration, UAT)
+- Production hardening and security audit
+- Final report writing and viva preparation
+
+---
+
+## Documentation
+
+### Quick Reference
+
+- **Problem Overview:** [documentation/01_Problem_Specification.md](documentation/01_Problem_Specification.md)
+- **Project Requirements:** [documentation/03_Requirements_Specification.md](documentation/03_Requirements_Specification.md)
+- **API Documentation:** Run `uvicorn main:app --reload` → visit http://localhost:8000/docs
+
+### Full Documentation
+
+- See [documentation/README.md](documentation/README.md) for complete index
+- GitHub CI/CD setup guide: [docs/guides/GITHUB_SETUP.md](docs/guides/GITHUB_SETUP.md)
+
+---
+
+## Development Workflow
+
+### Commit Conventions
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+### Code Quality
+
+**Before Commit:** Pre-commit hooks run:
+
+- ESLint (frontend) - must pass
+- Ruff format/lint (backend) - must pass
+- Commit message validation - must follow conventions
+
+### Testing
+
+```bash
+# Backend tests
+cd backend/app/api
+pytest tests/
+
+# Frontend tests
+cd frontend
+npm run test
+```
+
+---
 
 ## Deployment
 
-- Frontend: https://intelli-factory-frontend.vercel.app/
-- Backend: https://intelli-factory-api.onrender.com
-- Database: PostgreSQL 15 (Aiven)
+### Local Development
 
-## Timeline
+```bash
+docker-compose up       # Starts PostgreSQL
+# In separate terminals:
+cd backend/app/api && poetry install && poetry run uvicorn main:app --reload
+cd frontend && npm install && npm run dev
+```
 
-- Start: 11 Feb 2026
-- Target submission: 22 May 2026
-- Viva window: June 2026
+### Production (Live)
 
-## Academic Context
+**Frontend:** Deployed to Vercel at https://intelli-factory-frontend.vercel.app/
 
-- Student: Igor Vuta (P2773339)
-- Supervisor: Shengxiang Yang
-- University: De Montfort University
-- Course: BSc (Hons) Computer Science
+- Auto-deploys on push to `main` branch
+- Environment: Next.js 14 on Vercel serverless
+
+**Backend:** Deployed to Render at https://intelli-factory-api.onrender.com
+
+- Auto-deploys on push to `main` branch
+- Environment: FastAPI on Render free tier (~50s spin-up on first request)
+- Binary caching: Prisma query engine auto-fetched on startup
+
+**Database:** Hosted on Aiven
+
+- PostgreSQL 15 managed service
+- Connection via `DATABASE_URL` environment variable
+- Automatic backups and high availability
+
+---
+
+## Project Timeline
+
+**Start Date:** 11 February 2026  
+**Report Deadline:** 22 May 2026  
+**Current Week:** 5 of 14
+
+| Phase | Focus                                            | Week(s) | Status         |
+| ----- | ------------------------------------------------ | ------- | -------------- |
+| 1     | Authentication, session, email verification      | W1–W5   | ✅ Complete    |
+| 2     | Backend API expansion, access control            | W5–W10  | 🟡 In Progress |
+| 3     | Frontend UI for all roles, form integration      | W6–W11  | 🟡 In Progress |
+| 4     | Matching algorithm (DEAP), fitness functions     | W9–W12  | ⏳ Planned     |
+| 5     | Synthetic data generation, comprehensive testing | W8–W14  | ⏳ Planned     |
+| 6     | User acceptance testing, security hardening      | W10–W13 | ⏳ Planned     |
+| 7     | Production deployment, release                   | W11–W13 | ⏳ Planned     |
+
+**Key Milestones:**
+
+- 13 Mar 2026 (W5): Contract & ethics submission ✅ (tomorrow)
+- 24 Mar 2026 (W6): Literature review finalized
+- 31 Mar 2026 (W7): System design approved
+- 7 Apr 2026 (W10): Phases 1–3 complete
+- 22 May 2026 (W14): Report & code submission (deadline)
+- 15 Jun 2026 (W18): Viva examination
+
+---
+
+## Contact & Feedback
+
+**Student:** Igor Vuta (P2773339)  
+**Supervisor:** Shengxiang Yang  
+**Questions?** Raise an issue on GitHub or contact supervisor.
+
+---
+
+## License
+
+---
+
+## Acknowledgments
+
+- DEAP developers for excellent genetic algorithm library
+- FastAPI for modern Python web framework
+- Industry contact in Almaty for validating problem statement
+- Supervisor Shengxiang Yang for guidance
+
+---
+
+**Last Updated:** 12 March 2026  
+**Project Status:** Phase 1 Complete – Deployment Live  
+**Next Milestone:** Forms Submission (13 Mar), Phases 2–3 (W6–W11)

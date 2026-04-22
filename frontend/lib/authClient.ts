@@ -37,9 +37,15 @@ export type BootstrapItem = {
   id: string;
   name: string;
   category_id: string;
+  unit: string | null;
 };
 
 export type BootstrapCurrency = {
+  code: string;
+  name: string;
+};
+
+export type BootstrapCountry = {
   code: string;
   name: string;
 };
@@ -53,11 +59,15 @@ export type RequestsBootstrap = {
   categories: BootstrapCategory[];
   items: BootstrapItem[];
   currencies: BootstrapCurrency[];
+  countries: BootstrapCountry[];
   addresses: BootstrapAddress[];
   user: {
     id: string;
     role: UserRole;
     is_email_verified: boolean;
+    primary_address_id?: string | null;
+    registration_country_code?: string | null;
+    registration_address?: string | null;
   };
 };
 
@@ -70,6 +80,7 @@ export type RequestSummary = {
   item_name: string | null;
   requested_name_text: string | null;
   quantity: string;
+  quantity_unit: string;
   destination_address_id: string;
   preferred_currency_code: string;
   status: string;
@@ -78,11 +89,17 @@ export type RequestSummary = {
 
 export type CreateRequestPayload = {
   category_id?: string;
+  category_name_text?: string;
   item_id?: string;
   requested_name_text?: string;
   requested_characteristics_json?: Record<string, unknown>;
   quantity: number;
-  destination_address_id: string;
+  quantity_unit: string;
+  destination_address_id?: string;
+  destination_country_code?: string;
+  destination_region_name?: string;
+  destination_city_name?: string;
+  destination_street?: string;
   preferred_currency_code: string;
 };
 
@@ -96,7 +113,13 @@ export type InventoryEntryPayload = {
   item_id?: string;
   item_name?: string;
   category_id?: string;
-  stock_address_id: string;
+  category_name_text?: string;
+  unit?: string;
+  stock_address_id?: string;
+  stock_country_code?: string;
+  stock_region_name?: string;
+  stock_city_name?: string;
+  stock_street?: string;
   quantity_available: number;
   price_per_unit: number;
   currency_code: string;
@@ -107,6 +130,7 @@ export type InventoryEntryItem = {
   id: string;
   item_id: string;
   item_name: string;
+  unit: string | null;
   quantity_available: string;
   price_per_unit: string;
   currency_code: string;
@@ -295,6 +319,16 @@ export function listMyInventoryEntries() {
   return request<InventoryEntryItem[]>('/requests/inventory-entries/mine');
 }
 
+export function updateInventoryEntryStatus(inventoryEntryId: string, status: 'ACTIVE' | 'PAUSED') {
+  return request<ApiMessage>(
+    `/requests/inventory-entries/${encodeURIComponent(inventoryEntryId)}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }
+  );
+}
+
 export function createLogisticOffer(payload: LogisticOfferPayload) {
   return request<ApiMessage>('/requests/logistic-offers', {
     method: 'POST',
@@ -316,6 +350,7 @@ export type OpenRequest = {
   item_name: string | null;
   requested_name_text: string | null;
   quantity: string;
+  quantity_unit: string;
   preferred_currency_code: string;
   status: string;
   created_at: string;
@@ -324,8 +359,10 @@ export type OpenRequest = {
 export type MatchCandidate = {
   id: string;
   request_id: string;
+  request_status?: string | null;
   status: string;
   quoted_quantity: string | null;
+  quantity_unit: string;
   factory_note: string | null;
   currency_code: string;
   // factory
@@ -333,6 +370,8 @@ export type MatchCandidate = {
   item_name: string | null;
   inventory_price_per_unit: string | null;
   factory_legal_name: string | null;
+  source_address_label: string | null;
+  destination_address_label: string | null;
   // logistics
   logistic_offer_id: string | null;
   logistic_title: string | null;
@@ -342,6 +381,7 @@ export type MatchCandidate = {
   total_cost: string | null;
   reliability_score: number | null;
   fitness_score: number | null;
+  has_my_quote?: boolean;
   created_at: string;
 };
 
@@ -354,9 +394,39 @@ export type FactoryBidPayload = {
 
 export type LogistQuotePayload = {
   factory_bid_id: string;
-  logistic_offer_id: string;
+  title: string;
+  description?: string;
+  base_price: number;
+  price_per_km?: number;
+  price_per_kg?: number;
+  estimated_days_min?: number;
+  estimated_days_max?: number;
+  reliability_score: number;
+  currency_code: string;
   delivery_price: number;
   delivery_days: number;
+};
+
+export type WorkflowTransaction = {
+  id: string;
+  request_id: string;
+  status: string;
+  my_role: UserRole;
+  item_name: string | null;
+  currency_code: string | null;
+  total_cost: string | null;
+  delivery_days: number | null;
+  contract_version: number | null;
+  signature_status: Record<'CUSTOMER' | 'FACTORY' | 'LOGIST', 'PENDING' | 'SIGNED' | 'DECLINED'>;
+  payment_status: string;
+  payment_amount: string | null;
+  can_sign: boolean;
+  can_pay: boolean;
+  can_start_fulfillment: boolean;
+  can_mark_in_progress: boolean;
+  can_accept_completion: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 // Factory endpoints
@@ -387,6 +457,7 @@ export function createLogistQuote(payload: LogistQuotePayload) {
   return request<{
     status: string;
     candidate_id: string;
+    message?: string;
   }>('/pairing/logist-quotes', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -409,6 +480,55 @@ export function selectCandidate(candidateId: string) {
       candidate_id: candidateId,
     }),
   });
+}
+
+// Contract / payment / fulfillment workflow
+export function listMyTransactions() {
+  return request<WorkflowTransaction[]>('/transactions/mine');
+}
+
+export function signTransaction(transactionId: string) {
+  return request<{ status: string; transaction_status: string }>(
+    `/transactions/${encodeURIComponent(transactionId)}/sign`,
+    {
+      method: 'POST',
+    }
+  );
+}
+
+export function captureTransactionPayment(
+  transactionId: string,
+  payload?: { amount?: number; provider_reference?: string }
+) {
+  return request<{ status: string; transaction_status: string }>(
+    `/transactions/${encodeURIComponent(transactionId)}/payments/capture`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    }
+  );
+}
+
+export function advanceTransactionFulfillment(
+  transactionId: string,
+  action: 'START' | 'MARK_IN_PROGRESS'
+) {
+  return request<{ status: string; transaction_status: string }>(
+    `/transactions/${encodeURIComponent(transactionId)}/fulfillment/advance`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }
+  );
+}
+
+export function acceptTransactionCompletion(transactionId: string) {
+  return request<{ status: string; transaction_status: string }>(
+    `/transactions/${encodeURIComponent(transactionId)}/accept-completion`,
+    {
+      method: 'POST',
+    }
+  );
 }
 
 export function compareBaselines(payload: {

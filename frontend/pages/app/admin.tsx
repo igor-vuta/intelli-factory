@@ -16,6 +16,7 @@ import {
   type OptimizeSolution,
   type RequestSummary,
 } from '../../lib/authClient';
+import { formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 import { THEME_CLASSES, type Theme } from '../../styles/themePresets';
 
@@ -295,7 +296,9 @@ export default function AdminWorkspacePage() {
                         <td className="py-2 pr-3">
                           {row.requested_name_text || row.item_id || 'N/A'}
                         </td>
-                        <td className="py-2 pr-3">{row.quantity}</td>
+                        <td className="py-2 pr-3">
+                          {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                        </td>
                         <td className="py-2 pr-3">{row.preferred_currency_code}</td>
                         <td className="py-2 pr-3">{row.status}</td>
                         <td className="py-2">{new Date(row.created_at).toLocaleString()}</td>

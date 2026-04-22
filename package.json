@@ -10,6 +10,8 @@
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "cd backend/app/api && poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "seed:workflow": "cd backend/app/api && poetry run python seed_workflow_scenarios.py",
+    "seed:workflow:random": "cd backend/app/api && SCENARIO_RANDOM_BUNDLES=20 poetry run python seed_workflow_scenarios.py",
     "build": "npm run build --workspaces",
     "lint": "npm run lint:ts && npm run lint:eslint && npm run lint:py",
     "lint:ts": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",

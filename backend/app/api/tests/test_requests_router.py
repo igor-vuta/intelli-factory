@@ -35,15 +35,21 @@ def _make_app_with_user(user):
 def _build_base_prisma_mocks():
     fake = FakePrisma()
     fake.session = SimpleNamespace(update=AsyncMock())
+    fake.country = SimpleNamespace(find_many=AsyncMock(return_value=[]))
     fake.category = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_first=AsyncMock())
     fake.currency = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_unique=AsyncMock())
     fake.address = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_first=AsyncMock())
-    fake.customerprofile = SimpleNamespace(find_unique=AsyncMock())
+    fake.customerprofile = SimpleNamespace(find_unique=AsyncMock(return_value=None))
     fake.item = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_first=AsyncMock())
     fake.request = SimpleNamespace(create=AsyncMock(), find_many=AsyncMock(), find_unique=AsyncMock(), update=AsyncMock())
-    fake.factoryprofile = SimpleNamespace(find_unique=AsyncMock())
-    fake.inventoryentry = SimpleNamespace(create=AsyncMock(), find_many=AsyncMock())
-    fake.logistprofile = SimpleNamespace(find_unique=AsyncMock())
+    fake.factoryprofile = SimpleNamespace(find_unique=AsyncMock(return_value=None))
+    fake.inventoryentry = SimpleNamespace(
+        create=AsyncMock(),
+        find_many=AsyncMock(),
+        find_first=AsyncMock(),
+        update=AsyncMock(),
+    )
+    fake.logistprofile = SimpleNamespace(find_unique=AsyncMock(return_value=None))
     fake.logisticoffer = SimpleNamespace(create=AsyncMock(), find_many=AsyncMock())
     return fake
 
@@ -193,3 +199,33 @@ async def test_factory_can_create_inventory_entry(monkeypatch):
     payload = response.json()
     assert payload["status"] == "success"
     assert payload["message"] == "Inventory entry created"
+
+
+@pytest.mark.anyio
+async def test_factory_can_toggle_inventory_entry_status(monkeypatch):
+    user = SimpleNamespace(id="factory-user", role="FACTORY", is_email_verified=True)
+    app = _make_app_with_user(user)
+
+    fake_prisma = _build_base_prisma_mocks()
+    fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1"))
+    fake_prisma.inventoryentry.find_first = AsyncMock(
+        return_value=SimpleNamespace(id="inv-1", factory_profile_id="fp-1", status="ACTIVE")
+    )
+    fake_prisma.inventoryentry.update = AsyncMock(return_value=SimpleNamespace(id="inv-1"))
+    monkeypatch.setattr(requests_router, "prisma", fake_prisma)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.patch(
+            "/api/requests/inventory-entries/inv-1/status",
+            json={"status": "PAUSED"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    fake_prisma.inventoryentry.update.assert_awaited_once_with(
+        where={"id": "inv-1"},
+        data={"status": "PAUSED"},
+    )

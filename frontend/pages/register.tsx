@@ -11,6 +11,7 @@ import {
   type CurrencyItem,
   type UserRole,
 } from '../lib/authClient';
+import { formatCurrencyOptionLabel } from '../lib/formatting';
 import { getLocaleFromQuery, supportedLocales, t } from '../lib/i18n';
 import { THEME_CLASSES, type Theme } from '../styles/themePresets';
 
@@ -307,7 +308,7 @@ export default function RegisterPage() {
               >
                 {currencies.map((item) => (
                   <option key={item.code} value={item.code}>
-                    {item.code} — {item.name}
+                    {formatCurrencyOptionLabel(item.code, item.name)}
                   </option>
                 ))}
               </select>

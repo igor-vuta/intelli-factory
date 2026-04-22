@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from routers import auth, automations, comparison, pairing, requests
+from routers import auth, automations, comparison, pairing, requests, transactions
 
 
 def include_routers(app: FastAPI) -> None:
@@ -9,3 +9,4 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
     app.include_router(requests.router, prefix="/api/requests", tags=["requests"])
     app.include_router(pairing.router, prefix="/api/pairing", tags=["pairing"])
+    app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
