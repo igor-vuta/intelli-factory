@@ -20,6 +20,8 @@ import { formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 import { THEME_CLASSES, type Theme } from '../../styles/themePresets';
 
+const REQUESTS_PAGE_SIZE = 5;
+
 export default function AdminWorkspacePage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
@@ -29,6 +31,11 @@ export default function AdminWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestSummary[]>([]);
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [requestsQuery, setRequestsQuery] = useState('');
+  const [requestsStatusFilter, setRequestsStatusFilter] = useState('ALL');
+  const [requestsCurrencyFilter, setRequestsCurrencyFilter] = useState('ALL');
+  const [requestsCustomerFilter, setRequestsCustomerFilter] = useState('ALL');
   const [availableSkus, setAvailableSkus] = useState<string[]>([]);
   const [availableDestinations, setAvailableDestinations] = useState<string[]>([]);
   const [sku, setSku] = useState('');
@@ -187,6 +194,56 @@ export default function AdminWorkspacePage() {
     return rows;
   }, [compareResult, optimizerResult]);
 
+  const requestStatusOptions = useMemo(
+    () => Array.from(new Set(requests.map((row) => row.status))).sort(),
+    [requests]
+  );
+
+  const requestCurrencyOptions = useMemo(
+    () => Array.from(new Set(requests.map((row) => row.preferred_currency_code))).sort(),
+    [requests]
+  );
+
+  const requestCustomerOptions = useMemo(
+    () => Array.from(new Set(requests.map((row) => row.customer_profile_id))).sort(),
+    [requests]
+  );
+
+  const filteredRequests = useMemo(() => {
+    const q = requestsQuery.trim().toLowerCase();
+    return requests.filter((row) => {
+      const matchesQuery =
+        !q ||
+        row.id.toLowerCase().includes(q) ||
+        row.customer_profile_id.toLowerCase().includes(q) ||
+        (row.requested_name_text ?? '').toLowerCase().includes(q) ||
+        (row.item_name ?? '').toLowerCase().includes(q);
+      const matchesStatus = requestsStatusFilter === 'ALL' || row.status === requestsStatusFilter;
+      const matchesCurrency =
+        requestsCurrencyFilter === 'ALL' || row.preferred_currency_code === requestsCurrencyFilter;
+      const matchesCustomer =
+        requestsCustomerFilter === 'ALL' || row.customer_profile_id === requestsCustomerFilter;
+      return matchesQuery && matchesStatus && matchesCurrency && matchesCustomer;
+    });
+  }, [
+    requests,
+    requestsQuery,
+    requestsStatusFilter,
+    requestsCurrencyFilter,
+    requestsCustomerFilter,
+  ]);
+
+  const requestsTotalPages = Math.max(1, Math.ceil(filteredRequests.length / REQUESTS_PAGE_SIZE));
+
+  const paginatedRequests = useMemo(() => {
+    const start = (requestsPage - 1) * REQUESTS_PAGE_SIZE;
+    return filteredRequests.slice(start, start + REQUESTS_PAGE_SIZE);
+  }, [filteredRequests, requestsPage]);
+
+  useEffect(() => {
+    if (requestsPage > requestsTotalPages) setRequestsPage(requestsTotalPages);
+  }, [requestsPage, requestsTotalPages]);
+
   const winners = useMemo(() => {
     if (comparisonRows.length === 0) return null;
 
@@ -273,6 +330,60 @@ export default function AdminWorkspacePage() {
               </div>
 
               <div className="mt-6 overflow-x-auto">
+                <div className="mb-3 grid gap-2 sm:grid-cols-4">
+                  <input
+                    type="text"
+                    value={requestsQuery}
+                    onChange={(e) => setRequestsQuery(e.target.value)}
+                    placeholder="Search ID/customer/item"
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  />
+                  <select
+                    value={requestsStatusFilter}
+                    onChange={(e) => setRequestsStatusFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">All statuses</option>
+                    {requestStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={requestsCurrencyFilter}
+                    onChange={(e) => setRequestsCurrencyFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">All currencies</option>
+                    {requestCurrencyOptions.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={requestsCustomerFilter}
+                    onChange={(e) => setRequestsCustomerFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">All customers</option>
+                    {requestCustomerOptions.map((customerId) => (
+                      <option key={customerId} value={customerId}>
+                        {customerId.slice(0, 8)}...
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {filteredRequests.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-[rgb(var(--stroke))] px-4 py-6 text-sm text-[rgb(var(--muted))]">
+                    {requests.length === 0
+                      ? 'No requests available.'
+                      : 'No requests match current filters.'}
+                  </p>
+                ) : (
+                  <>
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -286,7 +397,7 @@ export default function AdminWorkspacePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map((row) => (
+                    {paginatedRequests.map((row) => (
                       <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
                         <td className="py-2 pr-3 font-mono text-xs">{row.id.slice(0, 8)}...</td>
                         <td className="py-2 pr-3 font-mono text-xs">
@@ -306,6 +417,37 @@ export default function AdminWorkspacePage() {
                     ))}
                   </tbody>
                 </table>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                  <span>
+                    Showing {(requestsPage - 1) * REQUESTS_PAGE_SIZE + 1}
+                    {' - '}
+                    {Math.min(requestsPage * REQUESTS_PAGE_SIZE, filteredRequests.length)} of{' '}
+                    {filteredRequests.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={requestsPage <= 1}
+                      onClick={() => setRequestsPage((prev) => Math.max(1, prev - 1))}
+                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <span>
+                      Page {requestsPage} / {requestsTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={requestsPage >= requestsTotalPages}
+                      onClick={() => setRequestsPage((prev) => Math.min(requestsTotalPages, prev + 1))}
+                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+                </>
+                )}
               </div>
 
               <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
