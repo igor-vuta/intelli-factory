@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
+import AgreementSignModal from '../../components/AgreementSignModal';
 import {
   advanceTransactionFulfillment,
+  type ContractSigningPayload,
   createLogistQuote,
   getFactoryBidsNeedingLogistics,
   getRequestsBootstrap,
@@ -382,6 +384,7 @@ export default function LogistWorkspacePage() {
   const [factoryBids, setFactoryBids] = useState<MatchCandidate[]>([]);
   const [transactions, setTransactions] = useState<WorkflowTransaction[]>([]);
   const [workflowBusyId, setWorkflowBusyId] = useState<string | null>(null);
+  const [signingTransaction, setSigningTransaction] = useState<WorkflowTransaction | null>(null);
   const [quoteTarget, setQuoteTarget] = useState<MatchCandidate | null>(null);
   const [factoryBidsPage, setFactoryBidsPage] = useState(1);
   const [transactionsPage, setTransactionsPage] = useState(1);
@@ -531,13 +534,34 @@ export default function LogistWorkspacePage() {
     transactionId: string,
     action: 'SIGN' | 'START' | 'MARK_IN_PROGRESS'
   ) {
+    if (action === 'SIGN') {
+      const tx = transactions.find((row) => row.id === transactionId);
+      if (!tx) {
+        setError('Transaction no longer available');
+        return;
+      }
+      setSigningTransaction(tx);
+      return;
+    }
+
     setWorkflowBusyId(transactionId + action);
     try {
-      if (action === 'SIGN') {
-        await signTransaction(transactionId);
-      } else {
-        await advanceTransactionFulfillment(transactionId, action);
-      }
+      await advanceTransactionFulfillment(transactionId, action);
+      await Promise.all([refreshTransactions(), refreshFactoryBids()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Workflow action failed');
+    } finally {
+      setWorkflowBusyId(null);
+    }
+  }
+
+  async function handleConfirmSignFromAgreement(payload: ContractSigningPayload) {
+    if (!signingTransaction) return;
+    const txId = signingTransaction.id;
+    setWorkflowBusyId(txId + 'SIGN');
+    try {
+      await signTransaction(txId, payload);
+      setSigningTransaction(null);
       await Promise.all([refreshTransactions(), refreshFactoryBids()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Workflow action failed');
@@ -903,6 +927,14 @@ export default function LogistWorkspacePage() {
           onQuoted={async () => {
             await refreshFactoryBids();
           }}
+        />
+      )}
+      {signingTransaction && (
+        <AgreementSignModal
+          transaction={signingTransaction}
+          busy={workflowBusyId === signingTransaction.id + 'SIGN'}
+          onClose={() => setSigningTransaction(null)}
+          onConfirm={handleConfirmSignFromAgreement}
         />
       )}
     </main>

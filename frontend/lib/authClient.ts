@@ -425,8 +425,37 @@ export type WorkflowTransaction = {
   can_start_fulfillment: boolean;
   can_mark_in_progress: boolean;
   can_accept_completion: boolean;
+  contract_reference: string;
+  contract_date: string;
+  factory_legal_name: string | null;
+  client_legal_name: string | null;
+  logist_legal_name: string | null;
+  match_candidate_id: string | null;
+  inventory_entry_id: string | null;
+  logistic_offer_id: string | null;
+  candidate_status: string | null;
+  request_status: string | null;
+  quoted_quantity: string | null;
+  factory_note: string | null;
+  delivery_price: string | null;
+  reliability_score: number | null;
+  fitness_score: number | null;
+  candidate_created_at: string | null;
+  candidate_updated_at: string | null;
+  candidate_deleted_at: string | null;
+  goods_cost: string | null;
+  payment_terms: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type ContractSigningPayload = {
+  signer_name?: string;
+  jurisdiction?: string;
+  negotiation_days?: number;
+  dispute_window_days?: number;
+  contract_date?: string;
+  rendered_contract_text?: string;
 };
 
 // Factory endpoints
@@ -487,11 +516,12 @@ export function listMyTransactions() {
   return request<WorkflowTransaction[]>('/transactions/mine');
 }
 
-export function signTransaction(transactionId: string) {
+export function signTransaction(transactionId: string, payload?: ContractSigningPayload) {
   return request<{ status: string; transaction_status: string }>(
     `/transactions/${encodeURIComponent(transactionId)}/sign`,
     {
       method: 'POST',
+      body: JSON.stringify(payload ?? {}),
     }
   );
 }

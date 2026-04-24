@@ -140,6 +140,18 @@ def _serialize_transaction(tx, current_user_id: str) -> dict[str, Any]:
     paid = any(payment.status == "CAPTURED" for payment in sorted_payments)
     latest_payment = sorted_payments[0] if sorted_payments else None
     candidate = tx.selected_candidate
+    factory_profile = (
+        candidate.inventory_entry.factory_profile
+        if candidate and candidate.inventory_entry and candidate.inventory_entry.factory_profile
+        else None
+    )
+    logist_profile = (
+        candidate.logistic_offer.logist_profile
+        if candidate and candidate.logistic_offer and candidate.logistic_offer.logist_profile
+        else None
+    )
+    customer_profile = tx.request.customer_profile if tx.request and tx.request.customer_profile else None
+    contract_terms = tx.contract_packet.terms_json if tx.contract_packet and isinstance(tx.contract_packet.terms_json, dict) else {}
 
     return {
         "id": tx.id,
@@ -166,6 +178,26 @@ def _serialize_transaction(tx, current_user_id: str) -> dict[str, Any]:
         "can_start_fulfillment": my_role == "FACTORY" and tx.status == "PAYMENT_CONFIRMED",
         "can_mark_in_progress": my_role == "LOGIST" and tx.status == "FULFILLMENT_STARTED",
         "can_accept_completion": my_role == "CUSTOMER" and tx.status == "IN_PROGRESS",
+        "contract_reference": tx.id,
+        "contract_date": tx.created_at.isoformat(),
+        "factory_legal_name": factory_profile.legal_name if factory_profile else None,
+        "client_legal_name": customer_profile.display_name if customer_profile else None,
+        "logist_legal_name": logist_profile.company_name if logist_profile else None,
+        "match_candidate_id": candidate.id if candidate else None,
+        "inventory_entry_id": candidate.inventory_entry_id if candidate else None,
+        "logistic_offer_id": candidate.logistic_offer_id if candidate else None,
+        "candidate_status": candidate.status if candidate else None,
+        "request_status": tx.request.status if tx.request else None,
+        "quoted_quantity": _dec_to_str(candidate.quoted_quantity) if candidate else None,
+        "factory_note": candidate.factory_note if candidate else None,
+        "delivery_price": _dec_to_str(candidate.delivery_price) if candidate else None,
+        "reliability_score": candidate.reliability_score if candidate else None,
+        "fitness_score": candidate.fitness_score if candidate else None,
+        "candidate_created_at": candidate.created_at.isoformat() if candidate else None,
+        "candidate_updated_at": candidate.updated_at.isoformat() if candidate else None,
+        "candidate_deleted_at": candidate.deleted_at.isoformat() if candidate and candidate.deleted_at else None,
+        "goods_cost": contract_terms.get("goods_cost") if isinstance(contract_terms, dict) else None,
+        "payment_terms": contract_terms.get("payment_terms") if isinstance(contract_terms, dict) else None,
         "created_at": tx.created_at.isoformat(),
         "updated_at": tx.updated_at.isoformat(),
     }
@@ -206,8 +238,22 @@ async def list_my_transactions(request: Request, user=Depends(_require_authentic
     return visible
 
 
+class SignContractBody(BaseModel):
+    signer_name: str | None = Field(default=None, max_length=120)
+    jurisdiction: str | None = Field(default=None, max_length=120)
+    negotiation_days: int | None = Field(default=None, ge=1)
+    dispute_window_days: int | None = Field(default=None, ge=1)
+    contract_date: str | None = Field(default=None, max_length=40)
+    rendered_contract_text: str | None = Field(default=None, max_length=30000)
+
+
 @router.post("/{transaction_id}/sign")
-async def sign_contract(transaction_id: str, request: Request, user=Depends(_require_authenticated_user)):
+async def sign_contract(
+    transaction_id: str,
+    request: Request,
+    payload: SignContractBody,
+    user=Depends(_require_authenticated_user),
+):
     tx = await _load_tx_with_context(transaction_id)
     participants = _participants_from_tx(tx)
     my_role = next((role for role, user_id in participants.items() if user_id == user.id), None)
@@ -218,6 +264,36 @@ async def sign_contract(transaction_id: str, request: Request, user=Depends(_req
         raise HTTPException(400, f"Cannot sign in status '{tx.status}'")
 
     await _ensure_contract_setup(tx, request.headers.get("user-agent"))
+    tx = await _load_tx_with_context(transaction_id)
+
+    if tx.contract_packet and isinstance(tx.contract_packet.terms_json, dict):
+        current_terms = dict(tx.contract_packet.terms_json)
+        signing_snapshots = current_terms.get("signing_snapshots")
+        if not isinstance(signing_snapshots, list):
+            signing_snapshots = []
+        signing_snapshots.append(
+            {
+                "signer_user_id": user.id,
+                "signer_role": my_role,
+                "signer_name": payload.signer_name,
+                "jurisdiction": payload.jurisdiction,
+                "negotiation_days": payload.negotiation_days,
+                "dispute_window_days": payload.dispute_window_days,
+                "contract_date": payload.contract_date,
+                "rendered_contract_text": payload.rendered_contract_text,
+                "signed_at": _now().isoformat(),
+            }
+        )
+        current_terms["signing_snapshots"] = signing_snapshots
+
+        await prisma.contractpacket.update(
+            where={"id": tx.contract_packet.id},
+            data={
+                "terms_json": Json(current_terms),
+                "document_hash": f"tx-{tx.id}-v{tx.contract_packet.version}-signed-{len(signing_snapshots)}",
+            },
+        )
+
     signature = await prisma.signature.find_first(
         where={"transaction_id": tx.id, "user_id": user.id}
     )

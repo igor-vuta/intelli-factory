@@ -4,10 +4,13 @@ import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { type ComboboxOption } from '../../components/Combobox';
+import AgreementSignModal from '../../components/AgreementSignModal';
+import PaymentMockupModal from '../../components/PaymentMockupModal';
 import SearchableInput from '../../components/SearchableInput';
 import {
   acceptTransactionCompletion,
   captureTransactionPayment,
+  type ContractSigningPayload,
   createCustomerRequest,
   getRequestsBootstrap,
   listMyTransactions,
@@ -727,6 +730,8 @@ export default function CustomerWorkspacePage() {
   const [requests, setRequests] = useState<RequestSummary[]>([]);
   const [transactions, setTransactions] = useState<WorkflowTransaction[]>([]);
   const [workflowBusyId, setWorkflowBusyId] = useState<string | null>(null);
+  const [signingTransaction, setSigningTransaction] = useState<WorkflowTransaction | null>(null);
+  const [paymentTransaction, setPaymentTransaction] = useState<WorkflowTransaction | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [proposalsRequestId, setProposalsRequestId] = useState<string | null>(null);
@@ -916,15 +921,59 @@ export default function CustomerWorkspacePage() {
     transactionId: string,
     action: 'SIGN' | 'PAY' | 'ACCEPT_COMPLETION'
   ) {
+    if (action === 'SIGN') {
+      const tx = transactions.find((row) => row.id === transactionId);
+      if (!tx) {
+        setPageError('Transaction no longer available');
+        return;
+      }
+      setSigningTransaction(tx);
+      return;
+    }
+
+    if (action === 'PAY') {
+      const tx = transactions.find((row) => row.id === transactionId);
+      if (!tx) {
+        setPageError('Transaction no longer available');
+        return;
+      }
+      setPaymentTransaction(tx);
+      return;
+    }
+
     setWorkflowBusyId(transactionId + action);
     try {
-      if (action === 'SIGN') {
-        await signTransaction(transactionId);
-      } else if (action === 'PAY') {
-        await captureTransactionPayment(transactionId);
-      } else {
-        await acceptTransactionCompletion(transactionId);
-      }
+      await acceptTransactionCompletion(transactionId);
+      await Promise.all([refreshTransactions(), refreshRequests()]);
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : 'Workflow action failed');
+    } finally {
+      setWorkflowBusyId(null);
+    }
+  }
+
+  async function handleConfirmSignFromAgreement(payload: ContractSigningPayload) {
+    if (!signingTransaction) return;
+    const txId = signingTransaction.id;
+    setWorkflowBusyId(txId + 'SIGN');
+    try {
+      await signTransaction(txId, payload);
+      setSigningTransaction(null);
+      await Promise.all([refreshTransactions(), refreshRequests()]);
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : 'Workflow action failed');
+    } finally {
+      setWorkflowBusyId(null);
+    }
+  }
+
+  async function handleConfirmPayment(payload: { amount?: number; provider_reference?: string }) {
+    if (!paymentTransaction) return;
+    const txId = paymentTransaction.id;
+    setWorkflowBusyId(txId + 'PAY');
+    try {
+      await captureTransactionPayment(txId, payload);
+      setPaymentTransaction(null);
       await Promise.all([refreshTransactions(), refreshRequests()]);
     } catch (err) {
       setPageError(err instanceof Error ? err.message : 'Workflow action failed');
@@ -1335,6 +1384,22 @@ export default function CustomerWorkspacePage() {
               setLoadingCandidates(false);
             }
           }}
+        />
+      )}
+      {signingTransaction && (
+        <AgreementSignModal
+          transaction={signingTransaction}
+          busy={workflowBusyId === signingTransaction.id + 'SIGN'}
+          onClose={() => setSigningTransaction(null)}
+          onConfirm={handleConfirmSignFromAgreement}
+        />
+      )}
+      {paymentTransaction && (
+        <PaymentMockupModal
+          transaction={paymentTransaction}
+          busy={workflowBusyId === paymentTransaction.id + 'PAY'}
+          onClose={() => setPaymentTransaction(null)}
+          onConfirm={handleConfirmPayment}
         />
       )}
     </main>
