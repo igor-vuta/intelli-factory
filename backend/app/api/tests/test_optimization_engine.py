@@ -22,7 +22,7 @@ API_ROOT = Path(__file__).resolve().parents[1]
 if str(API_ROOT) not in sys.path:
     sys.path.append(str(API_ROOT))
 
-from services.optimization_engine import (
+from services.optimization_engine import (  # noqa: E402
     WEIGHT_PROFILES,
     OptimizationEngine,
     _normalise,

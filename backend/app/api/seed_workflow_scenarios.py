@@ -14,7 +14,7 @@ _API_ROOT = Path(__file__).resolve().parent
 if str(_API_ROOT) not in sys.path:
     sys.path.insert(0, str(_API_ROOT))
 
-from seed_helpers import (
+from seed_helpers import (  # noqa: E402
     _ensure_address,
     _ensure_category,
     _ensure_city,
@@ -26,7 +26,7 @@ from seed_helpers import (
     _ensure_region,
     _ensure_user,
 )
-from seed_reference_geo import seed as seed_reference_geo
+from seed_reference_geo import seed as seed_reference_geo  # noqa: E402
 
 
 def _bool_env(name: str, default: bool = False) -> bool:
@@ -668,7 +668,6 @@ async def seed() -> None:
         # fitness_score, score_breakdown, and rank are populated from seed data.
         print("Running OptimizationEngine on seeded requests...")
         try:
-            from db import prisma as db_prisma
             from services.optimization_engine import OptimizationEngine
 
             engine = OptimizationEngine()
