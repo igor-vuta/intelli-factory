@@ -203,9 +203,9 @@ async def seed_large_scale():
             category_id=category.id,
             item_id=item.id,
             request_name="Large_Test_Request",
-            num_factories=22,
-            num_logistics=14,
-            target_candidates=180,
+            num_factories=20,
+            num_logistics=13,
+            target_candidates=150,
             optimization_profile="balanced",
         )
 

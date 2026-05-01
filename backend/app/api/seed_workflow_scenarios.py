@@ -419,77 +419,74 @@ async def _seed_stage_scenario(
 
 # ── Factory / logistics archetype definitions ────────────────────────────────
 #
-# Designed for Chapter 5 benchmarking and the viva demo.  Strong but realistic
-# anti-correlation between price, delivery time and reliability creates a rich
-# Pareto front so the Deep NSGA-II can find balanced compromises that pure
-# greedy / weighted-heuristic baselines miss.
+# V2 — tuned for the Chapter 5 viva demo.  Ranges match the task spec:
+#   price per unit: 90–480 EUR · delivery days: 3–15 · reliability: 0.65–0.97
+#
+# Strong anti-correlation:
+#   cheap (< 220) → longer delivery + lower reliability
+#   premium (> 350) → shorter delivery + high reliability
+#   ~25% mixed wildcards break the pattern (cheap+decent, expensive+slow)
+#
+# 20 factories × 13 logistics = 260 possible pairs; target cap = 150 so we
+# generate a rich but not bloated pool (within 120–180 requirement).
 #
 # Factory tuple:
 #   (label, unit_price_eur, qty_available, archetype, reliability_factor, days_offset)
-#       reliability_factor ∈ [0.60, 0.99] — factory-side quality contribution
-#       days_offset        — added to logistic days (factory handling time)
-#
 # Logistic tuple:
 #   (label, days_min, days_max, reliability, base_price_eur, archetype)
 #
-# 18 factories: 7 budget · 6 mid · 5 premium · plus 4 mixed wildcards = 22
-# 14 logistics: 4 express · 4 standard · 5 economy · 1 hybrid wildcard
-#
 
 _FACTORY_ARCHETYPES = [
-    # ── Budget tier (price 80–195) — cheap, slower, lower reliability ────────
-    ("Discount Steelworks Almaty",   Decimal("82"),  Decimal("4500"),  "budget",  0.62, 6),
-    ("Karaganda Bulk Supply",        Decimal("98"),  Decimal("5500"),  "budget",  0.66, 5),
-    ("Talgar Materials Co.",         Decimal("118"), Decimal("6000"),  "budget",  0.70, 5),
-    ("Shymkent Heavy Goods",         Decimal("138"), Decimal("6800"),  "budget",  0.73, 4),
-    ("Kapchagay Industrial",         Decimal("158"), Decimal("7000"),  "budget",  0.76, 4),
-    ("Ust-Kamenogorsk Standard",     Decimal("175"), Decimal("7500"),  "budget",  0.78, 3),
-    ("Pavlodar Resource Group",      Decimal("195"), Decimal("6500"),  "budget",  0.80, 3),
+    # Budget tier (price 90–215) — cheap, slower handling, lower reliability
+    ("Discount Steelworks Almaty",   Decimal("92"),  Decimal("4500"),  "budget",  0.65, 7),
+    ("Karaganda Bulk Supply",        Decimal("108"), Decimal("5500"),  "budget",  0.68, 6),
+    ("Talgar Materials Co.",         Decimal("128"), Decimal("6000"),  "budget",  0.72, 5),
+    ("Shymkent Heavy Goods",         Decimal("148"), Decimal("6800"),  "budget",  0.75, 5),
+    ("Kapchagay Industrial",         Decimal("168"), Decimal("7000"),  "budget",  0.77, 4),
+    ("Ust-Kamenogorsk Standard",     Decimal("188"), Decimal("7500"),  "budget",  0.79, 4),
+    ("Pavlodar Resource Group",      Decimal("212"), Decimal("6500"),  "budget",  0.81, 3),
 
-    # ── Mid tier (price 220–340) — balanced ─────────────────────────────────
-    ("Almaty Trade House",           Decimal("220"), Decimal("9000"),  "mid",     0.83, 2),
-    ("Astana Procurement Ltd",       Decimal("250"), Decimal("9500"),  "mid",     0.85, 2),
-    ("Kazakh Industrial Mid-Co",     Decimal("275"), Decimal("10500"), "mid",     0.87, 2),
-    ("Aktobe Forge Partners",        Decimal("298"), Decimal("11000"), "mid",     0.88, 1),
-    ("Atyrau Refining Mid",          Decimal("320"), Decimal("9000"),  "mid",     0.90, 1),
-    ("Kostanay Premium Light",       Decimal("340"), Decimal("8500"),  "mid",     0.91, 1),
+    # Mid tier (price 240–330) — balanced
+    ("Almaty Trade House",           Decimal("245"), Decimal("9000"),  "mid",     0.84, 2),
+    ("Astana Procurement Ltd",       Decimal("268"), Decimal("9500"),  "mid",     0.86, 2),
+    ("Kazakh Industrial Mid-Co",     Decimal("292"), Decimal("10500"), "mid",     0.88, 1),
+    ("Aktobe Forge Partners",        Decimal("312"), Decimal("11000"), "mid",     0.89, 1),
+    ("Atyrau Refining Mid",          Decimal("328"), Decimal("9000"),  "mid",     0.90, 1),
 
-    # ── Premium tier (price 365–520) — fast, reliable, expensive ────────────
-    ("Tau-Ken Premium Steel",        Decimal("365"), Decimal("8000"),  "premium", 0.92, 0),
-    ("KazMineral Top Grade",         Decimal("400"), Decimal("8500"),  "premium", 0.94, 0),
-    ("Eurasian Quality Holding",     Decimal("440"), Decimal("9000"),  "premium", 0.96, -1),
-    ("Almaty Boutique Anthracite",   Decimal("480"), Decimal("7500"),  "premium", 0.97, -1),
-    ("Caspian Elite Metals",         Decimal("520"), Decimal("7000"),  "premium", 0.98, -1),
+    # Premium tier (price 355–478) — fast, reliable, expensive
+    ("Tau-Ken Premium Steel",        Decimal("358"), Decimal("8000"),  "premium", 0.91, 0),
+    ("KazMineral Top Grade",         Decimal("395"), Decimal("8500"),  "premium", 0.93, 0),
+    ("Eurasian Quality Holding",     Decimal("432"), Decimal("9000"),  "premium", 0.95, -1),
+    ("Caspian Elite Metals",         Decimal("478"), Decimal("7500"),  "premium", 0.97, -1),
 
-    # ── Mixed wildcards (~20% of pool): break the price/quality pattern ─────
-    ("Family Plant Talgar (Hidden)", Decimal("145"), Decimal("4000"),  "mixed",   0.91, 1),  # cheap + decent
-    ("Co-op Pavlodar (Underdog)",    Decimal("175"), Decimal("4500"),  "mixed",   0.93, 0),  # cheap + good
-    ("Boutique Slow Premium",        Decimal("420"), Decimal("3500"),  "mixed",   0.83, 4),  # expensive + slow
-    ("Astana Inflated Standard",     Decimal("370"), Decimal("4000"),  "mixed",   0.78, 3),  # expensive + average
+    # Mixed wildcards (~25%): break price/quality pattern for Pareto richness
+    ("Family Plant Talgar (Gem)",    Decimal("152"), Decimal("4000"),  "mixed",   0.90, 1),  # cheap+reliable
+    ("Co-op Pavlodar (Underdog)",    Decimal("178"), Decimal("4500"),  "mixed",   0.92, 0),  # cheap+fast
+    ("Boutique Slow Premium",        Decimal("415"), Decimal("3500"),  "mixed",   0.82, 5),  # expensive+slow
+    ("Astana Inflated Standard",     Decimal("358"), Decimal("4000"),  "mixed",   0.77, 4),  # expensive+unreliable
 ]
 
 _LOGISTIC_ARCHETYPES = [
-    # ── Express tier (1–4 days, very reliable, expensive) ────────────────────
-    ("Air Astana Cargo Premium",    1,  3,  0.98, Decimal("60000"), "express"),
-    ("KTZ Express Rail Alpha",      2,  3,  0.96, Decimal("50000"), "express"),
-    ("Almaty Premium Roadway",      2,  4,  0.94, Decimal("44000"), "express"),
-    ("Caspian Fast Intermodal",     3,  4,  0.92, Decimal("40000"), "express"),
+    # Express tier (1–4 days, very reliable, expensive)
+    ("Air Astana Cargo Premium",    1,  3,  0.97, Decimal("56000"), "express"),
+    ("KTZ Express Rail Alpha",      2,  4,  0.94, Decimal("46000"), "express"),
+    ("Almaty Premium Roadway",      2,  5,  0.91, Decimal("40000"), "express"),
 
-    # ── Standard tier (4–9 days) ────────────────────────────────────────────
-    ("KTZ Standard Rail",           4,  6,  0.89, Decimal("32000"), "standard"),
-    ("Silk Road Trucking",          5,  7,  0.86, Decimal("27000"), "standard"),
-    ("Eurasian Mid-Freight",        6,  8,  0.83, Decimal("23000"), "standard"),
-    ("Kazpost Bulk Standard",       7,  9,  0.80, Decimal("20000"), "standard"),
+    # Standard tier (4–8 days)
+    ("KTZ Standard Rail",           4,  6,  0.87, Decimal("30000"), "standard"),
+    ("Silk Road Trucking",          5,  7,  0.84, Decimal("25000"), "standard"),
+    ("Eurasian Mid-Freight",        5,  8,  0.81, Decimal("21000"), "standard"),
+    ("Kazpost Bulk Standard",       6,  9,  0.78, Decimal("18000"), "standard"),
 
-    # ── Economy tier (9–16 days, slow, cheap, lower reliability) ────────────
-    ("Almaty Bulk Rail Discount",   9,  11, 0.75, Decimal("16000"), "economy"),
-    ("Pavlodar Slow Freight",       10, 13, 0.71, Decimal("13000"), "economy"),
-    ("Shymkent Road Budget",        11, 14, 0.68, Decimal("11000"), "economy"),
-    ("Backhaul Consolidator KZ",    12, 15, 0.65, Decimal("9500"),  "economy"),
-    ("Steppe Long-Haul Economy",    13, 16, 0.62, Decimal("8000"),  "economy"),
+    # Economy tier (8–15 days, slow, cheap, low reliability)
+    ("Almaty Bulk Rail Discount",   8,  10, 0.74, Decimal("14500"), "economy"),
+    ("Pavlodar Slow Freight",       9,  11, 0.70, Decimal("11500"), "economy"),
+    ("Shymkent Road Budget",        10, 12, 0.67, Decimal("9500"),  "economy"),
+    ("Backhaul Consolidator KZ",    11, 13, 0.65, Decimal("8000"),  "economy"),
+    ("Steppe Long-Haul Economy",    12, 15, 0.63, Decimal("7000"),  "economy"),
 
-    # ── Mixed wildcard: mid-fast / mid-cost but high reliability ────────────
-    ("Hybrid Reliable Carrier",     5,  8,  0.93, Decimal("33000"), "mixed"),
+    # Wildcard: mid-fast / mid-cost but high reliability
+    ("Hybrid Reliable Carrier",     4,  7,  0.91, Decimal("32000"), "mixed"),
 ]
 
 
@@ -502,9 +499,9 @@ async def create_large_scale_request_scenario(
     category_id: str,
     item_id: str,
     request_name: str = "Large_Test_Request",
-    num_factories: int = 22,
-    num_logistics: int = 14,
-    target_candidates: int = 180,
+    num_factories: int = 20,
+    num_logistics: int = 13,
+    target_candidates: int = 150,
     optimization_profile: str = "balanced",
 ) -> str:
     """
@@ -640,6 +637,12 @@ async def create_large_scale_request_scenario(
 
     # ── MatchCandidates: all inventory × logistic offer pairs ─────────────────
     #
+    # Purge any stale candidates from previous seeding runs so that the final
+    # count is exactly what this run generates (no accumulation).
+    await prisma.matchcandidate.delete_many(
+        where={"request_id": ls_request.id, "deleted_at": None}
+    )
+
     # Candidate reliability is a blend of factory and logistic reliability so
     # cheap factories paired with cheap logistics produce candidates that are
     # both slow AND unreliable.  This anti-correlation is what makes the
@@ -655,12 +658,12 @@ async def create_large_scale_request_scenario(
 
             # Delivery days = logistic-sampled days + factory handling offset
             base_days = rng.randint(days_min, days_max)
-            delivery_days = max(2, min(16, base_days + days_offset))
+            delivery_days = max(3, min(15, base_days + days_offset))
 
             # Blended reliability: 60% logistic, 40% factory, plus tiny noise
             offer_rel = float(offer.reliability_score)
             blended = 0.6 * offer_rel + 0.4 * rel_factor + rng.uniform(-0.01, 0.01)
-            candidate_reliability = round(max(0.55, min(0.99, blended)), 3)
+            candidate_reliability = round(max(0.65, min(0.97, blended)), 3)
 
             delivery_price = Decimal(str(
                 int(offer.base_price) + rng.randint(-2000, 2000)

@@ -168,34 +168,39 @@ class OptimizationEngine:
         weights: tuple[float, float, float],
     ) -> list[dict]:
         """
-        DEAP eaMuPlusLambda multi-objective GA.
-        Returns up to _GA_TOP_N solutions ranked by weighted sum of normalised objectives.
-        Fixed random seed 42 for reproducibility.
+        DEAP eaMuPlusLambda multi-objective GA (NSGA-II inspired).
+        Returns up to _GA_TOP_N diverse, high-quality solutions ranked by
+        weighted sum of normalised objectives.  Fixed random seed 42 for
+        reproducibility.
+
+        To guarantee multiple results, the method collects unique candidate
+        indices both from the Hall-of-Fame (best ever seen) and from the final
+        population, then pads with top-ranked pool entries if needed, ensuring
+        at least min(n, 5) distinct solutions are always returned.
         """
         n = len(feasible_candidates)
         if n == 0:
             return []
         if n == 1:
-            # Single candidate: score it and return
             return self._score_pool(feasible_candidates, weights)
 
         random.seed(_GA_RANDOM_SEED)
 
         # Pre-compute raw metrics for the pool
-        costs        = [float(c["total_cost"])      for c in feasible_candidates]
-        times        = [float(c["delivery_days"])   for c in feasible_candidates]
-        reliabilities = [float(c["reliability"])    for c in feasible_candidates]
+        costs         = [float(c["total_cost"])    for c in feasible_candidates]
+        times         = [float(c["delivery_days"]) for c in feasible_candidates]
+        reliabilities = [float(c["reliability"])   for c in feasible_candidates]
 
-        min_cost, max_cost       = min(costs),         max(costs)
-        min_time, max_time       = min(times),         max(times)
-        min_rel,  max_rel        = min(reliabilities), max(reliabilities)
+        min_cost, max_cost = min(costs),         max(costs)
+        min_time, max_time = min(times),         max(times)
+        min_rel,  max_rel  = min(reliabilities), max(reliabilities)
 
         # Clean up any previous DEAP creator classes
         for attr in ("FitnessMulti", "Individual"):
             if hasattr(creator, attr):
                 delattr(creator, attr)
 
-        # NSGA-II style: minimise cost, minimise time, maximise reliability
+        # NSGA-II: minimise cost, minimise time, maximise reliability
         creator.create("FitnessMulti", base.Fitness, weights=(-1.0, -1.0, 1.0))
         creator.create("Individual", list, fitness=creator.FitnessMulti)
 
@@ -218,7 +223,8 @@ class OptimizationEngine:
             rel_n  = _normalise(float(c["reliability"]),   min_rel,  max_rel)
             return (cost_n, time_n, rel_n)
 
-        def mutate(individual: list, indpb: float = 0.2) -> tuple:
+        def mutate(individual: list, indpb: float = 0.3) -> tuple:
+            """Higher mutation rate spreads exploration across more indices."""
             if random.random() < indpb:
                 individual[0] = random.randint(0, n - 1)
             return (individual,)
@@ -231,31 +237,62 @@ class OptimizationEngine:
         pop_size = min(_GA_POP_SIZE, n * 10)
         population = toolbox.population(n=pop_size)
 
+        # Hall-of-Fame tracks the best _GA_TOP_N unique individuals ever seen
+        hof = tools.HallOfFame(maxsize=_GA_TOP_N, similar=lambda a, b: a[0] == b[0])
+
         # Evaluate initial population
         fitnesses = list(map(toolbox.evaluate, population))
         for ind, fit in zip(population, fitnesses):
             ind.fitness.values = fit
+        hof.update(population)
 
-        # eaMuPlusLambda
-        algorithms.eaMuPlusLambda(
-            population,
-            toolbox,
-            mu=pop_size,
-            lambda_=pop_size,
-            cxpb=_GA_CXPB,
-            mutpb=_GA_MUTPB,
-            ngen=_GA_NGEN,
-            verbose=False,
-        )
+        # eaMuPlusLambda — update HOF after every generation manually since
+        # the built-in halloffame param only updates once at the end
+        for _gen in range(_GA_NGEN):
+            offspring = algorithms.varOr(population, toolbox, lambda_=pop_size, cxpb=_GA_CXPB, mutpb=_GA_MUTPB)
+            invalid = [ind for ind in offspring if not ind.fitness.valid]
+            for ind, fit in zip(invalid, map(toolbox.evaluate, invalid)):
+                ind.fitness.values = fit
+            population = toolbox.select(population + offspring, k=pop_size)
+            hof.update(population)
 
-        # Collect unique candidate indices from final population
+        # ── Collect unique indices from HOF + final population ────────────────
         seen: set[int] = set()
         selected_indices: list[int] = []
-        for ind in population:
+
+        # HOF first — best solutions encountered during all generations
+        for ind in hof:
             idx = ind[0] % n
             if idx not in seen:
                 seen.add(idx)
                 selected_indices.append(idx)
+
+        # Then sweep the final population for any additional diversity
+        for ind in population:
+            if len(selected_indices) >= _GA_TOP_N:
+                break
+            idx = ind[0] % n
+            if idx not in seen:
+                seen.add(idx)
+                selected_indices.append(idx)
+
+        # ── Diversity floor: if fewer than 5 unique solutions, pad with the
+        # top-weighted-score candidates from the full pool ─────────────────────
+        min_solutions = min(n, 5)
+        if len(selected_indices) < min_solutions:
+            # Score entire pool and take highest-ranked not already included
+            full_scored = self._score_pool(feasible_candidates, weights)
+            for entry in full_scored:
+                if len(selected_indices) >= _GA_TOP_N:
+                    break
+                # Find original index of this entry
+                orig_idx = next(
+                    (i for i, c in enumerate(feasible_candidates) if c["id"] == entry["id"]),
+                    None,
+                )
+                if orig_idx is not None and orig_idx not in seen:
+                    seen.add(orig_idx)
+                    selected_indices.append(orig_idx)
 
         selected = [feasible_candidates[i] for i in selected_indices]
         return self._score_pool(selected, weights)[:_GA_TOP_N]
