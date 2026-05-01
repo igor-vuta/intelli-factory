@@ -462,6 +462,7 @@ model Request {
   destination_address_id       String         @db.Uuid
   preferred_currency_code      String         @db.VarChar(3)
   status                       RequestStatus  @default(PENDING)
+  optimization_profile         String         @default("balanced")
 
   created_at                   DateTime       @default(now())
   updated_at                   DateTime       @updatedAt
@@ -541,6 +542,9 @@ model MatchCandidate {
   delivery_days         Int?
   reliability_score     Float?          @db.DoublePrecision
   fitness_score         Float?          @db.DoublePrecision
+  score_breakdown       Json?
+  optimization_mode     String?
+  rank                  Int?
   currency_code         String          @db.VarChar(3)
   status                CandidateStatus @default(PENDING)
 

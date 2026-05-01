@@ -12,7 +12,6 @@ import {
   type BaselineComparePriority,
   type BaselineCompareResponse,
   optimizeSupply,
-  type OptimizePriority,
   type OptimizeSolution,
   type RequestSummary,
 } from '../../lib/authClient';
@@ -36,11 +35,8 @@ export default function AdminWorkspacePage() {
   const [requestsStatusFilter, setRequestsStatusFilter] = useState('ALL');
   const [requestsCurrencyFilter, setRequestsCurrencyFilter] = useState('ALL');
   const [requestsCustomerFilter, setRequestsCustomerFilter] = useState('ALL');
-  const [availableSkus, setAvailableSkus] = useState<string[]>([]);
-  const [availableDestinations, setAvailableDestinations] = useState<string[]>([]);
-  const [sku, setSku] = useState('');
-  const [destination, setDestination] = useState('');
-  const [quantity, setQuantity] = useState('100');
+  const [selectedRequestId, setSelectedRequestId] = useState('');
+  const [optimizeMode, setOptimizeMode] = useState<'fast' | 'deep'>('fast');
   const [priority, setPriority] = useState<BaselineComparePriority>('balanced');
   const [comparing, setComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
@@ -60,15 +56,9 @@ export default function AdminWorkspacePage() {
           return;
         }
 
-        const [rows, catalog] = await Promise.all([listRequests(), getComparisonCatalog()]);
+        const [rows] = await Promise.all([listRequests(), getComparisonCatalog()]);
         if (!cancelled) {
           setRequests(rows);
-          setAvailableSkus(catalog.skus);
-          setAvailableDestinations(catalog.destinations);
-          setSku((prev) => (prev && catalog.skus.includes(prev) ? prev : (catalog.skus[0] ?? '')));
-          setDestination((prev) =>
-            prev && catalog.destinations.includes(prev) ? prev : (catalog.destinations[0] ?? '')
-          );
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -97,39 +87,21 @@ export default function AdminWorkspacePage() {
     event.preventDefault();
     setCompareError(null);
 
-    const parsedQty = Number(quantity);
-    if (!sku.trim()) {
-      setCompareError('SKU is required');
-      return;
-    }
-    if (!destination.trim()) {
-      setCompareError('Destination is required');
-      return;
-    }
-    if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
-      setCompareError('Quantity must be greater than 0');
+    if (!selectedRequestId.trim()) {
+      setCompareError('Select a request to compare');
       return;
     }
 
     setComparing(true);
     try {
       const [baseline, optimized] = await Promise.all([
-        compareBaselines({
-          sku: sku.trim(),
-          quantity: parsedQty,
-          priority,
-        }),
-        optimizeSupply({
-          sku: sku.trim(),
-          destination: destination.trim(),
-          quantity: parsedQty,
-          priority: priority as OptimizePriority,
-        }),
+        compareBaselines({ request_id: selectedRequestId.trim(), priority }),
+        optimizeSupply({ request_id: selectedRequestId.trim(), mode: optimizeMode }),
       ]);
 
       const bestSolution = optimized.solutions?.[0];
       if (!bestSolution) {
-        throw new Error('Optimizer returned no solutions for this input');
+        throw new Error('Optimizer returned no solutions for this request');
       }
 
       setCompareResult(baseline);
@@ -187,7 +159,7 @@ export default function AdminWorkspacePage() {
         label: 'Optimizer',
         total_cost: optimizerResult.total_cost,
         delivery_days: optimizerResult.delivery_days,
-        reliability_score: optimizerResult.reliability_score,
+        reliability_score: optimizerResult.reliability,
       });
     }
 
@@ -453,62 +425,27 @@ export default function AdminWorkspacePage() {
               <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
                 <h2 className="text-xl font-semibold">Baseline Comparison</h2>
                 <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                  Compare greedy, heuristic, and DEAP optimizer outputs side-by-side.
+                  Compare greedy, heuristic, and DEAP optimizer outputs side-by-side on real data.
                 </p>
 
                 <form onSubmit={handleCompare} className="mt-4 grid gap-3 sm:grid-cols-4">
-                  <div>
-                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">SKU</label>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Request ID</label>
                     <select
-                      value={sku}
-                      onChange={(e) => setSku(e.target.value)}
+                      value={selectedRequestId}
+                      onChange={(e) => setSelectedRequestId(e.target.value)}
                       className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                       required
                     >
-                      {availableSkus.length === 0 ? (
-                        <option value="">No SKUs available</option>
-                      ) : (
-                        availableSkus.map((entry) => (
-                          <option key={entry} value={entry}>
-                            {entry}
+                      <option value="">Select a request…</option>
+                      {requests
+                        .filter((r) => r.status === 'PAIRING_IN_PROGRESS')
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.id.slice(0, 8)}… – {r.requested_name_text || r.item_name || r.item_id || 'N/A'} ({r.status})
                           </option>
-                        ))
-                      )}
+                        ))}
                     </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
-                      Destination
-                    </label>
-                    <select
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
-                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                      required
-                    >
-                      {availableDestinations.length === 0 ? (
-                        <option value="">No destinations available</option>
-                      ) : (
-                        availableDestinations.map((entry) => (
-                          <option key={entry} value={entry}>
-                            {entry}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Quantity</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                      required
-                    />
                   </div>
 
                   <div>
@@ -521,30 +458,30 @@ export default function AdminWorkspacePage() {
                       <option value="balanced">balanced</option>
                       <option value="cost">cost</option>
                       <option value="speed">speed</option>
+                      <option value="reliability">reliability</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Optimizer Mode</label>
+                    <select
+                      value={optimizeMode}
+                      onChange={(e) => setOptimizeMode(e.target.value as 'fast' | 'deep')}
+                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                    >
+                      <option value="fast">fast (heuristic)</option>
+                      <option value="deep">deep (GA/NSGA-II)</option>
                     </select>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={
-                      comparing ||
-                      availableSkus.length === 0 ||
-                      availableDestinations.length === 0 ||
-                      !sku ||
-                      !destination
-                    }
+                    disabled={comparing || !selectedRequestId}
                     className="btn btn-primary text-sm sm:col-span-4"
                   >
                     {comparing ? 'Running comparison…' : 'Run Comparison'}
                   </button>
                 </form>
-
-                {(availableSkus.length === 0 || availableDestinations.length === 0) && (
-                  <p className="mt-3 rounded-lg bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
-                    Comparison catalog is not available from backend. Verify /api/comparison/catalog
-                    is reachable.
-                  </p>
-                )}
 
                 {compareError && (
                   <p className="mt-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
@@ -578,10 +515,9 @@ export default function AdminWorkspacePage() {
                         <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
                           Greedy (Cost Only)
                         </p>
-                        <p className="mt-2 text-sm">
-                          Provider: {compareResult.greedy.logistics_provider}
+                        <p className="mt-2 text-sm font-mono text-xs">
+                          Candidate: {compareResult.greedy.candidate_id.slice(0, 8)}…
                         </p>
-                        <p className="text-sm">Manufacturer: {compareResult.greedy.manufacturer}</p>
                         <p className="text-sm">
                           Total cost: {compareResult.greedy.total_cost.toFixed(2)}
                         </p>
@@ -597,11 +533,8 @@ export default function AdminWorkspacePage() {
                         <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
                           Heuristic (Weighted)
                         </p>
-                        <p className="mt-2 text-sm">
-                          Provider: {compareResult.heuristic.logistics_provider}
-                        </p>
-                        <p className="text-sm">
-                          Manufacturer: {compareResult.heuristic.manufacturer}
+                        <p className="mt-2 text-sm font-mono text-xs">
+                          Candidate: {compareResult.heuristic.candidate_id.slice(0, 8)}…
                         </p>
                         <p className="text-sm">
                           Total cost: {compareResult.heuristic.total_cost.toFixed(2)}
@@ -622,10 +555,9 @@ export default function AdminWorkspacePage() {
                           <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
                             Evolutionary (DEAP Optimize)
                           </p>
-                          <p className="mt-2 text-sm">
-                            Provider: {optimizerResult.logistics_provider}
+                          <p className="mt-2 text-sm font-mono text-xs">
+                            Candidate: {optimizerResult.candidate_id.slice(0, 8)}…
                           </p>
-                          <p className="text-sm">Manufacturer: {optimizerResult.manufacturer}</p>
                           <p className="text-sm">
                             Total cost: {optimizerResult.total_cost.toFixed(2)}
                           </p>
@@ -633,7 +565,7 @@ export default function AdminWorkspacePage() {
                             Delivery days: {optimizerResult.delivery_days.toFixed(2)}
                           </p>
                           <p className="text-sm">
-                            Reliability: {optimizerResult.reliability_score.toFixed(3)}
+                            Reliability: {optimizerResult.reliability.toFixed(3)}
                           </p>
                           <p className="text-sm">
                             Fitness: {optimizerResult.fitness_score.toFixed(3)}

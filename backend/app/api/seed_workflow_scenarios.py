@@ -3,9 +3,16 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+import sys
 from decimal import Decimal
+from pathlib import Path
 
 from prisma import Json, Prisma
+
+# Ensure the API root is on the path so optimization_engine can be imported
+_API_ROOT = Path(__file__).resolve().parent
+if str(_API_ROOT) not in sys.path:
+    sys.path.insert(0, str(_API_ROOT))
 
 from seed_helpers import (
     _ensure_address,
@@ -280,7 +287,6 @@ async def _upsert_candidate(
         "delivery_days": days,
         "reliability_score": reliability,
         "total_cost": total_cost,
-        "fitness_score": None if total_cost is None else float(1 / (1 + float(total_cost))),
         "currency_code": "EUR",
         "status": status,
         "deleted_at": None,
@@ -657,6 +663,30 @@ async def seed() -> None:
         print("Deterministic stages created: 13")
         print("Multi factory/logist scenario: [SCENARIO] MULTI_FACTORY_MULTI_LOGIST - Coal 99% pure")
         print(f"Random scenario bundles created: {max(0, random_bundles)}")
+
+        # Run OptimizationEngine on all PAIRING_IN_PROGRESS requests so that
+        # fitness_score, score_breakdown, and rank are populated from seed data.
+        print("Running OptimizationEngine on seeded requests...")
+        try:
+            from db import prisma as db_prisma
+            from services.optimization_engine import OptimizationEngine
+
+            engine = OptimizationEngine()
+            pairing_requests = await prisma.request.find_many(
+                where={"status": "PAIRING_IN_PROGRESS", "deleted_at": None},
+                take=200,
+            )
+            scored_count = 0
+            for req in pairing_requests:
+                try:
+                    results = await engine.generate_candidates_for_request(req.id, mode="fast")
+                    if results:
+                        scored_count += 1
+                except Exception as eng_exc:  # noqa: BLE001
+                    print(f"  Warning: engine failed for request {req.id}: {eng_exc}")
+            print(f"OptimizationEngine scored {scored_count} request(s).")
+        except Exception as opt_exc:  # noqa: BLE001
+            print(f"OptimizationEngine post-seed run skipped: {opt_exc}")
     finally:
         await prisma.disconnect()
 

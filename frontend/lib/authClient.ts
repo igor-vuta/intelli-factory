@@ -162,12 +162,11 @@ export type LogisticOfferItem = {
   created_at: string;
 };
 
-export type BaselineComparePriority = 'balanced' | 'cost' | 'speed';
+export type BaselineComparePriority = 'balanced' | 'cost' | 'speed' | 'reliability';
 
 export type BaselineResult = {
   strategy: 'greedy' | 'heuristic';
-  manufacturer: string;
-  logistics_provider: string;
+  candidate_id: string;
   total_cost: number;
   delivery_days: number;
   reliability_score: number;
@@ -176,37 +175,47 @@ export type BaselineResult = {
 
 export type BaselineCompareResponse = {
   status: string;
-  sku: string;
-  quantity: number;
+  request_id: string;
+  priority: BaselineComparePriority;
   greedy: BaselineResult;
   heuristic: BaselineResult;
 };
 
 export type ComparisonCatalogResponse = {
   status: string;
-  skus: string[];
   priorities: BaselineComparePriority[];
-  destinations: string[];
 };
 
-export type OptimizePriority = 'balanced' | 'cost' | 'speed';
+export type OptimizePriority = 'balanced' | 'cost' | 'speed' | 'reliability';
+
+export type ScoreBreakdown = {
+  cost_norm?: number | null;
+  time_norm?: number | null;
+  reliability_norm?: number | null;
+  final_score?: number | null;
+  weights?: Record<string, number> | null;
+};
 
 export type OptimizeSolution = {
   rank: number;
-  manufacturer: string;
-  logistics_provider: string;
+  candidate_id: string;
+  request_id: string;
+  inventory_entry_id: string;
+  logistic_offer_id: string | null;
   total_cost: number;
   delivery_days: number;
-  reliability_score: number;
+  reliability: number;
   fitness_score: number;
+  currency_code: string;
+  score_breakdown?: ScoreBreakdown | null;
 };
 
 export type OptimizeResponse = {
   status: string;
-  order_id?: string;
-  solutions?: OptimizeSolution[];
-  error_code?: string;
-  message?: string;
+  request_id: string;
+  mode: string;
+  solution_count: number;
+  solutions: OptimizeSolution[];
 };
 
 const apiBase = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api';
@@ -562,8 +571,7 @@ export function acceptTransactionCompletion(transactionId: string) {
 }
 
 export function compareBaselines(payload: {
-  sku: string;
-  quantity: number;
+  request_id: string;
   priority: BaselineComparePriority;
 }) {
   return request<BaselineCompareResponse>('/comparison/baselines', {
@@ -577,10 +585,8 @@ export function getComparisonCatalog() {
 }
 
 export function optimizeSupply(payload: {
-  sku: string;
-  destination: string;
-  quantity: number;
-  priority: OptimizePriority;
+  request_id: string;
+  mode: 'fast' | 'deep';
 }) {
   return request<OptimizeResponse>('/automations/optimize', {
     method: 'POST',

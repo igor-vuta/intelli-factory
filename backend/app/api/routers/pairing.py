@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from db import prisma
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
+from services.optimization_engine import OptimizationEngine
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 
@@ -416,10 +417,7 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
     delivery_cost = _to_dec(payload.delivery_price)
     total = goods_cost + delivery_cost
 
-    # Reliability and fitness (simple heuristics until proper algorithm)
     reliability = logist_offer.reliability_score
-    # fitness: lower total cost = higher fitness (rudimentary)
-    fitness = float(1.0 / (1.0 + float(total)))
 
     if duplicate:
         updated_candidate = await prisma.matchcandidate.update(
@@ -429,9 +427,12 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
                 "total_cost": total,
                 "delivery_days": payload.delivery_days,
                 "reliability_score": reliability,
-                "fitness_score": fitness,
                 "status": "PENDING",
             },
+        )
+        # Re-score all candidates for this request via the optimization engine
+        await OptimizationEngine().generate_candidates_for_request(
+            factory_bid.request_id, mode="fast"
         )
         return {
             "status": "success",
@@ -452,9 +453,13 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
             "total_cost": total,
             "delivery_days": payload.delivery_days,
             "reliability_score": reliability,
-            "fitness_score": fitness,
             "status": "PENDING",
         }
+    )
+
+    # Score all candidates for this request via the optimization engine
+    await OptimizationEngine().generate_candidates_for_request(
+        factory_bid.request_id, mode="fast"
     )
 
     return {

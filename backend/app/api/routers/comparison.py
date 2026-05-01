@@ -1,151 +1,153 @@
-"""Baseline comparison router for manual-selection strategies.
+"""Baseline comparison router – Prisma-backed, using OptimizationEngine.
 
-Provides deterministic greedy and heuristic strategies that can be compared
-against the evolutionary optimizer.
+Provides deterministic greedy and weighted-heuristic strategies on real
+MatchCandidate data, comparable against the evolutionary optimizer.
+The previous mock-data (SKU/PRODUCTS/MANUFACTURERS/LOGISTICS_PROVIDERS) has
+been removed; all scoring now goes through OptimizationEngine.
 """
 
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .automations import LOGISTICS_PROVIDERS, MANUFACTURERS, PRODUCTS
+from db import prisma
+from services.optimization_engine import WEIGHT_PROFILES, OptimizationEngine
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-Priority = Literal["balanced", "cost", "speed"]
+Priority = Literal["balanced", "cost", "speed", "reliability"]
+
+
+# ── Request / response models ────────────────────────────────────────────────
 
 
 class BaselineCompareRequest(BaseModel):
-    sku: str = Field(..., description="Product SKU to evaluate")
-    quantity: int = Field(..., gt=0, description="Requested quantity")
+    request_id: str = Field(..., description="DB Request UUID to compare baselines for")
     priority: Priority = Field("balanced", description="Weight profile for heuristic")
 
 
 class BaselineResult(BaseModel):
-    strategy: str
-    manufacturer: str
-    logistics_provider: str
-    total_cost: float
-    delivery_days: float
+    strategy:          str
+    candidate_id:      str
+    total_cost:        float
+    delivery_days:     float
     reliability_score: float
-    heuristic_score: float
+    heuristic_score:   float
 
 
 class BaselineCompareResponse(BaseModel):
-    status: str
-    sku: str
-    quantity: int
-    greedy: BaselineResult
-    heuristic: BaselineResult
+    status:     str
+    request_id: str
+    priority:   Priority
+    greedy:     BaselineResult
+    heuristic:  BaselineResult
 
 
 class ComparisonCatalogResponse(BaseModel):
-    status: str
-    skus: list[str]
+    status:     str
     priorities: list[Priority]
-    destinations: list[str]
 
 
-def _evaluate_option(sku: str, quantity: int, logistics_provider: str) -> dict[str, float | str]:
-    product = PRODUCTS[sku]
-    manufacturer = product["manufacturer"]
-    mfg = MANUFACTURERS[manufacturer]
-    logistics = LOGISTICS_PROVIDERS[logistics_provider]
-
-    goods_cost = float(product["price"] * quantity)
-    logistics_cost = float(logistics["cost_per_kg"] * product["weight"] * quantity)
-    total_cost = goods_cost + logistics_cost
-
-    delivery_days = float(mfg["lead_time"] + (6.0 / logistics["speed"]))
-    reliability = float((mfg["quality"] + logistics["reliability"]) / 2)
-
-    return {
-        "manufacturer": manufacturer,
-        "logistics_provider": logistics_provider,
-        "total_cost": total_cost,
-        "delivery_days": delivery_days,
-        "reliability_score": reliability,
-    }
-
-
-def greedy_optimize(sku: str, quantity: int) -> dict[str, float | str]:
-    rows = [_evaluate_option(sku, quantity, provider) for provider in LOGISTICS_PROVIDERS]
-    return min(rows, key=lambda row: float(row["total_cost"]))
-
-
-def _weights_for(priority: Priority) -> tuple[float, float, float]:
-    if priority == "cost":
-        return (0.7, 0.2, 0.1)
-    if priority == "speed":
-        return (0.2, 0.7, 0.1)
-    return (0.5, 0.3, 0.2)
-
-
-def heuristic_optimize(sku: str, quantity: int, priority: Priority = "balanced") -> dict[str, float | str]:
-    rows = [_evaluate_option(sku, quantity, provider) for provider in LOGISTICS_PROVIDERS]
-
-    min_cost = min(float(row["total_cost"]) for row in rows)
-    max_cost = max(float(row["total_cost"]) for row in rows)
-    min_days = min(float(row["delivery_days"]) for row in rows)
-    max_days = max(float(row["delivery_days"]) for row in rows)
-    min_rel = min(float(row["reliability_score"]) for row in rows)
-    max_rel = max(float(row["reliability_score"]) for row in rows)
-
-    cost_w, speed_w, rel_w = _weights_for(priority)
-
-    def normalize(value: float, lo: float, hi: float) -> float:
-        if hi == lo:
-            return 0.0
-        return (value - lo) / (hi - lo)
-
-    best_row: dict[str, float | str] | None = None
-    best_score = float("inf")
-
-    for row in rows:
-        cost_n = normalize(float(row["total_cost"]), min_cost, max_cost)
-        days_n = normalize(float(row["delivery_days"]), min_days, max_days)
-        reliability_n = normalize(float(row["reliability_score"]), min_rel, max_rel)
-        reliability_risk = 1.0 - reliability_n
-
-        score = (cost_w * cost_n) + (speed_w * days_n) + (rel_w * reliability_risk)
-
-        if score < best_score:
-            best_score = score
-            best_row = row
-
-    assert best_row is not None
-    result = dict(best_row)
-    result["heuristic_score"] = best_score
-    return result
+# ── Endpoints ────────────────────────────────────────────────────────────────
 
 
 @router.post("/baselines", response_model=BaselineCompareResponse)
 async def compare_baselines(payload: BaselineCompareRequest):
-    if payload.sku not in PRODUCTS:
-        raise HTTPException(status_code=400, detail=f"SKU '{payload.sku}' not found")
+    """
+    Compare greedy (min total_cost) vs weighted-heuristic baselines
+    against real MatchCandidates for a given Request.
+    """
+    req = await prisma.request.find_first(
+        where={"id": payload.request_id, "deleted_at": None},
+        include={
+            "destination_address": {
+                "include": {"country": True, "region": True, "city": True}
+            },
+        },
+    )
+    if not req:
+        raise HTTPException(status_code=404, detail=f"Request '{payload.request_id}' not found")
 
-    greedy = greedy_optimize(payload.sku, payload.quantity)
-    greedy["heuristic_score"] = 0.0
+    candidates_raw = await prisma.matchcandidate.find_many(
+        where={
+            "request_id": payload.request_id,
+            "logistic_offer_id": {"not": None},
+            "status": {"in": ["PENDING", "ACCEPTED"]},
+            "deleted_at": None,
+        },
+        include={
+            "inventory_entry": {
+                "include": {
+                    "stock_address": {
+                        "include": {"country": True, "region": True, "city": True}
+                    },
+                    "currency": True,
+                }
+            },
+            "logistic_offer": {
+                "include": {
+                    "covered_areas": {
+                        "include": {"country": True, "region": True, "city": True}
+                    },
+                    "currency": True,
+                }
+            },
+            "currency": True,
+        },
+    )
 
-    heuristic = heuristic_optimize(payload.sku, payload.quantity, payload.priority)
+    if not candidates_raw:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No complete candidates found for request '{payload.request_id}'",
+        )
+
+    engine = OptimizationEngine()
+    feasible = [c for c in candidates_raw if engine._is_feasible(c, req)]  # noqa: SLF001
+
+    if not feasible:
+        raise HTTPException(
+            status_code=404,
+            detail="No feasible candidates after applying hard constraints",
+        )
+
+    pool = [engine._candidate_to_dict(c, req) for c in feasible]  # noqa: SLF001
+
+    # Greedy: lowest total_cost
+    greedy_raw = min(pool, key=lambda c: c["total_cost"])
+
+    # Heuristic: weighted-sum over normalised objectives
+    weights = WEIGHT_PROFILES.get(payload.priority, WEIGHT_PROFILES["balanced"])
+    heuristic_pool = engine._score_pool(pool, weights)  # noqa: SLF001
+    heuristic_raw = heuristic_pool[0] if heuristic_pool else greedy_raw
+
+    def _to_result(strategy: str, item: dict) -> BaselineResult:
+        bd = item.get("score_breakdown") or {}
+        return BaselineResult(
+            strategy=strategy,
+            candidate_id=item["id"],
+            total_cost=item["total_cost"],
+            delivery_days=item["delivery_days"],
+            reliability_score=item["reliability"],
+            heuristic_score=round(bd.get("final_score", 0.0), 6),
+        )
 
     return BaselineCompareResponse(
         status="success",
-        sku=payload.sku,
-        quantity=payload.quantity,
-        greedy=BaselineResult(strategy="greedy", **greedy),
-        heuristic=BaselineResult(strategy="heuristic", **heuristic),
+        request_id=payload.request_id,
+        priority=payload.priority,
+        greedy=_to_result("greedy", greedy_raw),
+        heuristic=_to_result("heuristic", heuristic_raw),
     )
 
 
 @router.get("/catalog", response_model=ComparisonCatalogResponse)
 async def comparison_catalog():
-    # Keep the frontend aligned with the same SKU universe used by both
-    # comparison baselines and optimizer mock data.
     return ComparisonCatalogResponse(
         status="success",
-        skus=sorted(PRODUCTS.keys()),
-        priorities=["balanced", "cost", "speed"],
-        destinations=["almaty"],
+        priorities=["balanced", "cost", "speed", "reliability"],
     )
