@@ -1155,7 +1155,7 @@ async def create_random_large_scale_request(
         elapsed_seed = time.perf_counter() - t0
 
         print(f"\n{'='*62}")
-        print(f"  Random Large-Scale Scenario")
+        print("  Random Large-Scale Scenario")
         print(f"  Request: {request_full_name}")
         print(f"{'='*62}")
         print(f"  Seed:              {random_seed if random_seed is not None else '(none — fresh random)'}")
