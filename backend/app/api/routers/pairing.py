@@ -97,6 +97,7 @@ def _serialize_candidate(c) -> dict[str, Any]:
     item = inv.item if inv else None
     factory = inv.factory_profile if inv else None
     logist_offer = c.logistic_offer
+    logist_profile = getattr(logist_offer, "logist_profile", None) if logist_offer else None
     request_row = getattr(c, "request", None)
     source_address = getattr(inv, "stock_address", None) if inv else None
     destination_address = getattr(request_row, "destination_address", None) if request_row else None
@@ -120,6 +121,7 @@ def _serialize_candidate(c) -> dict[str, Any]:
         # Logistics
         "logistic_offer_id": c.logistic_offer_id,
         "logistic_title": logist_offer.title if logist_offer else None,
+        "logist_legal_name": logist_profile.legal_name if logist_profile else None,
         "delivery_price": str(c.delivery_price) if c.delivery_price is not None else None,
         "delivery_days": c.delivery_days,
         # Combined
@@ -518,7 +520,7 @@ async def list_candidates_for_request(
                     },
                 }
             },
-            "logistic_offer": True,
+            "logistic_offer": {"include": {"logist_profile": True}},
         },
         order={"fitness_score": "desc"},
         take=50,

@@ -124,13 +124,13 @@ function ProposalsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-8 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-3xl rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
-        <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="my-auto flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] p-6 sm:p-8">
           <div>
             <h2 className="text-lg font-semibold">Proposals for your request</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
@@ -154,6 +154,8 @@ function ProposalsModal({
             </button>
           </div>
         </div>
+
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
 
         {error && (
           <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
@@ -242,8 +244,10 @@ function ProposalsModal({
               <thead>
                 <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
                   <th className="py-2 pr-3">Factory</th>
+                  <th className="py-2 pr-3">From</th>
                   <th className="py-2 pr-3">Item</th>
                   <th className="py-2 pr-3">Qty</th>
+                  <th className="py-2 pr-3">Logist</th>
                   <th className="py-2 pr-3">Goods cost</th>
                   <th className="py-2 pr-3">Delivery</th>
                   <th className="py-2 pr-3">Total</th>
@@ -268,9 +272,28 @@ function ProposalsModal({
                       }`}
                     >
                       <td className="py-2 pr-3 text-xs">{c.factory_legal_name ?? '—'}</td>
+                      <td
+                        className="py-2 pr-3 text-xs text-[rgb(var(--muted))]"
+                        title={c.source_address_label ?? undefined}
+                      >
+                        {c.source_address_label
+                          ? c.source_address_label.split(',').slice(1, 3).join(',').trim() ||
+                            c.source_address_label
+                          : '—'}
+                      </td>
                       <td className="py-2 pr-3">{c.item_name ?? '—'}</td>
                       <td className="py-2 pr-3">
                         {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        <div className="flex flex-col">
+                          <span>{c.logist_legal_name ?? '—'}</span>
+                          {c.logistic_title && (
+                            <span className="text-[10px] text-[rgb(var(--muted))]">
+                              {c.logistic_title}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2 pr-3">
                         {goodsCost} {c.currency_code}
@@ -316,6 +339,7 @@ function ProposalsModal({
             </table>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

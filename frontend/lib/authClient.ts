@@ -384,6 +384,7 @@ export type MatchCandidate = {
   // logistics
   logistic_offer_id: string | null;
   logistic_title: string | null;
+  logist_legal_name: string | null;
   delivery_price: string | null;
   delivery_days: number | null;
   // combined
@@ -592,4 +593,42 @@ export function optimizeSupply(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+// ── Full 4-strategy comparison ────────────────────────────────────────────────
+
+export type CompareStrategyEntry = {
+  id: string;
+  total_cost: number;
+  delivery_days: number;
+  reliability: number;
+  fitness_score: number;
+  rank: number;
+  currency_code: string;
+  score_breakdown?: ScoreBreakdown | null;
+};
+
+export type OptimizeCompareResponse = {
+  request_id: string;
+  optimization_profile: string | null;
+  weights: { cost: number; time: number; reliability: number };
+  candidate_pool_size: number;
+  greedy: CompareStrategyEntry[];
+  heuristic: CompareStrategyEntry[];
+  fast: CompareStrategyEntry[];
+  deep: CompareStrategyEntry[];
+};
+
+export function optimizeCompare(request_id: string) {
+  return request<OptimizeCompareResponse>('/automations/optimize/compare', {
+    method: 'POST',
+    body: JSON.stringify({ request_id, mode: 'deep' }),
+  });
+}
+
+export function seedLargeScale() {
+  return request<{ status: string; message: string; candidates_created: number }>(
+    '/automations/seed-large-scale',
+    { method: 'POST' }
+  );
 }

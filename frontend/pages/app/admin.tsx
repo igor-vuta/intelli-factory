@@ -1,18 +1,34 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import {
-  compareBaselines,
-  getComparisonCatalog,
   listRequests,
   logout,
   me,
-  type BaselineComparePriority,
-  type BaselineCompareResponse,
-  optimizeSupply,
-  type OptimizeSolution,
+  optimizeCompare,
+  seedLargeScale,
+  type CompareStrategyEntry,
+  type OptimizeCompareResponse,
   type RequestSummary,
 } from '../../lib/authClient';
 import { formatQuantityWithUnit } from '../../lib/formatting';
@@ -36,12 +52,12 @@ export default function AdminWorkspacePage() {
   const [requestsCurrencyFilter, setRequestsCurrencyFilter] = useState('ALL');
   const [requestsCustomerFilter, setRequestsCustomerFilter] = useState('ALL');
   const [selectedRequestId, setSelectedRequestId] = useState('');
-  const [optimizeMode, setOptimizeMode] = useState<'fast' | 'deep'>('fast');
-  const [priority, setPriority] = useState<BaselineComparePriority>('balanced');
   const [comparing, setComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
-  const [compareResult, setCompareResult] = useState<BaselineCompareResponse | null>(null);
-  const [optimizerResult, setOptimizerResult] = useState<OptimizeSolution | null>(null);
+  const [compareData, setCompareData] = useState<OptimizeCompareResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'greedy' | 'heuristic' | 'fast' | 'deep'>('deep');
+  const [seedLoading, setSeedLoading] = useState(false);
+  const [seedMessage, setSeedMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +72,7 @@ export default function AdminWorkspacePage() {
           return;
         }
 
-        const [rows] = await Promise.all([listRequests(), getComparisonCatalog()]);
+        const [rows] = await Promise.all([listRequests()]);
         if (!cancelled) {
           setRequests(rows);
         }
@@ -83,9 +99,9 @@ export default function AdminWorkspacePage() {
     await router.push(`/login?lang=${locale}`);
   }
 
-  async function handleCompare(event: FormEvent) {
-    event.preventDefault();
+  async function handleCompare() {
     setCompareError(null);
+    setCompareData(null);
 
     if (!selectedRequestId.trim()) {
       setCompareError('Select a request to compare');
@@ -94,24 +110,28 @@ export default function AdminWorkspacePage() {
 
     setComparing(true);
     try {
-      const [baseline, optimized] = await Promise.all([
-        compareBaselines({ request_id: selectedRequestId.trim(), priority }),
-        optimizeSupply({ request_id: selectedRequestId.trim(), mode: optimizeMode }),
-      ]);
-
-      const bestSolution = optimized.solutions?.[0];
-      if (!bestSolution) {
-        throw new Error('Optimizer returned no solutions for this request');
-      }
-
-      setCompareResult(baseline);
-      setOptimizerResult(bestSolution);
+      const data = await optimizeCompare(selectedRequestId.trim());
+      setCompareData(data);
+      setActiveTab('deep');
     } catch (err) {
-      setCompareResult(null);
-      setOptimizerResult(null);
       setCompareError(err instanceof Error ? err.message : 'Comparison request failed');
     } finally {
       setComparing(false);
+    }
+  }
+
+  async function handleSeedLargeScale() {
+    setSeedLoading(true);
+    setSeedMessage(null);
+    try {
+      const result = await seedLargeScale();
+      setSeedMessage(`✓ ${result.message} — ${result.candidates_created} candidates created. Reload the page to see the new request.`);
+      const rows = await listRequests();
+      setRequests(rows);
+    } catch (err) {
+      setSeedMessage(`Error: ${err instanceof Error ? err.message : 'Seed failed'}`);
+    } finally {
+      setSeedLoading(false);
     }
   }
 
@@ -136,35 +156,80 @@ export default function AdminWorkspacePage() {
     return summary;
   }, [requests]);
 
-  const comparisonRows = useMemo(() => {
-    if (!compareResult) return [];
-
-    const rows = [
-      {
-        label: 'Greedy',
-        total_cost: compareResult.greedy.total_cost,
-        delivery_days: compareResult.greedy.delivery_days,
-        reliability_score: compareResult.greedy.reliability_score,
-      },
-      {
-        label: 'Heuristic',
-        total_cost: compareResult.heuristic.total_cost,
-        delivery_days: compareResult.heuristic.delivery_days,
-        reliability_score: compareResult.heuristic.reliability_score,
-      },
-    ];
-
-    if (optimizerResult) {
-      rows.push({
-        label: 'Optimizer',
-        total_cost: optimizerResult.total_cost,
-        delivery_days: optimizerResult.delivery_days,
-        reliability_score: optimizerResult.reliability,
-      });
+  // Chart data derived from compare results
+  const scatterData = useMemo(() => {
+    if (!compareData) return [];
+    const COLORS: Record<string, string> = {
+      greedy: '#f59e0b',
+      heuristic: '#60a5fa',
+      fast: '#34d399',
+      deep: '#a78bfa',
+    };
+    const entries: { x: number; y: number; z: number; strategy: string; fill: string; id: string }[] = [];
+    for (const strategy of ['greedy', 'heuristic', 'fast', 'deep'] as const) {
+      for (const sol of compareData[strategy]) {
+        entries.push({
+          x: sol.total_cost,
+          y: sol.delivery_days,
+          z: sol.reliability,
+          strategy,
+          fill: COLORS[strategy],
+          id: sol.id,
+        });
+      }
     }
+    return entries;
+  }, [compareData]);
 
-    return rows;
-  }, [compareResult, optimizerResult]);
+  const barData = useMemo(() => {
+    if (!compareData) return [];
+    const best = (list: CompareStrategyEntry[]) =>
+      list.length === 0
+        ? { cost: 0, days: 0, rel: 0 }
+        : {
+            cost: Math.min(...list.map((s) => s.total_cost)),
+            days: Math.min(...list.map((s) => s.delivery_days)),
+            rel: Math.max(...list.map((s) => s.reliability)),
+          };
+    return [
+      { strategy: 'Greedy', ...best(compareData.greedy) },
+      { strategy: 'Heuristic', ...best(compareData.heuristic) },
+      { strategy: 'Fast', ...best(compareData.fast) },
+      { strategy: 'Deep GA', ...best(compareData.deep) },
+    ];
+  }, [compareData]);
+
+  const radarData = useMemo(() => {
+    if (!compareData) return [];
+    const top = (list: CompareStrategyEntry[]) => list[0];
+    type StrategyKey = 'greedy' | 'heuristic' | 'fast' | 'deep';
+    const strategies: { name: string; key: StrategyKey }[] = [
+      { name: 'Greedy', key: 'greedy' },
+      { name: 'Heuristic', key: 'heuristic' },
+      { name: 'Fast', key: 'fast' },
+      { name: 'Deep GA', key: 'deep' },
+    ];
+    const getList = (key: StrategyKey) => compareData[key];
+    // Collect all values for normalisation
+    const allCosts = strategies.flatMap(({ key }) => getList(key).map((s) => s.total_cost));
+    const allDays  = strategies.flatMap(({ key }) => getList(key).map((s) => s.delivery_days));
+    const allRel   = strategies.flatMap(({ key }) => getList(key).map((s) => s.reliability));
+    const minC = Math.min(...allCosts), maxC = Math.max(...allCosts);
+    const minD = Math.min(...allDays),  maxD = Math.max(...allDays);
+    const minR = Math.min(...allRel),   maxR = Math.max(...allRel);
+    const norm = (v: number, lo: number, hi: number) => hi === lo ? 0.5 : (v - lo) / (hi - lo);
+    return strategies
+      .filter(({ key }) => getList(key).length > 0)
+      .map(({ name, key }) => {
+        const s = top(getList(key));
+        return {
+          strategy: name,
+          cost:        parseFloat(((1 - norm(s.total_cost, minC, maxC)) * 100).toFixed(1)),
+          speed:       parseFloat(((1 - norm(s.delivery_days, minD, maxD)) * 100).toFixed(1)),
+          reliability: parseFloat((norm(s.reliability, minR, maxR) * 100).toFixed(1)),
+        };
+      });
+  }, [compareData]);
 
   const requestStatusOptions = useMemo(
     () => Array.from(new Set(requests.map((row) => row.status))).sort(),
@@ -216,21 +281,12 @@ export default function AdminWorkspacePage() {
     if (requestsPage > requestsTotalPages) setRequestsPage(requestsTotalPages);
   }, [requestsPage, requestsTotalPages]);
 
-  const winners = useMemo(() => {
-    if (comparisonRows.length === 0) return null;
-
-    const byCost = [...comparisonRows].sort((a, b) => a.total_cost - b.total_cost)[0];
-    const bySpeed = [...comparisonRows].sort((a, b) => a.delivery_days - b.delivery_days)[0];
-    const byReliability = [...comparisonRows].sort(
-      (a, b) => b.reliability_score - a.reliability_score
-    )[0];
-
-    return {
-      byCost,
-      bySpeed,
-      byReliability,
-    };
-  }, [comparisonRows]);
+  const STRATEGY_COLORS: Record<string, string> = {
+    greedy: '#f59e0b',
+    heuristic: '#60a5fa',
+    fast: '#34d399',
+    deep: '#a78bfa',
+  };
 
   return (
     <main
@@ -423,65 +479,71 @@ export default function AdminWorkspacePage() {
               </div>
 
               <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
-                <h2 className="text-xl font-semibold">Baseline Comparison</h2>
-                <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                  Compare greedy, heuristic, and DEAP optimizer outputs side-by-side on real data.
-                </p>
+                {/* ── Section header + seed button ─────────────────────────── */}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">Optimization Engine Comparison</h2>
+                    <p className="mt-1 text-sm text-[rgb(var(--muted))]">
+                      Compare Greedy, Weighted Heuristic, Fast and Deep (GA) strategies side-by-side.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={seedLoading}
+                    onClick={handleSeedLargeScale}
+                    className="rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-xs disabled:opacity-50"
+                  >
+                    {seedLoading ? 'Seeding…' : 'Generate 150-Candidate Test Data'}
+                  </button>
+                </div>
 
-                <form onSubmit={handleCompare} className="mt-4 grid gap-3 sm:grid-cols-4">
-                  <div className="sm:col-span-2">
-                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Request ID</label>
+                {seedMessage && (
+                  <p
+                    className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+                      seedMessage.startsWith('Error')
+                        ? 'bg-red-950/40 text-red-300'
+                        : 'bg-emerald-950/40 text-emerald-300'
+                    }`}
+                  >
+                    {seedMessage}
+                  </p>
+                )}
+
+                {/* ── Request selector + run button ─────────────────────────── */}
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <div className="flex-1 min-w-0">
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
+                      Request (select one with PAIRING_IN_PROGRESS status)
+                    </label>
                     <select
                       value={selectedRequestId}
-                      onChange={(e) => setSelectedRequestId(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedRequestId(e.target.value);
+                        setCompareData(null);
+                        setCompareError(null);
+                      }}
                       className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                      required
                     >
                       <option value="">Select a request…</option>
                       {requests
                         .filter((r) => r.status === 'PAIRING_IN_PROGRESS')
                         .map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.id.slice(0, 8)}… – {r.requested_name_text || r.item_name || r.item_id || 'N/A'} ({r.status})
+                            {r.id.slice(0, 8)}… — {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
                           </option>
                         ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Priority</label>
-                    <select
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value as BaselineComparePriority)}
-                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    >
-                      <option value="balanced">balanced</option>
-                      <option value="cost">cost</option>
-                      <option value="speed">speed</option>
-                      <option value="reliability">reliability</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">Optimizer Mode</label>
-                    <select
-                      value={optimizeMode}
-                      onChange={(e) => setOptimizeMode(e.target.value as 'fast' | 'deep')}
-                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    >
-                      <option value="fast">fast (heuristic)</option>
-                      <option value="deep">deep (GA/NSGA-II)</option>
-                    </select>
-                  </div>
-
                   <button
-                    type="submit"
+                    type="button"
                     disabled={comparing || !selectedRequestId}
-                    className="btn btn-primary text-sm sm:col-span-4"
+                    onClick={handleCompare}
+                    className="btn btn-primary shrink-0 text-sm"
                   >
-                    {comparing ? 'Running comparison…' : 'Run Comparison'}
+                    {comparing ? 'Running all 4 strategies…' : 'Run Full Comparison'}
                   </button>
-                </form>
+                </div>
 
                 {compareError && (
                   <p className="mt-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
@@ -489,89 +551,305 @@ export default function AdminWorkspacePage() {
                   </p>
                 )}
 
-                {compareResult && (
+                {/* ── Results ───────────────────────────────────────────────── */}
+                {compareData && (
                   <>
-                    {winners && (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                        <p className="rounded-lg border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-                          Lowest cost:{' '}
-                          <span className="text-[rgb(var(--text))]">{winners.byCost.label}</span>
-                        </p>
-                        <p className="rounded-lg border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-                          Fastest delivery:{' '}
-                          <span className="text-[rgb(var(--text))]">{winners.bySpeed.label}</span>
-                        </p>
-                        <p className="rounded-lg border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-                          Best reliability:{' '}
-                          <span className="text-[rgb(var(--text))]">
-                            {winners.byReliability.label}
-                          </span>
+                    {/* Summary card */}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                        <p className="text-xs text-[rgb(var(--muted))]">Candidate pool</p>
+                        <p className="text-xl font-semibold">{compareData.candidate_pool_size}</p>
+                      </div>
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                        <p className="text-xs text-[rgb(var(--muted))]">Profile</p>
+                        <p className="text-lg font-semibold capitalize">
+                          {compareData.optimization_profile ?? 'balanced'}
                         </p>
                       </div>
-                    )}
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                        <p className="text-xs text-[rgb(var(--muted))]">Weights (cost / time / rel)</p>
+                        <p className="font-mono text-sm">
+                          {compareData.weights.cost.toFixed(2)} /{' '}
+                          {compareData.weights.time.toFixed(2)} /{' '}
+                          {compareData.weights.reliability.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                        <p className="text-xs text-[rgb(var(--muted))]">Solutions per strategy</p>
+                        <p className="font-mono text-sm">
+                          G:{compareData.greedy.length} H:{compareData.heuristic.length} F:
+                          {compareData.fast.length} D:{compareData.deep.length}
+                        </p>
+                      </div>
+                    </div>
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {/* Winner highlights */}
+                    <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                      {(
+                        [
+                          { key: 'greedy', label: 'Greedy', subtitle: 'Lowest Cost First' },
+                          { key: 'heuristic', label: 'Heuristic', subtitle: 'Weighted Sum' },
+                          { key: 'fast', label: 'Fast', subtitle: 'Deterministic Opt.' },
+                          { key: 'deep', label: 'Deep GA', subtitle: 'NSGA-II / DEAP' },
+                        ] as const
+                      ).map(({ key, label, subtitle }) => {
+                        const best = compareData[key][0];
+                        if (!best) return null;
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-xl border p-3"
+                            style={{ borderColor: STRATEGY_COLORS[key] + '66' }}
+                          >
+                            <p
+                              className="text-xs font-semibold uppercase tracking-wide"
+                              style={{ color: STRATEGY_COLORS[key] }}
+                            >
+                              {label}
+                            </p>
+                            <p className="text-xs text-[rgb(var(--muted))]">{subtitle}</p>
+                            <div className="mt-2 space-y-1 text-sm">
+                              <p>
+                                <span className="text-[rgb(var(--muted))]">Cost </span>
+                                <span className="font-mono font-semibold">
+                                  {best.total_cost.toFixed(2)}
+                                </span>
+                              </p>
+                              <p>
+                                <span className="text-[rgb(var(--muted))]">Days </span>
+                                <span className="font-mono font-semibold">
+                                  {best.delivery_days.toFixed(1)}
+                                </span>
+                              </p>
+                              <p>
+                                <span className="text-[rgb(var(--muted))]">Rel. </span>
+                                <span className="font-mono font-semibold">
+                                  {best.reliability.toFixed(3)}
+                                </span>
+                              </p>
+                              <p>
+                                <span className="text-[rgb(var(--muted))]">Score </span>
+                                <span className="font-mono font-semibold">
+                                  {(best.fitness_score ?? 0).toFixed(4)}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* ── Charts ──────────────────────────────────────────────── */}
+                    <div className="mt-6 grid gap-5 lg:grid-cols-2">
+
+                      {/* Pareto scatter: Cost vs Delivery Days */}
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                        <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
-                          Greedy (Cost Only)
+                        <p className="mb-2 text-sm font-semibold">
+                          Pareto Front — Cost vs Delivery Days
                         </p>
-                        <p className="mt-2 text-sm font-mono text-xs">
-                          Candidate: {compareResult.greedy.candidate_id.slice(0, 8)}…
+                        <p className="mb-3 text-xs text-[rgb(var(--muted))]">
+                          Each dot is a candidate solution. Lower-left corner is optimal.
                         </p>
-                        <p className="text-sm">
-                          Total cost: {compareResult.greedy.total_cost.toFixed(2)}
-                        </p>
-                        <p className="text-sm">
-                          Delivery days: {compareResult.greedy.delivery_days.toFixed(2)}
-                        </p>
-                        <p className="text-sm">
-                          Reliability: {compareResult.greedy.reliability_score.toFixed(3)}
-                        </p>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <ScatterChart>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+                            <XAxis
+                              dataKey="x"
+                              name="Cost"
+                              type="number"
+                              tick={{ fontSize: 10 }}
+                              label={{ value: 'Cost', position: 'insideBottom', offset: -4, fontSize: 11 }}
+                            />
+                            <YAxis
+                              dataKey="y"
+                              name="Days"
+                              type="number"
+                              tick={{ fontSize: 10 }}
+                              label={{ value: 'Delivery Days', angle: -90, position: 'insideLeft', fontSize: 11 }}
+                            />
+                            <Tooltip
+                              content={({ payload }) => {
+                                if (!payload?.length) return null;
+                                const d = payload[0]?.payload as typeof scatterData[0];
+                                return (
+                                  <div className="rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-2 text-xs">
+                                    <p style={{ color: d.fill }}>{d.strategy.toUpperCase()}</p>
+                                    <p>Cost: {d.x.toFixed(2)}</p>
+                                    <p>Days: {d.y.toFixed(1)}</p>
+                                    <p>Reliability: {d.z.toFixed(3)}</p>
+                                  </div>
+                                );
+                              }}
+                            />
+                            <Legend />
+                            {(['greedy', 'heuristic', 'fast', 'deep'] as const).map((strategy) => (
+                              <Scatter
+                                key={strategy}
+                                name={strategy.charAt(0).toUpperCase() + strategy.slice(1)}
+                                data={scatterData.filter((d) => d.strategy === strategy)}
+                                fill={STRATEGY_COLORS[strategy]}
+                              >
+                                {scatterData
+                                  .filter((d) => d.strategy === strategy)
+                                  .map((entry) => (
+                                    <Cell key={entry.id} fill={STRATEGY_COLORS[strategy]} />
+                                  ))}
+                              </Scatter>
+                            ))}
+                          </ScatterChart>
+                        </ResponsiveContainer>
                       </div>
 
+                      {/* Bar chart: best objective values per strategy */}
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                        <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
-                          Heuristic (Weighted)
+                        <p className="mb-2 text-sm font-semibold">
+                          Best Objective Values per Strategy
                         </p>
-                        <p className="mt-2 text-sm font-mono text-xs">
-                          Candidate: {compareResult.heuristic.candidate_id.slice(0, 8)}…
+                        <p className="mb-3 text-xs text-[rgb(var(--muted))]">
+                          Lower cost & days are better; higher reliability is better.
                         </p>
-                        <p className="text-sm">
-                          Total cost: {compareResult.heuristic.total_cost.toFixed(2)}
-                        </p>
-                        <p className="text-sm">
-                          Delivery days: {compareResult.heuristic.delivery_days.toFixed(2)}
-                        </p>
-                        <p className="text-sm">
-                          Reliability: {compareResult.heuristic.reliability_score.toFixed(3)}
-                        </p>
-                        <p className="text-sm">
-                          Score: {compareResult.heuristic.heuristic_score.toFixed(4)}
-                        </p>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={barData} barCategoryGap="20%">
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+                            <XAxis dataKey="strategy" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 10 }} />
+                            <Tooltip
+                              contentStyle={{
+                                background: 'rgba(15,20,35,0.95)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                            />
+                            <Legend />
+                            <Bar dataKey="cost" name="Best Cost" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="days" name="Best Days" fill="#60a5fa" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="rel" name="Best Reliability" fill="#34d399" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
 
-                      {optimizerResult && (
-                        <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                          <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
-                            Evolutionary (DEAP Optimize)
+                      {/* Radar chart: normalised score balance */}
+                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-4 lg:col-span-2">
+                        <p className="mb-2 text-sm font-semibold">
+                          Weighted Score Balance (Radar — top solution per strategy)
+                        </p>
+                        <p className="mb-3 text-xs text-[rgb(var(--muted))]">
+                          Scores normalised 0–100. Larger area = better balanced performance.
+                        </p>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <RadarChart data={[
+                            { axis: 'Cost Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.cost])) },
+                            { axis: 'Speed Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.speed])) },
+                            { axis: 'Reliability Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.reliability])) },
+                          ]}>
+                            <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                            <PolarAngleAxis dataKey="axis" tick={{ fontSize: 12 }} />
+                            <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
+                            {radarData.map((r) => (
+                              <Radar
+                                key={r.strategy}
+                                name={r.strategy}
+                                dataKey={r.strategy}
+                                stroke={STRATEGY_COLORS[r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')]}
+                                fill={STRATEGY_COLORS[r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')]}
+                                fillOpacity={0.15}
+                              />
+                            ))}
+                            <Legend />
+                            <Tooltip />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* ── Strategy tabs ────────────────────────────────────────── */}
+                    <div className="mt-6">
+                      <div className="flex gap-1 border-b border-[rgb(var(--stroke))]">
+                        {(['greedy', 'heuristic', 'fast', 'deep'] as const).map((tab) => (
+                          <button
+                            key={tab}
+                            type="button"
+                            onClick={() => setActiveTab(tab)}
+                            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+                              activeTab === tab
+                                ? 'border-b-2 text-[rgb(var(--text))]'
+                                : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
+                            }`}
+                            style={
+                              activeTab === tab
+                                ? { borderColor: STRATEGY_COLORS[tab] }
+                                : {}
+                            }
+                          >
+                            {tab === 'greedy'
+                              ? 'Greedy'
+                              : tab === 'heuristic'
+                                ? 'Heuristic'
+                                : tab === 'fast'
+                                  ? 'Fast'
+                                  : 'Deep GA'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mt-3 overflow-x-auto">
+                        {compareData[activeTab].length === 0 ? (
+                          <p className="px-3 py-6 text-sm text-[rgb(var(--muted))]">
+                            No solutions returned for this strategy.
                           </p>
-                          <p className="mt-2 text-sm font-mono text-xs">
-                            Candidate: {optimizerResult.candidate_id.slice(0, 8)}…
-                          </p>
-                          <p className="text-sm">
-                            Total cost: {optimizerResult.total_cost.toFixed(2)}
-                          </p>
-                          <p className="text-sm">
-                            Delivery days: {optimizerResult.delivery_days.toFixed(2)}
-                          </p>
-                          <p className="text-sm">
-                            Reliability: {optimizerResult.reliability.toFixed(3)}
-                          </p>
-                          <p className="text-sm">
-                            Fitness: {optimizerResult.fitness_score.toFixed(3)}
-                          </p>
-                        </div>
-                      )}
+                        ) : (
+                          <table className="w-full text-left text-sm">
+                            <thead>
+                              <tr className="border-b border-[rgb(var(--stroke))] text-xs text-[rgb(var(--muted))]">
+                                <th className="py-2 pr-4">Rank</th>
+                                <th className="py-2 pr-4">Candidate ID</th>
+                                <th className="py-2 pr-4">Cost</th>
+                                <th className="py-2 pr-4">Delivery Days</th>
+                                <th className="py-2 pr-4">Reliability</th>
+                                <th className="py-2 pr-4">Fitness Score</th>
+                                <th className="py-2">Currency</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {compareData[activeTab].map((sol, idx) => (
+                                <tr
+                                  key={sol.id}
+                                  className={`border-b border-[rgb(var(--stroke))]/40 ${
+                                    idx === 0 ? 'font-semibold' : ''
+                                  }`}
+                                >
+                                  <td className="py-2 pr-4 text-center">
+                                    {idx === 0 ? (
+                                      <span
+                                        className="rounded-full px-2 py-0.5 text-xs"
+                                        style={{
+                                          background: STRATEGY_COLORS[activeTab] + '33',
+                                          color: STRATEGY_COLORS[activeTab],
+                                        }}
+                                      >
+                                        #{sol.rank}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[rgb(var(--muted))]">#{sol.rank}</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2 pr-4 font-mono text-xs">
+                                    {sol.id.slice(0, 8)}…
+                                  </td>
+                                  <td className="py-2 pr-4 font-mono">{sol.total_cost.toFixed(2)}</td>
+                                  <td className="py-2 pr-4 font-mono">{sol.delivery_days.toFixed(1)}</td>
+                                  <td className="py-2 pr-4 font-mono">{sol.reliability.toFixed(3)}</td>
+                                  <td className="py-2 pr-4 font-mono">{(sol.fitness_score ?? 0).toFixed(4)}</td>
+                                  <td className="py-2 text-xs text-[rgb(var(--muted))]">
+                                    {sol.currency_code}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
