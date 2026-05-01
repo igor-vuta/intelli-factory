@@ -122,6 +122,21 @@ export default function AdminWorkspacePage() {
     }
   }
 
+  // Re-run comparison automatically when profile changes, but only if a
+  // comparison has already been run for the currently selected request.
+  useEffect(() => {
+    if (!compareData || !selectedRequestId.trim() || comparing) return;
+    let cancelled = false;
+    setComparing(true);
+    setCompareError(null);
+    optimizeCompare(selectedRequestId.trim(), profile)
+      .then((data) => { if (!cancelled) { setCompareData(data); setActiveTab('deep'); } })
+      .catch((err) => { if (!cancelled) setCompareError(err instanceof Error ? err.message : 'Comparison request failed'); })
+      .finally(() => { if (!cancelled) setComparing(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
+
   async function handleSeedLargeScale() {
     setSeedLoading(true);
     setSeedMessage(null);
@@ -545,7 +560,6 @@ export default function AdminWorkspacePage() {
                       value={profile}
                       onChange={(e) => {
                         setProfile(e.target.value as OptimizePriority);
-                        setCompareData(null);
                       }}
                       className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     >
@@ -554,9 +568,6 @@ export default function AdminWorkspacePage() {
                       <option value="speed">Speed-first (0.20 / 0.70 / 0.10)</option>
                       <option value="reliability">Reliability-first (0.20 / 0.20 / 0.60)</option>
                     </select>
-                    <p className="mt-1 text-[10px] text-[rgb(var(--muted))]">
-                      Weights cost / time / reliability
-                    </p>
                   </div>
 
                   <button

@@ -158,55 +158,20 @@ async def optimize_compare(request: OptimizeRequest):
 @router.post("/seed-large-scale")
 async def seed_large_scale():
     """
-    Trigger large-scale seed scenario (150 MatchCandidates) using existing
-    reference data.  Intended for development / demo use only.
+    Trigger large-scale random seed scenario (130–170 MatchCandidates).
+    Generates fresh, varied data on every call (no fixed seed).
+    Intended for development / demo use only.
     """
     import sys
     import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     try:
-        from seed_workflow_scenarios import create_large_scale_request_scenario  # noqa: PLC0415
+        from seed_workflow_scenarios import create_random_large_scale_request  # noqa: PLC0415
         from db import prisma as _prisma  # noqa: PLC0415
 
-        country = await _prisma.country.find_unique(where={"iso2": "KZ"})
-        if not country:
-            raise HTTPException(status_code=422, detail="Country KZ not found. Run seed first.")
-
-        region = await _prisma.region.find_first(where={"country_id": country.id})
-        if not region:
-            raise HTTPException(status_code=422, detail="No region found for KZ.")
-
-        city = await _prisma.city.find_first(where={"region_id": region.id})
-        if not city:
-            raise HTTPException(status_code=422, detail="No city found for KZ region.")
-
-        address = await _prisma.address.find_first(
-            where={"country_id": country.id, "street": "Abay Ave 10"}
-        )
-        if not address:
-            raise HTTPException(status_code=422, detail="Address not found. Run seed first.")
-
-        category = await _prisma.category.find_first(where={"slug": "energy-coal"})
-        if not category:
-            raise HTTPException(status_code=422, detail="Category energy-coal not found. Run seed first.")
-
-        item = await _prisma.item.find_first(where={"category_id": category.id})
-        if not item:
-            raise HTTPException(status_code=422, detail="No items found. Run seed first.")
-
-        request_id = await create_large_scale_request_scenario(
-            prisma=_prisma,
-            address_id=address.id,
-            country_id=country.id,
-            region_id=region.id,
-            city_id=city.id,
-            category_id=category.id,
-            item_id=item.id,
-            request_name="Large_Test_Request",
-            num_factories=20,
-            num_logistics=13,
-            target_candidates=150,
-            optimization_profile="balanced",
+        request_id = await create_random_large_scale_request(
+            num_candidates=150,
+            random_seed=None,  # truly random every call
         )
 
         # Count candidates for the created request
@@ -215,7 +180,7 @@ async def seed_large_scale():
         )
         return {
             "status": "success",
-            "message": f"Large-scale scenario seeded for request {request_id}",
+            "message": f"Random large-scale scenario seeded for request {request_id}",
             "candidates_created": candidate_count,
         }
     except HTTPException:
