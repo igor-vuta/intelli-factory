@@ -418,7 +418,278 @@ async def _seed_stage_scenario(
         await _upsert_payment(prisma, tx.id, total_cost, payment_status, stage_name.lower())
 
 
-async def seed() -> None:
+# ── Factory / logistics archetype definitions ────────────────────────────────
+
+_FACTORY_ARCHETYPES = [
+    # (label, price_per_unit, qty_available, archetype)
+    ("Budget Factory A",    Decimal("142"), Decimal("6000"),  "budget"),
+    ("Budget Factory B",    Decimal("151"), Decimal("5500"),  "budget"),
+    ("Budget Factory C",    Decimal("158"), Decimal("7000"),  "budget"),
+    ("Budget Factory D",    Decimal("163"), Decimal("5200"),  "budget"),
+    ("Budget Factory E",    Decimal("169"), Decimal("6800"),  "budget"),
+    ("Mid-Range Factory A", Decimal("178"), Decimal("9000"),  "mid"),
+    ("Mid-Range Factory B", Decimal("184"), Decimal("11000"), "mid"),
+    ("Mid-Range Factory C", Decimal("191"), Decimal("8500"),  "mid"),
+    ("Mid-Range Factory D", Decimal("196"), Decimal("10500"), "mid"),
+    ("Mid-Range Factory E", Decimal("199"), Decimal("12000"), "mid"),
+    ("Premium Factory A",   Decimal("208"), Decimal("13000"), "premium"),
+    ("Premium Factory B",   Decimal("215"), Decimal("10000"), "premium"),
+    ("Premium Factory C",   Decimal("222"), Decimal("11500"), "premium"),
+    ("Premium Factory D",   Decimal("230"), Decimal("9500"),  "premium"),
+    ("Premium Factory E",   Decimal("238"), Decimal("14000"), "premium"),
+]
+
+_LOGISTIC_ARCHETYPES = [
+    # (label, days_min, days_max, reliability, base_price, archetype)
+    ("Express Courier Alpha",   1, 2,  0.97, Decimal("52000"), "express"),
+    ("Express Courier Beta",    1, 3,  0.95, Decimal("48000"), "express"),
+    ("Express Air Freight",     1, 2,  0.98, Decimal("55000"), "express"),
+    ("Express Road Premium",    2, 3,  0.93, Decimal("44000"), "express"),
+    ("Standard Rail KZ",        4, 6,  0.91, Decimal("32000"), "standard"),
+    ("Standard Road Mid",       4, 7,  0.88, Decimal("28000"), "standard"),
+    ("Standard Intermodal",     5, 7,  0.85, Decimal("26000"), "standard"),
+    ("Standard Freight Corp",   4, 6,  0.83, Decimal("30000"), "standard"),
+    ("Economy Bulk Rail",       8, 12, 0.79, Decimal("18000"), "economy"),
+    ("Economy Slow Freight",    9, 14, 0.73, Decimal("14000"), "economy"),
+    ("Economy Road Budget",     8, 11, 0.77, Decimal("16000"), "economy"),
+    ("Economy Consolidated",   10, 14, 0.67, Decimal("12000"), "economy"),
+]
+
+
+async def create_large_scale_request_scenario(
+    prisma: Prisma,
+    address_id: str,
+    country_id: str,
+    region_id: str,
+    city_id: str,
+    category_id: str,
+    item_id: str,
+    request_name: str = "Large_Test_Request",
+    num_factories: int = 15,
+    num_logistics: int = 12,
+    target_candidates: int = 150,
+    optimization_profile: str = "balanced",
+) -> str:
+    """
+    Create one Request backed by N factories × M logistics = N*M MatchCandidates.
+    Returns the new request ID.
+    """
+    import time
+
+    rng = random.Random(12345)  # fixed seed for reproducibility
+
+    archetypes = _FACTORY_ARCHETYPES[:num_factories]
+    log_archetypes = _LOGISTIC_ARCHETYPES[:num_logistics]
+
+    # ── Shared customer for large-scale scenario ──────────────────────────────
+    ls_customer_user = await _ensure_user(prisma, "large.scale.customer@intelli.local", "CUSTOMER")
+    ls_customer_profile = await prisma.customerprofile.upsert(
+        where={"user_id": ls_customer_user.id},
+        data={
+            "create": {
+                "user_id": ls_customer_user.id,
+                "display_name": "Large Scale Customer",
+                "registration_country_code": "KZ",
+                "registration_address": "Al-Farabi 77, Almaty",
+                "preferred_currency_code": "EUR",
+                "primary_address_id": address_id,
+            },
+            "update": {
+                "display_name": "Large Scale Customer",
+                "deleted_at": None,
+            },
+        },
+    )
+
+    # ── Request ───────────────────────────────────────────────────────────────
+    req_qty = Decimal("300")
+    request_full_name = f"[LARGE_SCALE] {request_name} - Coal 99% pure"
+    existing_req = await prisma.request.find_first(
+        where={
+            "customer_profile_id": ls_customer_profile.id,
+            "requested_name_text": request_full_name,
+            "deleted_at": None,
+        }
+    )
+    req_payload = {
+        "category_id": category_id,
+        "item_id": item_id,
+        "requested_name_text": request_full_name,
+        "quantity": req_qty,
+        "destination_address_id": address_id,
+        "preferred_currency_code": "EUR",
+        "requested_characteristics_json": Json({"quality": "99%", "quantity_unit": "tons"}),
+        "optimization_profile": optimization_profile,
+        "status": "PAIRING_IN_PROGRESS",
+        "deleted_at": None,
+    }
+    if existing_req:
+        ls_request = await prisma.request.update(where={"id": existing_req.id}, data=req_payload)
+    else:
+        ls_request = await prisma.request.create(
+            data={"customer_profile_id": ls_customer_profile.id, **req_payload}
+        )
+
+    # ── Factory profiles + inventory ──────────────────────────────────────────
+    inventory_entries = []
+    for i, (label, unit_price, qty_avail, _arch) in enumerate(archetypes):
+        email = f"ls.factory.{i + 1:02d}@intelli.local"
+        f_user = await _ensure_user(prisma, email, "FACTORY")
+        f_profile = await prisma.factoryprofile.upsert(
+            where={"user_id": f_user.id},
+            data={
+                "create": {
+                    "user_id": f_user.id,
+                    "legal_name": label,
+                    "registration_country_code": "KZ",
+                    "registration_address": f"Industrial Zone {i + 1}, Almaty",
+                    "preferred_currency_code": "EUR",
+                    "primary_address_id": address_id,
+                },
+                "update": {"legal_name": label, "deleted_at": None},
+            },
+        )
+        # Add small random jitter so prices aren't perfectly uniform
+        jitter = Decimal(str(rng.randint(-3, 3)))
+        inv = await _ensure_inventory(
+            prisma,
+            f_profile.id,
+            item_id,
+            address_id,
+            qty_avail,
+            unit_price + jitter,
+            "EUR",
+            {"purity_percent": 99, "archetype": _arch},
+        )
+        inventory_entries.append(inv)
+
+    # ── Logistics profiles + offers + coverage ────────────────────────────────
+    logistic_offers = []
+    for j, (label, days_min, days_max, reliability, base_price, _arch) in enumerate(log_archetypes):
+        email = f"ls.logist.{j + 1:02d}@intelli.local"
+        l_user = await _ensure_user(prisma, email, "LOGIST")
+        l_profile = await prisma.logistprofile.upsert(
+            where={"user_id": l_user.id},
+            data={
+                "create": {
+                    "user_id": l_user.id,
+                    "company_name": label,
+                    "registration_country_code": "KZ",
+                    "registration_address": f"Logistics Hub {j + 1}, Almaty",
+                    "preferred_currency_code": "EUR",
+                    "primary_address_id": address_id,
+                },
+                "update": {"company_name": label, "deleted_at": None},
+            },
+        )
+        # Jitter on base_price and reliability for realism
+        price_jitter = Decimal(str(rng.randint(-1500, 1500)))
+        rel_jitter = round(rng.uniform(-0.02, 0.02), 3)
+        actual_reliability = max(0.60, min(0.99, reliability + rel_jitter))
+        offer = await _ensure_logistic_offer(
+            prisma,
+            l_profile.id,
+            label,
+            f"{_arch.capitalize()} freight — {label}",
+            base_price + price_jitter,
+            Decimal("1.00"),
+            Decimal("0.70"),
+            days_min,
+            days_max,
+            round(actual_reliability, 3),
+            "EUR",
+        )
+        await _ensure_coverage(prisma, offer.id, country_id, region_id, city_id)
+        logistic_offers.append((offer, days_min, days_max))
+
+    # ── MatchCandidates: all inventory × logistic offer pairs ─────────────────
+    t0 = time.perf_counter()
+    candidate_count = 0
+    for inv in inventory_entries:
+        for (offer, days_min, days_max) in logistic_offers:
+            if candidate_count >= target_candidates:
+                break
+            delivery_days = rng.randint(days_min, days_max)
+            delivery_price = Decimal(str(
+                int(offer.base_price) + rng.randint(-2000, 2000)
+            ))
+            if delivery_price < Decimal("5000"):
+                delivery_price = Decimal("5000")
+            total_cost = (req_qty * inv.price_per_unit) + delivery_price
+            await _upsert_candidate(
+                prisma,
+                ls_request.id,
+                inv.id,
+                offer.id,
+                req_qty,
+                delivery_price,
+                delivery_days,
+                offer.reliability_score,
+                total_cost,
+                "PENDING",
+                f"{inv.factory_profile_id[:6]}×{offer.logist_profile_id[:6]}",
+            )
+            candidate_count += 1
+        if candidate_count >= target_candidates:
+            break
+    elapsed_seed = time.perf_counter() - t0
+
+    print(f"\n{'='*62}")
+    print(f"  Large-Scale Scenario: {request_full_name}")
+    print(f"{'='*62}")
+    print(f"  Factories:         {len(inventory_entries)}")
+    print(f"  Logistics offers:  {len(logistic_offers)}")
+    print(f"  MatchCandidates:   {candidate_count}")
+    print(f"  Seeding time:      {elapsed_seed:.2f}s")
+
+    # ── Run all four strategies and print comparison ───────────────────────────
+    try:
+        from services.optimization_engine import OptimizationEngine  # noqa: E402
+        engine = OptimizationEngine()
+
+        print(f"\n  Running optimization strategies on {candidate_count} candidates…")
+
+        strategies = [
+            ("greedy",    "fast"),
+            ("heuristic", "fast"),
+            ("fast",      "fast"),
+            ("deep (GA)", "deep"),
+        ]
+
+        t_compare = time.perf_counter()
+        comparison = await engine.compare_baselines(ls_request.id)
+        t_compare = time.perf_counter() - t_compare
+
+        print(f"\n  {'Strategy':<14} {'Top Cost (EUR)':>14} {'Days':>6} {'Reliability':>12} {'Score':>8}")
+        print(f"  {'-'*14} {'-'*14} {'-'*6} {'-'*12} {'-'*8}")
+
+        for key, label in [
+            ("greedy",    "greedy"),
+            ("heuristic", "heuristic"),
+            ("fast",      "fast"),
+            ("deep",      "deep (GA)"),
+        ]:
+            results = comparison.get(key, [])
+            if not results:
+                print(f"  {label:<14} {'—':>14} {'—':>6} {'—':>12} {'—':>8}")
+                continue
+            top = results[0]
+            cost  = float(top.get("total_cost", 0))
+            days  = top.get("delivery_days", "?")
+            rel   = float(top.get("reliability", 0))
+            score = float(top.get("fitness_score") or top.get("heuristic_score") or 0)
+            print(f"  {label:<14} {cost:>14,.0f} {days:>6} {rel:>12.3f} {score:>8.4f}")
+
+        print(f"\n  Total optimization time: {t_compare:.2f}s")
+        print(f"{'='*62}\n")
+
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [Warning] Optimization comparison failed: {exc}")
+
+    return ls_request.id
+
+
+async def seed(run_large: bool = False) -> None:
     if _bool_env("SEED_WITH_REFERENCE_GEO", True):
         await seed_reference_geo()
 
@@ -686,9 +957,35 @@ async def seed() -> None:
             print(f"OptimizationEngine scored {scored_count} request(s).")
         except Exception as opt_exc:  # noqa: BLE001
             print(f"OptimizationEngine post-seed run skipped: {opt_exc}")
+
+        # ── Optional large-scale scenario ─────────────────────────────────────
+        if run_large or _bool_env("SEED_LARGE_SCALE", False):
+            await create_large_scale_request_scenario(
+                prisma=prisma,
+                address_id=address.id,
+                country_id=country.id,
+                region_id=region.id,
+                city_id=city.id,
+                category_id=category.id,
+                item_id=item.id,
+                request_name="Large_Test_Request",
+                num_factories=15,
+                num_logistics=12,
+                target_candidates=150,
+                optimization_profile="balanced",
+            )
     finally:
         await prisma.disconnect()
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Seed Intelli-Factory workflow scenarios.")
+    parser.add_argument(
+        "--large",
+        action="store_true",
+        help="Also create the large-scale scenario (150 MatchCandidates) and run all four optimization strategies.",
+    )
+    args = parser.parse_args()
+    asyncio.run(seed(run_large=args.large))

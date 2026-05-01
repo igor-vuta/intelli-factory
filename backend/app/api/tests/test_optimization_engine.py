@@ -422,3 +422,197 @@ async def test_generate_candidates_deep_mode():
     for item in result:
         assert "score_breakdown" in item
         assert "fitness_score" in item
+
+
+# ── Large-scale unit tests (150 mock candidates) ─────────────────────────────
+
+import random as _random_mod
+
+_RNG = _random_mod.Random(99999)
+
+# Build 150 synthetic candidates: 15 factories × 10 logists
+# - 5 budget factories:  cheap but slow/unreliable
+# - 5 mid factories:     balanced
+# - 5 premium factories: expensive but fast/reliable
+_FACTORY_PARAMS = (
+    # (price_per_unit, qty_available)
+    [(140 + i * 5,  6000) for i in range(5)]   # budget
+    + [(178 + i * 4, 10000) for i in range(5)] # mid
+    + [(208 + i * 6, 12000) for i in range(5)] # premium
+)
+_LOGIST_PARAMS = (
+    # (days_min, days_max, reliability, delivery_price)
+    [(1, 2,  0.97, 52000) for _ in range(2)]   # express
+    + [(4, 7, 0.88, 28000) for _ in range(4)]  # standard
+    + [(9, 14, 0.71, 14000) for _ in range(4)] # economy
+)
+
+
+def _build_large_pool(n_factories: int = 15, n_logistics: int = 10) -> list:
+    """Build a mock candidate pool simulating N factories × M logistics."""
+    engine = OptimizationEngine()
+    req    = _make_request()
+    pool   = []
+    cid    = 0
+    for fi, (unit_price, qty_avail) in enumerate(_FACTORY_PARAMS[:n_factories]):
+        for li, (d_min, d_max, rel, d_price) in enumerate(_LOGIST_PARAMS[:n_logistics]):
+            cid += 1
+            jitter_price  = _RNG.randint(-3, 3)
+            jitter_days   = _RNG.randint(d_min, d_max)
+            jitter_dp     = _RNG.randint(-2000, 2000)
+            total_cost    = 300 * (unit_price + jitter_price) + max(5000, d_price + jitter_dp)
+            c = _make_candidate(
+                cid=f"ls-{cid:04d}",
+                total_cost=total_cost,
+                delivery_days=jitter_days,
+                reliability=max(0.60, min(0.99, rel + _RNG.uniform(-0.02, 0.02))),
+            )
+            pool.append(engine._candidate_to_dict(c, req))
+    return pool
+
+
+def test_large_scale_pool_size():
+    pool = _build_large_pool()
+    assert len(pool) == 150
+
+
+def test_large_scale_fast_returns_all_ranked():
+    pool   = _build_large_pool()
+    engine = OptimizationEngine()
+    result = engine._score_pool(pool, WEIGHT_PROFILES["balanced"])
+    assert len(result) == 150
+    assert result[0]["rank"] == 1
+    assert result[-1]["rank"] == 150
+
+
+def test_large_scale_deep_returns_at_most_top_n():
+    from services.optimization_engine import _GA_TOP_N
+    pool   = _build_large_pool()
+    engine = OptimizationEngine()
+    result = engine.run_deep_optimization(pool, WEIGHT_PROFILES["balanced"])
+    assert 1 <= len(result) <= _GA_TOP_N
+    assert result[0]["rank"] == 1
+
+
+def test_large_scale_cost_profile_picks_cheapest():
+    """Under pure cost profile the top candidate should have one of the lowest total costs."""
+    pool      = _build_large_pool()
+    engine    = OptimizationEngine()
+    result    = engine._score_pool(pool, WEIGHT_PROFILES["cost"])
+    top_cost  = result[0]["total_cost"]
+    all_costs = sorted(c["total_cost"] for c in pool)
+    # Top result cost should be in the bottom 10% of the distribution
+    p10       = all_costs[len(all_costs) // 10]
+    assert top_cost <= p10, "Cost profile top result is not in the cheapest 10%"
+
+
+def test_large_scale_reliability_profile_picks_most_reliable():
+    """Under reliability profile the top candidate should be highly reliable."""
+    pool     = _build_large_pool()
+    engine   = OptimizationEngine()
+    result   = engine._score_pool(pool, WEIGHT_PROFILES["reliability"])
+    top_rel  = result[0]["reliability"]
+    all_rels = sorted((c["reliability"] for c in pool), reverse=True)
+    p10      = all_rels[len(all_rels) // 10]
+    assert top_rel >= p10, "Reliability profile top result is not in the most-reliable 10%"
+
+
+def test_large_scale_speed_profile_picks_fastest():
+    """Under speed profile the top candidate should have a low delivery_days."""
+    pool       = _build_large_pool()
+    engine     = OptimizationEngine()
+    result     = engine._score_pool(pool, WEIGHT_PROFILES["speed"])
+    top_days   = result[0]["delivery_days"]
+    all_days   = sorted(c["delivery_days"] for c in pool)
+    p25        = all_days[len(all_days) // 4]
+    assert top_days <= p25, "Speed profile top result is not in the fastest 25%"
+
+
+def test_large_scale_profiles_select_different_winners():
+    """Different weight profiles should select at least sometimes different top candidates."""
+    pool    = _build_large_pool()
+    engine  = OptimizationEngine()
+    winners = {
+        name: engine._score_pool(pool, w)[0]["id"]
+        for name, w in WEIGHT_PROFILES.items()
+    }
+    # Not all profiles should pick the same candidate
+    assert len(set(winners.values())) > 1, (
+        "All weight profiles picked the same top candidate — scoring likely broken"
+    )
+
+
+def test_large_scale_deep_reproducible():
+    """Deep mode with fixed seed is deterministic regardless of pool size."""
+    pool   = _build_large_pool()
+    engine = OptimizationEngine()
+    run1   = [r["id"] for r in engine.run_deep_optimization(pool, WEIGHT_PROFILES["balanced"])]
+    run2   = [r["id"] for r in engine.run_deep_optimization(pool, WEIGHT_PROFILES["balanced"])]
+    assert run1 == run2
+
+
+@pytest.mark.anyio
+async def test_large_scale_generate_candidates_mocked():
+    """generate_candidates_for_request handles 150 mock DB candidates correctly."""
+    import random as _r
+
+    _r.seed(77)
+    raw_candidates = [
+        _make_candidate(
+            cid=f"ls-{i:04d}",
+            total_cost=40000 + _r.randint(0, 80000),
+            delivery_days=_r.randint(1, 14),
+            reliability=round(_r.uniform(0.65, 0.98), 3),
+        )
+        for i in range(150)
+    ]
+
+    engine = OptimizationEngine()
+
+    with patch("services.optimization_engine.prisma") as mock_prisma:
+        mock_prisma.request.find_first = AsyncMock(return_value=_make_request())
+        mock_prisma.matchcandidate.find_many = AsyncMock(return_value=raw_candidates)
+        mock_prisma.matchcandidate.update = AsyncMock()
+
+        result = await engine.generate_candidates_for_request("req-large", mode="fast")
+
+    assert len(result) == 150
+    assert result[0]["rank"] == 1
+    assert result[-1]["rank"] == 150
+    # All 150 candidates should have been persisted
+    assert mock_prisma.matchcandidate.update.call_count == 150
+    # Every result should have score_breakdown
+    for r in result:
+        assert "score_breakdown" in r
+        assert 0.0 <= r["fitness_score"] <= 1.0
+
+
+@pytest.mark.anyio
+async def test_large_scale_deep_mode_mocked():
+    """Deep mode on 150 candidates returns at most _GA_TOP_N results."""
+    from services.optimization_engine import _GA_TOP_N
+    import random as _r
+
+    _r.seed(88)
+    raw_candidates = [
+        _make_candidate(
+            cid=f"deep-{i:04d}",
+            total_cost=40000 + _r.randint(0, 80000),
+            delivery_days=_r.randint(1, 14),
+            reliability=round(_r.uniform(0.65, 0.98), 3),
+        )
+        for i in range(150)
+    ]
+
+    engine = OptimizationEngine()
+
+    with patch("services.optimization_engine.prisma") as mock_prisma:
+        mock_prisma.request.find_first = AsyncMock(return_value=_make_request())
+        mock_prisma.matchcandidate.find_many = AsyncMock(return_value=raw_candidates)
+        mock_prisma.matchcandidate.update = AsyncMock()
+
+        result = await engine.generate_candidates_for_request("req-deep", mode="deep")
+
+    assert 1 <= len(result) <= _GA_TOP_N
+    assert result[0]["rank"] == 1
+
