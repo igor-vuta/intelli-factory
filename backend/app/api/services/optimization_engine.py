@@ -260,10 +260,13 @@ class OptimizationEngine:
         selected = [feasible_candidates[i] for i in selected_indices]
         return self._score_pool(selected, weights)[:_GA_TOP_N]
 
-    async def compare_baselines(self, request_id: str) -> dict:
+    async def compare_baselines(self, request_id: str, profile: str | None = None) -> dict:
         """
         Run both fast and deep modes plus greedy and weighted-heuristic baselines.
         Returns a dict with all four result sets for Chapter 5 comparison.
+
+        If *profile* is provided it overrides Request.optimization_profile for
+        weight resolution (handy for the admin profile-selector UI).
         """
         req = await prisma.request.find_first(
             where={"id": request_id, "deleted_at": None},
@@ -276,7 +279,8 @@ class OptimizationEngine:
         if not req:
             return {"error": "Request not found"}
 
-        weights = self._resolve_weights(req.optimization_profile)
+        active_profile = profile or req.optimization_profile
+        weights = self._resolve_weights(active_profile)
 
         candidates_raw = await prisma.matchcandidate.find_many(
             where={
@@ -319,7 +323,7 @@ class OptimizationEngine:
 
         return {
             "request_id": request_id,
-            "optimization_profile": req.optimization_profile,
+            "optimization_profile": active_profile,
             "weights": {"cost": weights[0], "time": weights[1], "reliability": weights[2]},
             "candidate_pool_size": len(pool),
             "greedy":    greedy_result[:5],

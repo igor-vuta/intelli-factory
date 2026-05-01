@@ -29,6 +29,7 @@ import {
   seedLargeScale,
   type CompareStrategyEntry,
   type OptimizeCompareResponse,
+  type OptimizePriority,
   type RequestSummary,
 } from '../../lib/authClient';
 import { formatQuantityWithUnit } from '../../lib/formatting';
@@ -52,6 +53,7 @@ export default function AdminWorkspacePage() {
   const [requestsCurrencyFilter, setRequestsCurrencyFilter] = useState('ALL');
   const [requestsCustomerFilter, setRequestsCustomerFilter] = useState('ALL');
   const [selectedRequestId, setSelectedRequestId] = useState('');
+  const [profile, setProfile] = useState<OptimizePriority>('balanced');
   const [comparing, setComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [compareData, setCompareData] = useState<OptimizeCompareResponse | null>(null);
@@ -110,7 +112,7 @@ export default function AdminWorkspacePage() {
 
     setComparing(true);
     try {
-      const data = await optimizeCompare(selectedRequestId.trim());
+      const data = await optimizeCompare(selectedRequestId.trim(), profile);
       setCompareData(data);
       setActiveTab('deep');
     } catch (err) {
@@ -533,6 +535,28 @@ export default function AdminWorkspacePage() {
                           </option>
                         ))}
                     </select>
+                  </div>
+
+                  <div className="min-w-[220px]">
+                    <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
+                      Optimization profile
+                    </label>
+                    <select
+                      value={profile}
+                      onChange={(e) => {
+                        setProfile(e.target.value as OptimizePriority);
+                        setCompareData(null);
+                      }}
+                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                    >
+                      <option value="balanced">Balanced (0.40 / 0.30 / 0.30)</option>
+                      <option value="cost">Cost-first (0.70 / 0.20 / 0.10)</option>
+                      <option value="speed">Speed-first (0.20 / 0.70 / 0.10)</option>
+                      <option value="reliability">Reliability-first (0.20 / 0.20 / 0.60)</option>
+                    </select>
+                    <p className="mt-1 text-[10px] text-[rgb(var(--muted))]">
+                      Weights cost / time / reliability
+                    </p>
                   </div>
 
                   <button

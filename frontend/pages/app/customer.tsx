@@ -108,6 +108,12 @@ function ProposalsModal({
     return byTime[0] ?? null;
   }, [candidates, recommendationGoal]);
 
+  const sortedCandidates = useMemo(() => {
+    if (!recommendedCandidate) return candidates;
+    const rest = candidates.filter((c) => c.id !== recommendedCandidate.id);
+    return [recommendedCandidate, ...rest];
+  }, [candidates, recommendedCandidate]);
+
   async function handleSelect(candidateId: string) {
     setError(null);
     setSelecting(candidateId);
@@ -257,7 +263,7 @@ function ProposalsModal({
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((c) => {
+                {sortedCandidates.map((c) => {
                   const goodsCost =
                     c.quoted_quantity && c.inventory_price_per_unit
                       ? (

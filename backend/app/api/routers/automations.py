@@ -35,6 +35,10 @@ class OptimizeRequest(BaseModel):
         "fast",
         description="Optimization mode: 'fast' (heuristic) or 'deep' (GA/NSGA-II)",
     )
+    profile: Optional[str] = Field(
+        None,
+        description="Optional profile override (balanced/cost/speed/reliability)",
+    )
 
     class Config:
         json_schema_extra = {
@@ -140,7 +144,7 @@ async def optimize_compare(request: OptimizeRequest):
     """
     engine = OptimizationEngine()
     try:
-        result = await engine.compare_baselines(request.request_id)
+        result = await engine.compare_baselines(request.request_id, profile=request.profile)
     except Exception as exc:
         logger.exception("compare_baselines error for request %s", request.request_id)
         raise HTTPException(status_code=500, detail=f"Comparison failed: {exc}") from exc
@@ -199,9 +203,9 @@ async def seed_large_scale():
             category_id=category.id,
             item_id=item.id,
             request_name="Large_Test_Request",
-            num_factories=15,
-            num_logistics=12,
-            target_candidates=150,
+            num_factories=22,
+            num_logistics=14,
+            target_candidates=180,
             optimization_profile="balanced",
         )
 

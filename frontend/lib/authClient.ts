@@ -619,10 +619,15 @@ export type OptimizeCompareResponse = {
   deep: CompareStrategyEntry[];
 };
 
-export function optimizeCompare(request_id: string) {
+export function optimizeCompare(request_id: string, profile?: OptimizePriority) {
+  const body: { request_id: string; mode: 'fast' | 'deep'; profile?: OptimizePriority } = {
+    request_id,
+    mode: 'deep',
+  };
+  if (profile) body.profile = profile;
   return request<OptimizeCompareResponse>('/automations/optimize/compare', {
     method: 'POST',
-    body: JSON.stringify({ request_id, mode: 'deep' }),
+    body: JSON.stringify(body),
   });
 }
 

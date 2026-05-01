@@ -13,6 +13,7 @@ PAIRING_IN_PROGRESS ─► customer selects one complete candidate
 """
 
 from decimal import Decimal, InvalidOperation
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -22,6 +23,8 @@ from pydantic import BaseModel, Field
 from db import prisma
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
 from services.optimization_engine import OptimizationEngine
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 
@@ -121,7 +124,7 @@ def _serialize_candidate(c) -> dict[str, Any]:
         # Logistics
         "logistic_offer_id": c.logistic_offer_id,
         "logistic_title": logist_offer.title if logist_offer else None,
-        "logist_legal_name": logist_profile.legal_name if logist_profile else None,
+        "logist_legal_name": logist_profile.company_name if logist_profile else None,
         "delivery_price": str(c.delivery_price) if c.delivery_price is not None else None,
         "delivery_days": c.delivery_days,
         # Combined
@@ -495,6 +498,14 @@ async def list_candidates_for_request(
         profile = await prisma.customerprofile.find_unique(where={"user_id": user.id})
         if not profile or req.customer_profile_id != profile.id:
             raise HTTPException(403, "Forbidden")
+
+    # Ensure fitness_score is populated on each candidate by running the
+    # optimization engine in 'fast' mode.  Best-effort: failures must not
+    # block proposal display.
+    try:
+        await OptimizationEngine().generate_candidates_for_request(request_id, mode="fast")
+    except Exception:  # noqa: BLE001
+        logger.warning("Optimizer pre-run failed for request %s", request_id, exc_info=True)
 
     candidates = await prisma.matchcandidate.find_many(
         where={
