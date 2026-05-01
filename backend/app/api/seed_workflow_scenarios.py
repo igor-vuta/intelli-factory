@@ -481,25 +481,22 @@ async def create_large_scale_request_scenario(
     archetypes = _FACTORY_ARCHETYPES[:num_factories]
     log_archetypes = _LOGISTIC_ARCHETYPES[:num_logistics]
 
-    # ── Shared customer for large-scale scenario ──────────────────────────────
-    ls_customer_user = await _ensure_user(prisma, "large.scale.customer@intelli.local", "CUSTOMER")
-    ls_customer_profile = await prisma.customerprofile.upsert(
-        where={"user_id": ls_customer_user.id},
-        data={
-            "create": {
+    # ── Reuse the demo customer so the request appears in the customer UI ────
+    ls_customer_user = await _ensure_user(prisma, "customer.demo@intelli.local", "CUSTOMER")
+    ls_customer_profile = await prisma.customerprofile.find_first(
+        where={"user_id": ls_customer_user.id}
+    )
+    if ls_customer_profile is None:
+        ls_customer_profile = await prisma.customerprofile.create(
+            data={
                 "user_id": ls_customer_user.id,
-                "display_name": "Large Scale Customer",
+                "display_name": "Demo Customer",
                 "registration_country_code": "KZ",
-                "registration_address": "Al-Farabi 77, Almaty",
+                "registration_address": "Abay Ave 10",
                 "preferred_currency_code": "EUR",
                 "primary_address_id": address_id,
-            },
-            "update": {
-                "display_name": "Large Scale Customer",
-                "deleted_at": None,
-            },
-        },
-    )
+            }
+        )
 
     # ── Request ───────────────────────────────────────────────────────────────
     req_qty = Decimal("300")
@@ -648,13 +645,6 @@ async def create_large_scale_request_scenario(
         engine = OptimizationEngine()
 
         print(f"\n  Running optimization strategies on {candidate_count} candidates…")
-
-        strategies = [
-            ("greedy",    "fast"),
-            ("heuristic", "fast"),
-            ("fast",      "fast"),
-            ("deep (GA)", "deep"),
-        ]
 
         t_compare = time.perf_counter()
         comparison = await engine.compare_baselines(ls_request.id)

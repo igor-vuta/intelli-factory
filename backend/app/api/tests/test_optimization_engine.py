@@ -426,7 +426,7 @@ async def test_generate_candidates_deep_mode():
 
 # ── Large-scale unit tests (150 mock candidates) ─────────────────────────────
 
-import random as _random_mod
+import random as _random_mod  # noqa: E402
 
 _RNG = _random_mod.Random(99999)
 
