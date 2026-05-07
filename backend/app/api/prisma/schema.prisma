@@ -77,6 +77,11 @@ enum SignatureStatus {
   DECLINED
 }
 
+enum RatingTarget {
+  LOGIST
+  FACTORY
+}
+
 model User {
   id                String   @id @default(uuid()) @db.Uuid
   email             String   @unique
@@ -96,6 +101,7 @@ model User {
   email_verification_tokens  VerificationToken[]
   signatures                 Signature[]
   audit_events               EventLog[]
+  ratings_given              Rating[]
 
   @@index([role])
   @@index([deleted_at])
@@ -579,6 +585,7 @@ model Transaction {
   signatures            Signature[]
   payments              Payment[]
   event_logs            EventLog[]
+  ratings               Rating[]
 
   @@index([status, deleted_at])
 }
@@ -650,4 +657,22 @@ model EventLog {
 
   @@index([entity_type, entity_id])
   @@index([event_type, created_at])
+}
+
+model Rating {
+  id                  String        @id @default(uuid()) @db.Uuid
+  transaction_id      String        @db.Uuid
+  rated_by_user_id    String        @db.Uuid
+  target_type         RatingTarget
+  target_profile_id   String        @db.Uuid
+  score               Int
+  comment             String?
+
+  created_at          DateTime      @default(now())
+
+  transaction         Transaction   @relation(fields: [transaction_id], references: [id])
+  rated_by_user       User          @relation(fields: [rated_by_user_id], references: [id])
+
+  @@unique([transaction_id, rated_by_user_id, target_type])
+  @@index([target_type, target_profile_id])
 }

@@ -9,6 +9,7 @@ from prisma import Json
 
 from db import prisma
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
+from routers.ratings import get_computed_reliability
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 
@@ -93,7 +94,6 @@ class LogisticOfferCreateBody(BaseModel):
     price_per_kg: float | None = Field(default=None, ge=0)
     estimated_days_min: int | None = Field(default=None, ge=0)
     estimated_days_max: int | None = Field(default=None, ge=0)
-    reliability_score: float = Field(..., ge=0, le=1)
     currency_code: str = Field(..., min_length=3, max_length=3)
 
 
@@ -852,7 +852,7 @@ async def create_logistic_offer(
         "logist_profile": {"connect": {"id": logist_profile.id}},
         "title": payload.title,
         "base_price": _to_decimal(payload.base_price),
-        "reliability_score": payload.reliability_score,
+        "reliability_score": await get_computed_reliability(logist_profile.id),
         "currency": {"connect": {"code": currency_code}},
         "status": "ACTIVE",
     }

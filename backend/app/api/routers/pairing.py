@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from db import prisma
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
+from routers.ratings import get_avg_rating, get_computed_reliability
 from services.optimization_engine import OptimizationEngine
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ def _serialize_request(row) -> dict[str, Any]:
     }
 
 
-def _serialize_candidate(c) -> dict[str, Any]:
+async def _serialize_candidate_async(c) -> dict[str, Any]:
     inv = c.inventory_entry
     item = inv.item if inv else None
     factory = inv.factory_profile if inv else None
@@ -104,6 +105,9 @@ def _serialize_candidate(c) -> dict[str, Any]:
     request_row = getattr(c, "request", None)
     source_address = getattr(inv, "stock_address", None) if inv else None
     destination_address = getattr(request_row, "destination_address", None) if request_row else None
+
+    factory_avg = await get_avg_rating(factory.id, "FACTORY") if factory else None
+    logist_avg = await get_avg_rating(logist_profile.id, "LOGIST") if logist_profile else None
 
     return {
         "id": c.id,
@@ -119,12 +123,14 @@ def _serialize_candidate(c) -> dict[str, Any]:
         "item_name": item.name if item else None,
         "inventory_price_per_unit": str(inv.price_per_unit) if inv else None,
         "factory_legal_name": factory.legal_name if factory else None,
+        "factory_avg_rating": factory_avg,
         "source_address_label": _address_label(source_address),
         "destination_address_label": _address_label(destination_address),
         # Logistics
         "logistic_offer_id": c.logistic_offer_id,
         "logistic_title": logist_offer.title if logist_offer else None,
         "logist_legal_name": logist_profile.company_name if logist_profile else None,
+        "logist_avg_rating": logist_avg,
         "delivery_price": str(c.delivery_price) if c.delivery_price is not None else None,
         "delivery_days": c.delivery_days,
         # Combined
@@ -259,7 +265,7 @@ async def list_my_factory_bids(user=Depends(_require_role("FACTORY"))):
         order={"created_at": "desc"},
         take=200,
     )
-    return [_serialize_candidate(c) for c in candidates]
+    return [await _serialize_candidate_async(c) for c in candidates]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -319,7 +325,7 @@ async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"
 
     enriched: list[dict[str, Any]] = []
     for c in candidates:
-        serialized = _serialize_candidate(c)
+        serialized = await _serialize_candidate_async(c)
         serialized["has_my_quote"] = (c.request_id, c.inventory_entry_id) in quoted_keys
         enriched.append(serialized)
     return enriched
@@ -334,7 +340,6 @@ class LogistQuoteBody(BaseModel):
     price_per_kg: float | None = Field(default=None, ge=0)
     estimated_days_min: int | None = Field(default=None, ge=0)
     estimated_days_max: int | None = Field(default=None, ge=0)
-    reliability_score: float = Field(..., ge=0, le=1)
     currency_code: str = Field(..., min_length=3, max_length=3)
     delivery_price: float = Field(..., ge=0)
     delivery_days: int = Field(..., gt=0)
@@ -379,7 +384,7 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
     offer_data: dict[str, Any] = {
         "title": payload.title,
         "base_price": _to_dec(payload.base_price),
-        "reliability_score": payload.reliability_score,
+        "reliability_score": await get_computed_reliability(logist_profile.id),
         "currency": {"connect": {"code": currency_code}},
         "status": "ACTIVE",
         "deleted_at": None,
@@ -536,7 +541,7 @@ async def list_candidates_for_request(
         order={"fitness_score": "desc"},
         take=50,
     )
-    return [_serialize_candidate(c) for c in candidates]
+    return [await _serialize_candidate_async(c) for c in candidates]
 
 
 class SelectCandidateBody(BaseModel):

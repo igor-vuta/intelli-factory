@@ -151,7 +151,6 @@ export type LogisticOfferPayload = {
   price_per_kg?: number;
   estimated_days_min?: number;
   estimated_days_max?: number;
-  reliability_score: number;
   currency_code: string;
 };
 
@@ -396,12 +395,14 @@ export type MatchCandidate = {
   item_name: string | null;
   inventory_price_per_unit: string | null;
   factory_legal_name: string | null;
+  factory_avg_rating: number | null;
   source_address_label: string | null;
   destination_address_label: string | null;
   // logistics
   logistic_offer_id: string | null;
   logistic_title: string | null;
   logist_legal_name: string | null;
+  logist_avg_rating: number | null;
   delivery_price: string | null;
   delivery_days: number | null;
   // combined
@@ -428,7 +429,6 @@ export type LogistQuotePayload = {
   price_per_kg?: number;
   estimated_days_min?: number;
   estimated_days_max?: number;
-  reliability_score: number;
   currency_code: string;
   delivery_price: number;
   delivery_days: number;
@@ -541,6 +541,29 @@ export function selectCandidate(candidateId: string) {
 // Contract / payment / fulfillment workflow
 export function listMyTransactions() {
   return request<WorkflowTransaction[]>('/transactions/mine');
+}
+
+// Rating endpoints
+export type RatingTarget = 'LOGIST' | 'FACTORY';
+
+export type SubmitRatingPayload = {
+  transaction_id: string;
+  target_type: RatingTarget;
+  score: number;
+  comment?: string;
+};
+
+export function submitRating(payload: SubmitRatingPayload) {
+  return request<{ status: string; new_reliability_score: number }>('/ratings', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getMyRatingsForTransaction(transactionId: string) {
+  return request<{ target_type: RatingTarget; score: number; created_at: string }[]>(
+    `/ratings/transaction/${encodeURIComponent(transactionId)}/mine`
+  );
 }
 
 export function signTransaction(transactionId: string, payload?: ContractSigningPayload) {

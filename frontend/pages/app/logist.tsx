@@ -43,7 +43,6 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
   const [pricePerKg, setPricePerKg] = useState('');
   const [estimatedDaysMin, setEstimatedDaysMin] = useState('');
   const [estimatedDaysMax, setEstimatedDaysMax] = useState('');
-  const [reliabilityScore, setReliabilityScore] = useState('0.92');
   const [currencyCode, setCurrencyCode] = useState(currencies[0]?.code ?? bid.currency_code ?? 'USD');
   const [deliveryPrice, setDeliveryPrice] = useState('40');
   const [deliveryDays, setDeliveryDays] = useState('3');
@@ -58,7 +57,6 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
     const parsedPricePerKg = pricePerKg.trim() ? Number(pricePerKg) : undefined;
     const parsedDaysMin = estimatedDaysMin.trim() ? Number(estimatedDaysMin) : undefined;
     const parsedDaysMax = estimatedDaysMax.trim() ? Number(estimatedDaysMax) : undefined;
-    const parsedReliability = Number(reliabilityScore);
     const parsedDeliveryPrice = Number(deliveryPrice);
     const parsedDeliveryDays = Number(deliveryDays);
 
@@ -100,10 +98,6 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
       setError('Est. min days cannot exceed est. max days');
       return;
     }
-    if (!Number.isFinite(parsedReliability) || parsedReliability < 0 || parsedReliability > 1) {
-      setError('Reliability must be between 0 and 1');
-      return;
-    }
     if (!currencyCode) {
       setError('Select a currency');
       return;
@@ -128,7 +122,6 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
         price_per_kg: parsedPricePerKg,
         estimated_days_min: parsedDaysMin,
         estimated_days_max: parsedDaysMax,
-        reliability_score: parsedReliability,
         currency_code: currencyCode,
         delivery_price: parsedDeliveryPrice,
         delivery_days: parsedDeliveryDays,
@@ -192,7 +185,7 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
 
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
           <p className="sm:col-span-2 rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-            Required by schema: Title, Base price, Reliability, Currency. Required for quote: Delivery price and Delivery days.
+            Required: Title, Base price, Currency. Required for quote: Delivery price and Delivery days.
             Optional: Description, Price per km, Price per kg, Est. min/max days.
           </p>
 
@@ -288,20 +281,6 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
               </div>
             </>
           )}
-
-          <div>
-            <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Reliability (0-1)</label>
-            <input
-              type="number"
-              min="0"
-              max="1"
-              step="0.01"
-              value={reliabilityScore}
-              onChange={(e) => setReliabilityScore(e.target.value)}
-              className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              required
-            />
-          </div>
 
           <div>
             <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Currency</label>

@@ -6,12 +6,14 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { type ComboboxOption } from '../../components/Combobox';
 import AgreementSignModal from '../../components/AgreementSignModal';
 import PaymentMockupModal from '../../components/PaymentMockupModal';
+import RatingModal from '../../components/RatingModal';
 import SearchableInput from '../../components/SearchableInput';
 import {
   acceptTransactionCompletion,
   captureTransactionPayment,
   type ContractSigningPayload,
   createCustomerRequest,
+  getMyRatingsForTransaction,
   getRequestsBootstrap,
   listMyTransactions,
   listCandidatesForRequest,
@@ -27,6 +29,7 @@ import {
   type BootstrapCurrency,
   type BootstrapItem,
   type MatchCandidate,
+  type RatingTarget,
   type RequestSummary,
   type WorkflowTransaction,
 } from '../../lib/authClient';
@@ -225,7 +228,9 @@ function ProposalsModal({
                   Factory: {recommendedCandidate.factory_legal_name ?? '—'} | Total:{' '}
                   {recommendedCandidate.total_cost ?? '—'} {recommendedCandidate.currency_code} | Days:{' '}
                   {recommendedCandidate.delivery_days ?? '—'} | Reliability:{' '}
-                  {recommendedCandidate.reliability_score ?? '—'}
+                  {recommendedCandidate.reliability_score != null
+                    ? `${Math.round(recommendedCandidate.reliability_score * 100)}%`
+                    : '—'}
                 </div>
               </div>
             ) : (
@@ -277,7 +282,24 @@ function ProposalsModal({
                         recommendedCandidate?.id === c.id ? 'bg-sky-950/20' : ''
                       }`}
                     >
-                      <td className="py-2 pr-3 text-xs">{c.factory_legal_name ?? '—'}</td>
+                      <td className="py-2 pr-3 text-xs">
+                        <div className="flex flex-col gap-0.5">
+                          <span>{c.factory_legal_name ?? '—'}</span>
+                          {c.factory_avg_rating != null && (
+                            <span
+                              className={`text-[10px] font-medium ${
+                                c.factory_avg_rating >= 4.25
+                                  ? 'text-emerald-400'
+                                  : c.factory_avg_rating >= 3.25
+                                    ? 'text-amber-400'
+                                    : 'text-red-400'
+                              }`}
+                            >
+                              ★ {c.factory_avg_rating.toFixed(1)}/5
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td
                         className="py-2 pr-3 text-xs text-[rgb(var(--muted))]"
                         title={c.source_address_label ?? undefined}
@@ -292,11 +314,24 @@ function ProposalsModal({
                         {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
                       </td>
                       <td className="py-2 pr-3 text-xs">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-0.5">
                           <span>{c.logist_legal_name ?? '—'}</span>
-                          {c.logistic_title && (
+                          {c.logistic_title && c.logistic_title !== c.logist_legal_name && (
                             <span className="text-[10px] text-[rgb(var(--muted))]">
                               {c.logistic_title}
+                            </span>
+                          )}
+                          {c.logist_avg_rating != null && (
+                            <span
+                              className={`text-[10px] font-medium ${
+                                c.logist_avg_rating >= 4.25
+                                  ? 'text-emerald-400'
+                                  : c.logist_avg_rating >= 3.25
+                                    ? 'text-amber-400'
+                                    : 'text-red-400'
+                              }`}
+                            >
+                              ★ {c.logist_avg_rating.toFixed(1)}/5
                             </span>
                           )}
                         </div>
@@ -762,6 +797,8 @@ export default function CustomerWorkspacePage() {
   const [workflowBusyId, setWorkflowBusyId] = useState<string | null>(null);
   const [signingTransaction, setSigningTransaction] = useState<WorkflowTransaction | null>(null);
   const [paymentTransaction, setPaymentTransaction] = useState<WorkflowTransaction | null>(null);
+  const [ratingTransaction, setRatingTransaction] = useState<WorkflowTransaction | null>(null);
+  const [ratedTargetsMap, setRatedTargetsMap] = useState<Record<string, Set<RatingTarget>>>({});
 
   const [showModal, setShowModal] = useState(false);
   const [proposalsRequestId, setProposalsRequestId] = useState<string | null>(null);
@@ -853,6 +890,17 @@ export default function CustomerWorkspacePage() {
   const refreshTransactions = useCallback(async () => {
     const rows = await listMyTransactions();
     setTransactions(rows);
+    // Refresh rated-targets for any COMPLETED transactions
+    const completed = rows.filter((tx) => tx.status === 'COMPLETED');
+    if (completed.length > 0) {
+      const entries = await Promise.all(
+        completed.map(async (tx) => {
+          const ratings = await getMyRatingsForTransaction(tx.id);
+          return [tx.id, new Set(ratings.map((r) => r.target_type as RatingTarget))] as const;
+        })
+      );
+      setRatedTargetsMap(Object.fromEntries(entries));
+    }
   }, []);
 
   const refreshCandidatesForRequest = useCallback(async (requestId: string) => {
@@ -1328,7 +1376,16 @@ export default function CustomerWorkspacePage() {
                                   : 'Accept'}
                               </button>
                             )}
-                            {!tx.can_sign && !tx.can_pay && !tx.can_accept_completion && (
+                            {tx.status === 'COMPLETED' && (
+                              <button
+                                type="button"
+                                onClick={() => setRatingTransaction(tx)}
+                                className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30"
+                              >
+                                Rate
+                              </button>
+                            )}
+                            {!tx.can_sign && !tx.can_pay && !tx.can_accept_completion && tx.status !== 'COMPLETED' && (
                               <span className="text-xs text-[rgb(var(--muted))]">Awaiting others</span>
                             )}
                           </div>
@@ -1414,6 +1471,14 @@ export default function CustomerWorkspacePage() {
               setLoadingCandidates(false);
             }
           }}
+        />
+      )}
+      {ratingTransaction && (
+        <RatingModal
+          transaction={ratingTransaction}
+          alreadyRatedTargets={ratedTargetsMap[ratingTransaction.id] ?? new Set()}
+          onClose={() => setRatingTransaction(null)}
+          onRated={() => void refreshTransactions()}
         />
       )}
       {signingTransaction && (
