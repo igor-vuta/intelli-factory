@@ -461,6 +461,8 @@ export default function FactoryWorkspacePage() {
       setError('Please enter item name');
       return;
     }
+    // Strip star prefix as safety net (shouldn't happen but guard it)
+    const safeItemText = itemText.startsWith('★ ') ? itemText.slice(2) : itemText;
     if (!factoryCategoryText.trim()) {
       setError('Please choose or type a category');
       return;
@@ -481,7 +483,7 @@ export default function FactoryWorkspacePage() {
     try {
       await createInventoryEntry({
         item_id: itemId || undefined,
-        item_name: !itemId ? itemText.trim() : undefined,
+        item_name: !itemId ? safeItemText.trim() : undefined,
         category_id: !itemId ? factoryCategoryId : undefined,
         category_name_text: !itemId ? factoryCategoryText.trim() : undefined,
         unit: unitText.trim(),
@@ -531,6 +533,38 @@ export default function FactoryWorkspacePage() {
     }));
   }, [items, factoryCategoryId, categoryNameById]);
 
+  // Suggestions derived from open customer requests
+  const requestItemSuggestions = useMemo<ComboboxOption[]>(() => {
+    const seen = new Set<string>();
+    const out: ComboboxOption[] = [];
+    for (const req of openRequests) {
+      const name = req.item_name ?? req.requested_name_text;
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: `req:${req.id}`, label: `★ ${name}` });
+    }
+    return out;
+  }, [openRequests]);
+
+  // Merged item name options: request-derived first, then catalogue
+  const itemNameOptions = useMemo<ComboboxOption[]>(() => {
+    const seen = new Set<string>();
+    const merged: ComboboxOption[] = [];
+    for (const opt of requestItemSuggestions) {
+      const key = opt.label.replace(/^★\s*/, '').toLowerCase();
+      seen.add(key);
+      merged.push(opt);
+    }
+    for (const opt of itemSuggestions) {
+      if (!seen.has(opt.label.toLowerCase())) {
+        merged.push(opt);
+      }
+    }
+    return merged;
+  }, [requestItemSuggestions, itemSuggestions]);
+
   const unitSuggestions = useMemo<ComboboxOption[]>(() => {
     const fallbackUnits = ['pcs', 'kg', 'g', 'l', 'liters', 'tons', 'boxes', 'roll', 'm', 'cm'];
     const uniqueUnits = new Map<string, string>();
@@ -562,7 +596,27 @@ export default function FactoryWorkspacePage() {
   }
 
   function handleItemChange(text: string, id: string) {
-    setItemText(text);
+    const cleanText = text.startsWith('★ ') ? text.slice(2) : text;
+    // Request-derived suggestion: id starts with 'req:'
+    if (id.startsWith('req:')) {
+      setItemText(cleanText);
+      setItemId('');
+      // Try to find a matching catalogue item by name
+      const match = items.find((i) => i.name.toLowerCase() === cleanText.toLowerCase());
+      if (match) {
+        setItemId(match.id);
+        if (match.category_id) {
+          setFactoryCategoryId(match.category_id);
+          setFactoryCategoryText(categoryNameById.get(match.category_id) ?? '');
+        }
+        if (match.unit) {
+          setUnitText(match.unit);
+          setUnitId(match.unit);
+        }
+      }
+      return;
+    }
+    setItemText(cleanText);
     setItemId(id);
     if (id) {
       const sel = items.find((i) => i.id === id);
@@ -1139,18 +1193,23 @@ export default function FactoryWorkspacePage() {
                 </div>
                 <div className="sm:col-span-2">
                   <SearchableInput
-                    suggestions={itemSuggestions}
+                    suggestions={itemNameOptions}
                     text={itemText}
                     selectedId={itemId}
                     onChange={handleItemChange}
                     placeholder={
                       factoryCategoryId
-                        ? `Type item in ${categoryNameById.get(factoryCategoryId) ?? 'category'}\u2026`
+                        ? `Type item in ${categoryNameById.get(factoryCategoryId) ?? 'category'}…`
                         : 'Type item name (existing or brand-new)'
                     }
                     label="Item name"
                     required
                   />
+                  {requestItemSuggestions.length > 0 && (
+                    <p className="mt-1 text-xs text-[rgb(var(--muted))]">
+                      ★ {requestItemSuggestions.length} item{requestItemSuggestions.length !== 1 ? 's' : ''} wanted by customers
+                    </p>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">
