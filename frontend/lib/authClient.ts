@@ -27,6 +27,11 @@ export type CurrencyItem = {
   name: string;
 };
 
+export type AddressBootstrapResponse = {
+  regions: { code: string; name: string }[];
+  cities: { id: string; name: string; region_code: string }[];
+};
+
 export type BootstrapCategory = {
   id: string;
   name: string;
@@ -240,13 +245,25 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+export function getAddressBootstrap(countryCode: string) {
+  return request<AddressBootstrapResponse>(
+    `/addresses/bootstrap?country_code=${encodeURIComponent(countryCode)}`
+  );
+}
+
 export function register(input: {
   email: string;
   password: string;
   role: UserRole;
   display_name: string;
   country_code: string;
-  address: string;
+  /** Structured address fields (preferred) */
+  region_name?: string;
+  city_name?: string;
+  street?: string;
+  postal_code?: string;
+  /** Legacy flat address (fallback) */
+  address?: string;
   preferred_currency_code: string;
 }) {
   return request<ApiMessage>('/auth/register', {

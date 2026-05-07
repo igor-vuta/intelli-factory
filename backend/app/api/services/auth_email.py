@@ -217,7 +217,10 @@ async def create_role_profile(
     country_code: str,
     address: str,
     preferred_currency_code: str,
+    address_id: str | None = None,
 ) -> None:
+    primary_address_data: dict = {"primary_address_id": address_id} if address_id else {}
+
     if role == "CUSTOMER":
         await prisma.customerprofile.create(
             data={
@@ -226,6 +229,7 @@ async def create_role_profile(
                 "registration_country_code": country_code,
                 "registration_address": address,
                 "preferred_currency_code": preferred_currency_code,
+                **primary_address_data,
             }
         )
         return
@@ -238,6 +242,7 @@ async def create_role_profile(
                 "registration_country_code": country_code,
                 "registration_address": address,
                 "preferred_currency_code": preferred_currency_code,
+                **primary_address_data,
             }
         )
         return
@@ -250,6 +255,7 @@ async def create_role_profile(
                 "registration_country_code": country_code,
                 "registration_address": address,
                 "preferred_currency_code": preferred_currency_code,
+                **primary_address_data,
             }
         )
         return

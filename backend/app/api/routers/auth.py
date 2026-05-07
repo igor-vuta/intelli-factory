@@ -34,6 +34,7 @@ from services.auth_security import (
     set_session_cookie as _set_session_cookie,
     verify_password_and_upgrade as _verify_password_and_upgrade,
 )
+from routers.addresses import resolve_or_create_address as _resolve_or_create_address
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,13 @@ class RegisterRequest(BaseModel):
     role: UserRole
     display_name: str = Field(..., min_length=2, max_length=120)
     country_code: str = Field(..., min_length=2, max_length=2)
-    address: str = Field(..., min_length=3, max_length=300)
+    # Legacy flat address (kept for backward compat, ignored when structured fields present)
+    address: str | None = Field(None, max_length=300)
+    # Structured address fields
+    region_name: str | None = Field(None, max_length=100)
+    city_name: str | None = Field(None, max_length=100)
+    street: str | None = Field(None, max_length=300)
+    postal_code: str | None = Field(None, max_length=20)
     preferred_currency_code: str = Field(..., min_length=3, max_length=3)
 
 
@@ -171,13 +178,33 @@ async def register(payload: RegisterRequest, request: Request):
         }
     )
 
+    # Resolve structured address if provided, else fall back to flat text
+    address_id: str | None = None
+    address_label: str = payload.address.strip() if payload.address else ""
+
+    if payload.region_name and payload.city_name and payload.street:
+        try:
+            addr_result = await _resolve_or_create_address(
+                country_code=normalized_country_code,
+                region_name=payload.region_name,
+                city_name=payload.city_name,
+                street=payload.street,
+                postal_code=payload.postal_code,
+            )
+            address_id = addr_result["id"]
+            address_label = addr_result["label"]
+        except HTTPException:
+            # Fall back to a plain text label if geo resolution fails
+            address_label = f"{payload.street.strip()}, {payload.city_name.strip()}, {payload.region_name.strip()}"
+
     await _create_role_profile(
         user.id,
         payload.role,
         payload.display_name.strip(),
         normalized_country_code,
-        payload.address.strip(),
+        address_label,
         normalized_currency_code,
+        address_id=address_id,
     )
 
     verify_token = await _create_email_verification_token(user.id, invalidate_existing=True)
@@ -443,3 +470,31 @@ async def me(request: Request):
             is_email_verified=user.is_email_verified,
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# DEV-ONLY: instant email verification (blocked in production)
+# ---------------------------------------------------------------------------
+
+class DevVerifyRequest(BaseModel):
+    email: str
+
+
+@router.post("/dev-verify", response_model=MessageResponse)
+async def dev_verify(payload: DevVerifyRequest):
+    """Instantly mark an account as email-verified. Only available outside production."""
+    if _is_production_env():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    user = await prisma.user.find_first(where={"email": payload.email})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.is_email_verified:
+        return MessageResponse(status="ok", message="Already verified")
+
+    await prisma.user.update(
+        where={"id": user.id},
+        data={"is_email_verified": True},
+    )
+    return MessageResponse(status="ok", message="Account verified")

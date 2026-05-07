@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
+import AddressPicker, { type AddressValue } from '../components/AddressPicker';
 import {
   getCountries,
   getCurrencies,
@@ -35,8 +36,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('CUSTOMER');
-  const [countryCode, setCountryCode] = useState('');
-  const [address, setAddress] = useState('');
+  const [addressValue, setAddressValue] = useState<AddressValue | null>(null);
   const [currencyCode, setCurrencyCode] = useState('');
   const [countries, setCountries] = useState<CountryItem[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyItem[]>([]);
@@ -64,10 +64,6 @@ export default function RegisterPage() {
         const response = await getCountries(locale);
         if (!isActive) return;
         setCountries(response);
-        setCountryCode((prev) => {
-          const hasCurrent = response.some((item) => item.code === prev);
-          return hasCurrent ? prev : response[0]?.code || '';
-        });
       } catch {
         if (!isActive) return;
         setCountries([]);
@@ -127,12 +123,12 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!countryCode) {
+    if (!addressValue?.countryCode) {
       setError(copy.countryHint);
       return;
     }
 
-    if (!address.trim()) {
+    if (!addressValue?.regionName?.trim() || !addressValue?.cityName?.trim() || !addressValue?.street?.trim()) {
       setError(copy.addressHint);
       return;
     }
@@ -150,8 +146,11 @@ export default function RegisterPage() {
         password,
         role,
         display_name: displayName,
-        country_code: countryCode,
-        address: address.trim(),
+        country_code: addressValue!.countryCode,
+        region_name: addressValue!.regionName,
+        city_name: addressValue!.cityName,
+        street: addressValue!.street,
+        postal_code: addressValue!.postalCode,
         preferred_currency_code: currencyCode,
       });
 
@@ -259,39 +258,16 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="country" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.country}
-              </label>
-              <select
-                id="country"
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
-                required
-                disabled={countriesLoading || countries.length === 0}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              >
-                {countries.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.countryHint}</p>
-            </div>
-
-            <div>
-              <label htmlFor="address" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+              <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.address}
               </label>
-              <input
-                id="address"
-                type="text"
+              <AddressPicker
+                value={addressValue}
+                onChange={setAddressValue}
+                countries={countries}
+                countriesLoading={countriesLoading}
                 required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
               />
-              <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.addressHint}</p>
             </div>
 
             <div>

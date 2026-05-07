@@ -318,12 +318,6 @@ async def bootstrap(user=Depends(_require_authenticated_user)):
         take=250,
     )
 
-    addresses = await prisma.address.find_many(
-        where={"deleted_at": None},
-        include={"country": True, "region": True, "city": True},
-        take=50,
-    )
-
     profile_primary_address_id: str | None = None
     profile_registration_country_code: str | None = None
     profile_registration_address: str | None = None
@@ -345,6 +339,30 @@ async def bootstrap(user=Depends(_require_authenticated_user)):
             profile_primary_address_id = profile.primary_address_id
             profile_registration_country_code = profile.registration_country_code
             profile_registration_address = profile.registration_address
+
+    # Collect address IDs that belong to this user:
+    # 1) their primary address on the profile
+    # 2) any destination address they used in past requests
+    user_address_ids: set[str] = set()
+    if profile_primary_address_id:
+        user_address_ids.add(profile_primary_address_id)
+
+    if user.role == "CUSTOMER" and profile:
+        past_requests = await prisma.request.find_many(
+            where={"customer_profile_id": profile.id, "deleted_at": None},
+            take=200,
+        )
+        for req in past_requests:
+            if req.destination_address_id:
+                user_address_ids.add(req.destination_address_id)
+
+    if user_address_ids:
+        addresses = await prisma.address.find_many(
+            where={"id": {"in": list(user_address_ids)}, "deleted_at": None},
+            include={"country": True, "region": True, "city": True},
+        )
+    else:
+        addresses = []
 
     if profile_primary_address_id:
         addresses.sort(key=lambda a: 0 if a.id == profile_primary_address_id else 1)

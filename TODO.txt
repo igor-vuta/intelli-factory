@@ -1,0 +1,7 @@
+TODO: cross reference from list of customer requests to factory inventory when putting items to inventory ( so when you start typing factory inventory item name it pops up from the list of customer requests if matches you can choose if not you provide your own)
+TODO: address typing for every entity - address is handled with precision when registering at a webiste so it is kept in uniformal identifiable format and put into the db straight away ( example: Abay Ave 10, Almaty, Almaty Region, Kazakhstan )
+TODO: base schema input for the logist on UI - when registrating for logist they fullfill their base rate and other characteristics(example: Base price 40 Hide optional terms Description (optional) Price per km (optional) Price per kg (optional) Est. min days (optional) Est. max days (optional) - but only if they exist)
+TODO: solve reliablity, so it is not assigned from logist - there has to be some solution to reliability score so it is not given by third party logist, but exists in the system... some sort of rating maybe
+TODO: make favicon(apple+everything other) for webpage
+TODO: bring back i18n multilingual to every screen we have
+TODO: remake sign up form so it suits final decision - so it suits the schema and when user is registering we get as much info as we can from them
