@@ -77,6 +77,15 @@ async def test_bootstrap_returns_catalog_data(monkeypatch):
             )
         ]
     )
+    fake_prisma.customerprofile.find_unique = AsyncMock(
+        return_value=SimpleNamespace(
+            id="prof-1",
+            primary_address_id="addr-1",
+            registration_country_code=None,
+            registration_address=None,
+        )
+    )
+    fake_prisma.request.find_many = AsyncMock(return_value=[])
 
     monkeypatch.setattr(requests_router, "prisma", fake_prisma)
 

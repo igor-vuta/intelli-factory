@@ -80,7 +80,7 @@ def _make_tx(status: str):
         status=status,
         request=SimpleNamespace(customer_profile=SimpleNamespace(user_id=customer_user_id)),
         selected_candidate=candidate,
-        contract_packet=SimpleNamespace(version=1),
+        contract_packet=SimpleNamespace(version=1, terms_json=None),
         signatures=[],
         payments=[],
         created_at=now,
@@ -113,7 +113,7 @@ async def test_sign_contract_advances_to_contract_signing(monkeypatch):
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
     ) as client:
-        response = await client.post("/api/transactions/tx-1/sign")
+        response = await client.post("/api/transactions/tx-1/sign", json={})
 
     assert response.status_code == 200
     assert response.json()["transaction_status"] == "CONTRACT_SIGNING"
