@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
 import Combobox, { type ComboboxOption } from '../../components/Combobox';
+import LocaleSwitcher from '../../components/LocaleSwitcher';
 import SearchableInput from '../../components/SearchableInput';
 import {
   advanceTransactionFulfillment,
@@ -41,11 +42,12 @@ const TABLE_PAGE_SIZE = 5;
 type BidModalProps = {
   request: OpenRequest;
   inventory: InventoryEntryItem[];
+  copy: ReturnType<typeof t>;
   onClose: () => void;
   onBidPlaced: () => Promise<void>;
 };
 
-function BidModal({ request, inventory, onClose, onBidPlaced }: BidModalProps) {
+function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -103,7 +105,7 @@ function BidModal({ request, inventory, onClose, onBidPlaced }: BidModalProps) {
       <div className="w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Place Factory Bid</h2>
+            <h2 className="text-lg font-semibold">{copy.placeBidTitle}</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               Request: {request.item_name ?? request.requested_name_text ?? 'N/A'}
               {' \u2014 '}
@@ -127,13 +129,13 @@ function BidModal({ request, inventory, onClose, onBidPlaced }: BidModalProps) {
             value={inventoryId}
             onChange={setInventoryId}
             placeholder="Select inventory entry to fulfil this request"
-            label="Your inventory entry"
+            label={copy.selectInventoryEntry}
             required
           />
 
           <div className="flex flex-col gap-1">
             <label className="text-sm text-[rgb(var(--muted))]">
-              Offered quantity <span className="text-red-400">*</span>
+              {copy.offeredQty} <span className="text-red-400">*</span>
             </label>
             <input
               type="number"
@@ -147,7 +149,7 @@ function BidModal({ request, inventory, onClose, onBidPlaced }: BidModalProps) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm text-[rgb(var(--muted))]">Note to logistics (optional)</label>
+            <label className="text-sm text-[rgb(var(--muted))]">{copy.noteToLogistics}</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -171,7 +173,7 @@ function BidModal({ request, inventory, onClose, onBidPlaced }: BidModalProps) {
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn btn-primary flex-1 text-sm">
-              {submitting ? 'Submitting\u2026' : 'Submit Bid'}
+              {submitting ? 'Submitting\u2026' : copy.submitBid}
             </button>
           </div>
         </form>
@@ -722,9 +724,12 @@ export default function FactoryWorkspacePage() {
             />
             <span>{copy.brand}</span>
           </Link>
-          <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-            {copy.logout}
-          </button>
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher currentLocale={locale} basePath="/app/factory" />
+            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
+              {copy.logout}
+            </button>
+          </div>
         </header>
 
         {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>}
@@ -736,15 +741,14 @@ export default function FactoryWorkspacePage() {
           <>
             {/* ── Open Requests (PENDING) ─────────────────────────────── */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h1 className="text-2xl font-semibold sm:text-3xl">Factory Workspace</h1>
+              <h1 className="text-2xl font-semibold sm:text-3xl">{copy.factoryWorkspaceTitle}</h1>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                Bid on open customer requests, manage inventory, and track your active proposals.
+                {copy.factoryWorkspaceSubtitle}
               </p>
 
-              <h2 className="mt-6 text-lg font-semibold">Open Customer Requests</h2>
+              <h2 className="mt-6 text-lg font-semibold">{copy.openRequestsTitle}</h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                These requests are waiting for factory bids. Click \u201cBid\u201d to respond with
-                your inventory.
+                {copy.openRequestsSubtitle}
               </p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -793,13 +797,13 @@ export default function FactoryWorkspacePage() {
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">Item / Description</th>
-                        <th className="py-2 pr-4">Category</th>
-                        <th className="py-2 pr-4">Qty</th>
-                        <th className="py-2 pr-4">Currency</th>
-                        <th className="py-2 pr-4">Status</th>
-                        <th className="py-2 pr-4">Placed</th>
-                        <th className="py-2">Action</th>
+                        <th className="py-2 pr-4">{copy.colItemDescription}</th>
+                        <th className="py-2 pr-4">{copy.colCategory}</th>
+                        <th className="py-2 pr-4">{copy.colQty}</th>
+                        <th className="py-2 pr-4">{copy.colCurrency}</th>
+                        <th className="py-2 pr-4">{copy.colStatus}</th>
+                        <th className="py-2 pr-4">{copy.colPlaced}</th>
+                        <th className="py-2">{copy.colAction}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -830,7 +834,7 @@ export default function FactoryWorkspacePage() {
                                 onClick={() => setBidTarget(row)}
                                 className="rounded-md border border-sky-700/60 px-3 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
                               >
-                                {hasBid ? 'Bid again' : 'Bid'}
+                                {hasBid ? copy.actionBid : copy.actionBid}
                               </button>
                             ) : (
                               <span className="text-xs text-[rgb(var(--muted))]">
@@ -880,10 +884,9 @@ export default function FactoryWorkspacePage() {
 
             {/* ── My Bids ─────────────────────────────────────────────── */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 className="text-lg font-semibold">My Bids</h2>
+              <h2 className="text-lg font-semibold">{copy.myBidsTitle}</h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                Factory bids you have placed. Status changes once a logist quotes delivery and a
-                customer selects a solution.
+                {copy.myBidsSubtitle}
               </p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-4">
@@ -939,14 +942,14 @@ export default function FactoryWorkspacePage() {
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">Item</th>
-                        <th className="py-2 pr-4">Qty offered</th>
-                        <th className="py-2 pr-4">Price/unit</th>
-                        <th className="py-2 pr-4">Currency</th>
-                        <th className="py-2 pr-4">Delivery</th>
-                        <th className="py-2 pr-4">Total cost</th>
-                        <th className="py-2 pr-4">Status</th>
-                        <th className="py-2">Stage</th>
+                        <th className="py-2 pr-4">{copy.colItem}</th>
+                        <th className="py-2 pr-4">{copy.colQtyOffered}</th>
+                        <th className="py-2 pr-4">{copy.colPriceUnit}</th>
+                        <th className="py-2 pr-4">{copy.colCurrency}</th>
+                        <th className="py-2 pr-4">{copy.colDelivery}</th>
+                        <th className="py-2 pr-4">{copy.colTotalCost}</th>
+                        <th className="py-2 pr-4">{copy.colStatus}</th>
+                        <th className="py-2">{copy.colStage}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1169,9 +1172,9 @@ export default function FactoryWorkspacePage() {
 
             {/* ── Add Inventory ────────────────────────────────────────── */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 className="text-lg font-semibold">Add Inventory Entry</h2>
+              <h2 className="text-lg font-semibold">{copy.addInventoryTitle}</h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                Register stock you can supply. You\u2019ll use these entries when placing bids.
+                {copy.addInventorySubtitle}
               </p>
               {success && (
                 <p className="mt-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
@@ -1226,7 +1229,7 @@ export default function FactoryWorkspacePage() {
 
                 <div className="sm:col-span-2">
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    Stock address
+                    {copy.stockAddressLabel}
                   </label>
                   <div className="mb-2 flex flex-wrap gap-2">
                     <button
@@ -1307,7 +1310,7 @@ export default function FactoryWorkspacePage() {
 
                 <div>
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    Qty available
+                    {copy.qtyAvailableLabel}
                   </label>
                   <input
                     type="number"
@@ -1321,7 +1324,7 @@ export default function FactoryWorkspacePage() {
 
                 <div>
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    Price per unit
+                    {copy.pricePerUnitLabel}
                   </label>
                   <input
                     type="number"
@@ -1355,7 +1358,7 @@ export default function FactoryWorkspacePage() {
                   disabled={submitting}
                   className="btn btn-primary sm:col-span-2 text-sm"
                 >
-                  {submitting ? 'Creating\u2026' : 'Add Inventory Entry'}
+                  {submitting ? 'Creating\u2026' : copy.addInventoryAction}
                 </button>
               </form>
 
@@ -1407,12 +1410,12 @@ export default function FactoryWorkspacePage() {
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-3">Item</th>
-                          <th className="py-2 pr-3">Qty</th>
-                          <th className="py-2 pr-3">Price</th>
-                          <th className="py-2 pr-3">Currency</th>
-                          <th className="py-2 pr-3">Status</th>
-                          <th className="py-2">Action</th>
+                          <th className="py-2 pr-3">{copy.colItem}</th>
+                          <th className="py-2 pr-3">{copy.colQty}</th>
+                          <th className="py-2 pr-3">{copy.pricePerUnitLabel}</th>
+                          <th className="py-2 pr-3">{copy.colCurrency}</th>
+                          <th className="py-2 pr-3">{copy.colStatus}</th>
+                          <th className="py-2">{copy.colAction}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1439,8 +1442,8 @@ export default function FactoryWorkspacePage() {
                                 {inventoryStatusBusyId === e.id
                                   ? 'Updating...'
                                   : e.status === 'ACTIVE'
-                                    ? 'Deactivate'
-                                    : 'Activate'}
+                                    ? copy.actionPause
+                                    : copy.actionActivate}
                               </button>
                             </td>
                           </tr>
@@ -1492,6 +1495,7 @@ export default function FactoryWorkspacePage() {
         <BidModal
           request={bidTarget}
           inventory={inventory}
+          copy={copy}
           onClose={() => setBidTarget(null)}
           onBidPlaced={async () => {
             await Promise.all([refreshBids(), refreshOpenRequests()]);

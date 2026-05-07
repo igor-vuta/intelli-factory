@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { type ComboboxOption } from '../../components/Combobox';
 import AgreementSignModal from '../../components/AgreementSignModal';
+import LocaleSwitcher from '../../components/LocaleSwitcher';
 import PaymentMockupModal from '../../components/PaymentMockupModal';
 import RatingModal from '../../components/RatingModal';
 import SearchableInput from '../../components/SearchableInput';
@@ -1097,17 +1098,20 @@ export default function CustomerWorkspacePage() {
             />
             <span>{copy.brand}</span>
           </Link>
-          <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-            {copy.logout}
-          </button>
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher currentLocale={locale} basePath="/app/customer" />
+            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
+              {copy.logout}
+            </button>
+          </div>
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold sm:text-3xl">My Requests</h1>
+              <h1 className="text-2xl font-semibold sm:text-3xl">{copy.myRequestsTitle}</h1>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                Track your supply-chain requests and matching status.
+                {copy.myRequestsSubtitle}
               </p>
             </div>
             {!loading && (
@@ -1116,7 +1120,7 @@ export default function CustomerWorkspacePage() {
                 onClick={() => setShowModal(true)}
                 className="btn btn-primary text-sm"
               >
-                + New Request
+                {copy.newRequestAction}
               </button>
             )}
           </div>
@@ -1200,14 +1204,14 @@ export default function CustomerWorkspacePage() {
                     <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">ID</th>
-                        <th className="py-2 pr-4">Category</th>
-                        <th className="py-2 pr-4">Item / Description</th>
-                        <th className="py-2 pr-4">Qty</th>
-                        <th className="py-2 pr-4">Currency</th>
-                        <th className="py-2 pr-4">Status</th>
-                        <th className="py-2 pr-4">Action</th>
-                        <th className="py-2">Created</th>
+                        <th className="py-2 pr-4">{copy.colId}</th>
+                        <th className="py-2 pr-4">{copy.colCategory}</th>
+                        <th className="py-2 pr-4">{copy.colItemDescription}</th>
+                        <th className="py-2 pr-4">{copy.colQty}</th>
+                        <th className="py-2 pr-4">{copy.colCurrency}</th>
+                        <th className="py-2 pr-4">{copy.colStatus}</th>
+                        <th className="py-2 pr-4">{copy.colAction}</th>
+                        <th className="py-2">{copy.colCreated}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1238,7 +1242,7 @@ export default function CustomerWorkspacePage() {
                                   onClick={() => void handleCancelRequest(row.id)}
                                   className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30"
                                 >
-                                  Cancel
+                                  {copy.cancelRequest}
                                 </button>
                               )}
                               {(row.status === 'PAIRING_IN_PROGRESS' ||
@@ -1248,7 +1252,7 @@ export default function CustomerWorkspacePage() {
                                   onClick={() => void openProposals(row.id)}
                                   className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
                                 >
-                                  View Proposals
+                                  {copy.viewProposals}
                                 </button>
                               )}
                               {row.status !== 'PENDING' &&

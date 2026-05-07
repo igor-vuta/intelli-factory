@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
+import LocaleSwitcher from '../../components/LocaleSwitcher';
 import {
   advanceTransactionFulfillment,
   type ContractSigningPayload,
@@ -680,9 +681,12 @@ export default function LogistWorkspacePage() {
             />
             <span>{copy.brand}</span>
           </Link>
-          <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-            {copy.logout}
-          </button>
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher currentLocale={locale} basePath="/app/logist" />
+            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
+              {copy.logout}
+            </button>
+          </div>
         </header>
 
         {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
@@ -691,16 +695,14 @@ export default function LogistWorkspacePage() {
         {!loading && (
           <>
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-            <h1 className="text-2xl font-semibold sm:text-3xl">Logistics Workspace</h1>
+            <h1 className="text-2xl font-semibold sm:text-3xl">{copy.logistWorkspaceTitle}</h1>
             <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-              Submit delivery quotes with your full offer terms. Your logistics profile is updated
-              from the latest quote details.
+              {copy.logistWorkspaceSubtitle}
             </p>
 
-            <h2 className="mt-6 text-lg font-semibold">Factory Bids Needing Your Quote</h2>
+            <h2 className="mt-6 text-lg font-semibold">{copy.bidsNeedingQuoteTitle}</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Add a quote with full logistics terms per bid. This creates a complete proposal for
-              customer selection.
+              {copy.bidsNeedingQuoteSubtitle}
             </p>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-4">
@@ -749,7 +751,7 @@ export default function LogistWorkspacePage() {
             {filteredFactoryBids.length === 0 ? (
               <p className="mt-3 text-sm text-[rgb(var(--muted))]">
                 {factoryBids.length === 0
-                  ? 'No factory bids waiting for logistics quotes at this time.'
+                  ? copy.noBidsWaiting
                   : 'No factory bids match current filters.'}
               </p>
             ) : (
@@ -758,13 +760,13 @@ export default function LogistWorkspacePage() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                      <th className="py-2 pr-4">Request item</th>
-                      <th className="py-2 pr-4">Factory</th>
-                      <th className="py-2 pr-4">Qty offered</th>
-                      <th className="py-2 pr-4">Goods cost</th>
-                      <th className="py-2 pr-4">Request status</th>
+                      <th className="py-2 pr-4">{copy.colGoods}</th>
+                      <th className="py-2 pr-4">{copy.colFactory}</th>
+                      <th className="py-2 pr-4">{copy.colQtyOffered}</th>
+                      <th className="py-2 pr-4">{copy.colTotalCost}</th>
+                      <th className="py-2 pr-4">{copy.colStatus}</th>
                       <th className="py-2 pr-4">Factory note</th>
-                      <th className="py-2">Action</th>
+                      <th className="py-2">{copy.colAction}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -804,7 +806,7 @@ export default function LogistWorkspacePage() {
                                   : 'border-emerald-700/60 text-emerald-300'
                               }`}
                             >
-                              {bid.has_my_quote ? 'Update Quote' : 'Quote Delivery'}
+                              {bid.has_my_quote ? 'Update Quote' : copy.quoteDelivery}
                             </button>
                           </td>
                         </tr>
@@ -857,9 +859,9 @@ export default function LogistWorkspacePage() {
                 </div>
               )}
 
-              <h2 className="text-lg font-semibold">Add Logistic Offer</h2>
+              <h2 className="text-lg font-semibold">{copy.addOfferTitle}</h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                Define delivery capability that can be reused across quotes.
+                {copy.addOfferSubtitle}
               </p>
 
               <form onSubmit={(e) => void handleAddOffer(e)} className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -1012,7 +1014,7 @@ export default function LogistWorkspacePage() {
                     disabled={offerSubmitting}
                     className="btn btn-primary w-full text-sm"
                   >
-                    {offerSubmitting ? 'Adding…' : 'Add Logistic Offer'}
+                    {offerSubmitting ? 'Adding…' : copy.addOfferTitle}
                   </button>
                 </div>
               </form>
@@ -1020,17 +1022,17 @@ export default function LogistWorkspacePage() {
               {logisticOffers.length > 0 && (
                 <div className="mt-6">
                   <h3 className="mb-2 text-sm font-semibold text-[rgb(var(--muted))]">
-                    My logistic offers
+                    {copy.myOffersTitle}
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-4">Title</th>
-                          <th className="py-2 pr-4">Base</th>
-                          <th className="py-2 pr-4">Days</th>
-                          <th className="py-2 pr-4">Reliability</th>
-                          <th className="py-2">Status</th>
+                          <th className="py-2 pr-4">{copy.colTitle}</th>
+                          <th className="py-2 pr-4">{copy.colBase}</th>
+                          <th className="py-2 pr-4">{copy.colDays}</th>
+                          <th className="py-2 pr-4">{copy.colReliability}</th>
+                          <th className="py-2">{copy.colStatus}</th>
                         </tr>
                       </thead>
                       <tbody>

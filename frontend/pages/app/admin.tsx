@@ -34,6 +34,7 @@ import {
 } from '../../lib/authClient';
 import { formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
+import LocaleSwitcher from '../../components/LocaleSwitcher';
 import { THEME_CLASSES, type Theme } from '../../styles/themePresets';
 
 const REQUESTS_PAGE_SIZE = 5;
@@ -329,13 +330,16 @@ export default function AdminWorkspacePage() {
             <span>{copy.brand}</span>
           </Link>
 
-          <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-            {copy.logout}
-          </button>
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher currentLocale={locale} basePath="/app/admin" />
+            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
+              {copy.logout}
+            </button>
+          </div>
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
-          <h1 className="text-2xl font-semibold sm:text-3xl">Admin Overview</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">{copy.adminTitle}</h1>
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">
             Track request pipeline and status distribution.
           </p>

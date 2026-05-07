@@ -1,6 +1,9 @@
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useMemo, useState } from 'react';
 import HeaderActions from '../components/HeaderActions';
+import LocaleSwitcher from '../components/LocaleSwitcher';
+import { getLocaleFromQuery, t } from '../lib/i18n';
 import { THEME_CLASSES, THEME_LABELS, type Theme } from '../styles/themePresets';
 
 const liveEvents = [
@@ -12,26 +15,32 @@ const liveEvents = [
   'Payment confirmed · fulfillment started',
 ];
 
-const roleCards = [
-  {
-    title: 'Customers',
-    subtitle: 'Create requests. Track outcomes in real-time.',
-    bullets: ['Smart request form', 'Live response stream', 'Contract + payment flow'],
-  },
-  {
-    title: 'Manufacturers',
-    subtitle: 'Publish inventory once. Get matched automatically.',
-    bullets: ['Inventory with specs', 'Instant candidate alerts', 'Liability-ready contracts'],
-  },
-  {
-    title: 'Logistics',
-    subtitle: 'Set coverage and pricing. Join feasible deals.',
-    bullets: ['Area and route coverage', 'Pricing constraints', 'Signature and execution tracking'],
-  },
-];
-
 export default function Home() {
+  const router = useRouter();
+  const locale = getLocaleFromQuery(router.query.lang);
+  const copy = t(locale);
   const [theme, setTheme] = useState<Theme>('midnightCore');
+
+  const roleCards = useMemo(
+    () => [
+      {
+        title: copy.customersTitle,
+        subtitle: copy.customersSubtitle,
+        bullets: ['Smart request form', 'Live response stream', 'Contract + payment flow'],
+      },
+      {
+        title: copy.manufacturersTitle,
+        subtitle: copy.manufacturersSubtitle,
+        bullets: ['Inventory with specs', 'Instant candidate alerts', 'Liability-ready contracts'],
+      },
+      {
+        title: copy.logisticsTitle,
+        subtitle: copy.logisticsSubtitle,
+        bullets: ['Area and route coverage', 'Pricing constraints', 'Signature and execution tracking'],
+      },
+    ],
+    [copy],
+  );
 
   const marqueeEvents = useMemo(() => liveEvents.concat(liveEvents), []);
 
@@ -48,10 +57,13 @@ export default function Home() {
           <span aria-hidden className="text-[rgb(var(--accent))]">
             ◉
           </span>
-          <span>Intelli-Factory</span>
+          <span>{copy.brand}</span>
         </div>
 
-        <HeaderActions theme={theme} themeLabel={THEME_LABELS} onThemeChange={setTheme} />
+        <div className="flex items-center gap-2">
+          <LocaleSwitcher currentLocale={locale} basePath="/" />
+          <HeaderActions theme={theme} themeLabel={THEME_LABELS} onThemeChange={setTheme} />
+        </div>
       </header>
 
       <section className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-8">
@@ -60,11 +72,10 @@ export default function Home() {
             Supply Chain Orchestration
           </p>
           <h1 className="max-w-[14ch] text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-            Every request finds its best path—fast, accurate, and live.
+            {copy.landingHeroTitle}
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-[rgb(var(--muted))]">
-            Intelli-Factory connects customers, manufacturers, and logistics in one real-time
-            execution loop with contract and payment gates built in.
+            {copy.landingHeroSubtitle}
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
@@ -73,17 +84,17 @@ export default function Home() {
               className="btn btn-primary btn-lg"
               aria-label="Create account now"
             >
-              Create account
+              {copy.createAccount}
             </Link>
             <Link href="/login" className="btn btn-ghost btn-lg" aria-label="Open your dashboard">
-              Open dashboard
+              {copy.openDashboard}
             </Link>
           </div>
 
           <div className="mt-7 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
-            <Metric title="<1s" subtitle="matching reaction" />
-            <Metric title="3-party" subtitle="contract workflow" />
-            <Metric title="live" subtitle="status streaming" />
+            <Metric title="&lt;1s" subtitle={copy.matchingReaction} />
+            <Metric title="3-party" subtitle={copy.threePartyWorkflow} />
+            <Metric title="live" subtitle={copy.liveStatusStreaming} />
           </div>
         </div>
 
@@ -95,7 +106,7 @@ export default function Home() {
             <span className="h-2 w-2 rounded-full bg-[rgb(var(--dot))]" />
             <span className="h-2 w-2 rounded-full bg-[rgb(var(--dot))]" />
             <span className="h-2 w-2 rounded-full bg-[rgb(var(--dot))]" />
-            <p className="ml-1 text-[rgb(var(--text))]">Live Flow Monitor</p>
+            <p className="ml-1 text-[rgb(var(--text))]">{copy.liveFlowMonitor}</p>
           </div>
 
           <div className="h-[186px] overflow-hidden rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))]">
@@ -142,11 +153,10 @@ export default function Home() {
 
       <section className="relative z-10 mt-5 rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--card))] p-4">
         <h2 className="text-xl font-semibold sm:text-2xl">
-          One transaction, one synchronized timeline.
+          {copy.oneTransactionTitle}
         </h2>
         <p className="mt-2 max-w-4xl text-[rgb(var(--muted))]">
-          Requests and listings enter as pending entities, then become active as soon as category,
-          item details, and region coverage align.
+          {copy.oneTransactionSubtitle}
         </p>
       </section>
     </main>
