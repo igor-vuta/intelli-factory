@@ -38,8 +38,9 @@
     "eslint": "9.39.3"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "prettier --write"
+    "frontend/**/*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
     ],
     "*.{json,md}": [
       "prettier --write"

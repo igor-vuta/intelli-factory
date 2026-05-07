@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { getAddressBootstrap } from '../lib/authClient';
 import type { CountryItem } from '../lib/authClient';
@@ -34,7 +34,6 @@ export default function AddressPicker({
 }: AddressPickerProps) {
   const [regions, setRegions] = useState<RegionItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
-  const [filteredCities, setFilteredCities] = useState<CityItem[]>([]);
   const [loadingGeo, setLoadingGeo] = useState(false);
 
   const countryCode = value?.countryCode ?? '';
@@ -45,47 +44,36 @@ export default function AddressPicker({
 
   // When country changes, load regions + cities
   useEffect(() => {
-    if (!countryCode) {
-      setRegions([]);
-      setCities([]);
-      setFilteredCities([]);
-      return;
-    }
+    if (!countryCode) return;
     let active = true;
-    setLoadingGeo(true);
-    getAddressBootstrap(countryCode)
-      .then((data) => {
+
+    async function run() {
+      setLoadingGeo(true);
+      try {
+        const data = await getAddressBootstrap(countryCode);
         if (!active) return;
         setRegions(data.regions);
         setCities(data.cities);
-        setFilteredCities(data.cities);
-      })
-      .catch(() => {
+      } catch {
         if (!active) return;
         setRegions([]);
         setCities([]);
-        setFilteredCities([]);
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoadingGeo(false);
-      });
+      }
+    }
+
+    void run();
     return () => {
       active = false;
     };
   }, [countryCode]);
 
-  // When region changes, filter cities
-  useEffect(() => {
-    if (!regionName || regions.length === 0) {
-      setFilteredCities(cities);
-      return;
-    }
+  // Derive filtered cities from selected region (no effect needed)
+  const filteredCities = useMemo(() => {
+    if (!regionName || regions.length === 0) return cities;
     const matched = regions.find((r) => r.name.toLowerCase() === regionName.toLowerCase());
-    if (matched) {
-      setFilteredCities(cities.filter((c) => c.region_code === matched.code));
-    } else {
-      setFilteredCities(cities);
-    }
+    return matched ? cities.filter((c) => c.region_code === matched.code) : cities;
   }, [regionName, regions, cities]);
 
   function update(partial: Partial<AddressValue>) {
