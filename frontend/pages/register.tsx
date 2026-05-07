@@ -31,20 +31,6 @@ export default function RegisterPage() {
   const copy = t(locale);
 
   const [theme] = useState<Theme>('midnightCore');
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('CUSTOMER');
-  const [addressValue, setAddressValue] = useState<AddressValue | null>(null);
-  const [currencyCode, setCurrencyCode] = useState('');
-  const [countries, setCountries] = useState<CountryItem[]>([]);
-  const [currencies, setCurrencies] = useState<CurrencyItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [countriesLoading, setCountriesLoading] = useState(true);
-  const [currenciesLoading, setCurrenciesLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const localeLinks = useMemo(
     () =>
@@ -54,6 +40,28 @@ export default function RegisterPage() {
       })),
     []
   );
+
+  const [displayName, setDisplayName] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<UserRole>('CUSTOMER');
+  const [phone, setPhone] = useState('');
+  const [addressValue, setAddressValue] = useState<AddressValue | null>(null);
+  const [currencyCode, setCurrencyCode] = useState('');
+  const [countries, setCountries] = useState<CountryItem[]>([]);
+  const [currencies, setCurrencies] = useState<CurrencyItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [countriesLoading, setCountriesLoading] = useState(true);
+  const [currenciesLoading, setCurrenciesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  // Logist-only: initial delivery offer
+  const [showLogistOffer, setShowLogistOffer] = useState(false);
+  const [initialOfferBasePrice, setInitialOfferBasePrice] = useState('');
+  const [initialOfferCurrency, setInitialOfferCurrency] = useState('');
+  const [initialOfferDescription, setInitialOfferDescription] = useState('');
 
   useEffect(() => {
     let isActive = true;
@@ -138,20 +146,56 @@ export default function RegisterPage() {
       return;
     }
 
+    if (phone.trim() && (phone.trim().length < 7 || phone.trim().length > 15)) {
+      setError('Phone number must be 7–15 characters.');
+      return;
+    }
+
+    if (contactName.trim() && (contactName.trim().length < 2 || contactName.trim().length > 120)) {
+      setError('Contact name must be 2–120 characters.');
+      return;
+    }
+
+    if (role === 'LOGIST' && showLogistOffer && initialOfferBasePrice !== '') {
+      const price = Number(initialOfferBasePrice);
+      if (isNaN(price) || price < 0) {
+        setError('Base delivery price must be a non-negative number.');
+        return;
+      }
+      if (!initialOfferCurrency) {
+        setError('Offer currency is required when base price is set.');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
+      const logistOfferPrice =
+        role === 'LOGIST' && showLogistOffer && initialOfferBasePrice !== ''
+          ? Number(initialOfferBasePrice)
+          : undefined;
+
       await register({
         email,
         password,
         role,
         display_name: displayName,
+        contact_name: contactName.trim() || undefined,
+        phone: phone.trim() || undefined,
         country_code: addressValue!.countryCode,
         region_name: addressValue!.regionName,
         city_name: addressValue!.cityName,
         street: addressValue!.street,
         postal_code: addressValue!.postalCode,
         preferred_currency_code: currencyCode,
+        initial_offer_base_price: logistOfferPrice,
+        initial_offer_currency_code:
+          logistOfferPrice !== undefined ? initialOfferCurrency || undefined : undefined,
+        initial_offer_description:
+          logistOfferPrice !== undefined && initialOfferDescription.trim()
+            ? initialOfferDescription.trim()
+            : undefined,
       });
 
       setSuccess(copy.successRegister);
@@ -211,19 +255,6 @@ export default function RegisterPage() {
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.registerSubtitle}</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label htmlFor="displayName" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.displayName}
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              />
-            </div>
 
             <div>
               <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
@@ -237,6 +268,37 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="password" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.password}
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                />
+              </div>
+              <div>
+                <label htmlFor="confirmPassword" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.confirmPassword}
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                />
+              </div>
             </div>
 
             <div>
@@ -256,6 +318,43 @@ export default function RegisterPage() {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label htmlFor="displayName" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                {role === 'FACTORY'
+                  ? copy.legalName
+                  : role === 'LOGIST'
+                    ? copy.companyName
+                    : copy.displayName}
+              </label>
+              <input
+                id="displayName"
+                type="text"
+                required
+                minLength={2}
+                maxLength={120}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+              />
+            </div>
+
+            {role !== 'CUSTOMER' && (
+              <div>
+                <label htmlFor="contactName" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.contactNameOptional}
+                </label>
+                <input
+                  id="contactName"
+                  type="text"
+                  maxLength={120}
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="e.g. Jane Smith"
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                />
+              </div>
+            )}
 
             <div>
               <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
@@ -292,37 +391,84 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.password}
+              <label htmlFor="phone" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                {copy.phoneOptional}
               </label>
               <input
-                id="password"
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                id="phone"
+                type="tel"
+                maxLength={15}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+7 700 000 0000"
                 className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="mb-1 block text-sm text-[rgb(var(--muted))]"
+            {/* Logist: seed initial delivery offer */}
+            {role === 'LOGIST' && (
+              <details
+                open={showLogistOffer}
+                onToggle={(e) => setShowLogistOffer((e.currentTarget as HTMLDetailsElement).open)}
+                className="rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-4 py-3"
               >
-                {copy.confirmPassword}
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                required
-                minLength={8}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              />
-            </div>
+                  <summary className="cursor-pointer select-none text-sm font-medium text-[rgb(var(--muted))]">
+                    {copy.setupDeliveryProfile}
+                  </summary>
+
+                  <div className="mt-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="initialOfferBasePrice" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                          {copy.initialOfferBasePrice}
+                        </label>
+                        <input
+                          id="initialOfferBasePrice"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={initialOfferBasePrice}
+                          onChange={(e) => setInitialOfferBasePrice(e.target.value)}
+                          className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="initialOfferCurrency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                          {copy.initialOfferCurrency}
+                        </label>
+                        <select
+                          id="initialOfferCurrency"
+                          value={initialOfferCurrency}
+                          onChange={(e) => setInitialOfferCurrency(e.target.value)}
+                          disabled={currenciesLoading || currencies.length === 0}
+                          className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
+                        >
+                          <option value="">—</option>
+                          {currencies.map((item) => (
+                            <option key={item.code} value={item.code}>
+                              {formatCurrencyOptionLabel(item.code, item.name)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="initialOfferDescription" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                        {copy.initialOfferDescription}
+                      </label>
+                      <textarea
+                        id="initialOfferDescription"
+                        rows={3}
+                        maxLength={500}
+                        value={initialOfferDescription}
+                        onChange={(e) => setInitialOfferDescription(e.target.value)}
+                        className="focus-theme w-full resize-none rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </details>
+            )}
 
             {error && (
               <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>

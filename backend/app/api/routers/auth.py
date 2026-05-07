@@ -58,6 +58,13 @@ class RegisterRequest(BaseModel):
     street: str | None = Field(None, max_length=300)
     postal_code: str | None = Field(None, max_length=20)
     preferred_currency_code: str = Field(..., min_length=3, max_length=3)
+    # Optional profile enrichment
+    phone: str | None = Field(None, max_length=30)
+    contact_name: str | None = Field(None, max_length=120)
+    # Logist-only: seed first logistic offer at registration
+    initial_offer_base_price: float | None = Field(None, ge=0)
+    initial_offer_currency_code: str | None = Field(None, min_length=3, max_length=3)
+    initial_offer_description: str | None = Field(None, max_length=500)
 
 
 class RegisterResponse(BaseModel):
@@ -205,6 +212,15 @@ async def register(payload: RegisterRequest, request: Request):
         address_label,
         normalized_currency_code,
         address_id=address_id,
+        phone=payload.phone,
+        contact_name=payload.contact_name,
+        initial_offer_base_price=payload.initial_offer_base_price,
+        initial_offer_currency_code=(
+            payload.initial_offer_currency_code.strip().upper()
+            if payload.initial_offer_currency_code
+            else None
+        ),
+        initial_offer_description=payload.initial_offer_description,
     )
 
     verify_token = await _create_email_verification_token(user.id, invalidate_existing=True)

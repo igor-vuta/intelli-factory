@@ -218,10 +218,19 @@ async def create_role_profile(
     address: str,
     preferred_currency_code: str,
     address_id: str | None = None,
+    phone: str | None = None,
+    contact_name: str | None = None,
+    initial_offer_base_price: float | None = None,
+    initial_offer_currency_code: str | None = None,
+    initial_offer_description: str | None = None,
 ) -> None:
     primary_address_data: dict = {"primary_address_id": address_id} if address_id else {}
 
     if role == "CUSTOMER":
+        extra: dict = {}
+        if phone:
+            extra["phone"] = phone
+        # CustomerProfile has no contact_name column
         await prisma.customerprofile.create(
             data={
                 "user_id": user_id,
@@ -230,11 +239,17 @@ async def create_role_profile(
                 "registration_address": address,
                 "preferred_currency_code": preferred_currency_code,
                 **primary_address_data,
+                **extra,
             }
         )
         return
 
     if role == "FACTORY":
+        extra = {}
+        if phone:
+            extra["phone"] = phone
+        if contact_name:
+            extra["contact_name"] = contact_name
         await prisma.factoryprofile.create(
             data={
                 "user_id": user_id,
@@ -243,12 +258,18 @@ async def create_role_profile(
                 "registration_address": address,
                 "preferred_currency_code": preferred_currency_code,
                 **primary_address_data,
+                **extra,
             }
         )
         return
 
     if role == "LOGIST":
-        await prisma.logistprofile.create(
+        extra = {}
+        if phone:
+            extra["phone"] = phone
+        if contact_name:
+            extra["contact_name"] = contact_name
+        profile = await prisma.logistprofile.create(
             data={
                 "user_id": user_id,
                 "company_name": display_name,
@@ -256,6 +277,21 @@ async def create_role_profile(
                 "registration_address": address,
                 "preferred_currency_code": preferred_currency_code,
                 **primary_address_data,
+                **extra,
             }
         )
+        # Seed initial logistic offer if base price provided
+        if initial_offer_base_price is not None and initial_offer_base_price >= 0:
+            offer_currency = initial_offer_currency_code or preferred_currency_code
+            offer_data: dict = {
+                "logist_profile_id": profile.id,
+                "title": "Regional courier offer",
+                "base_price": Decimal(str(initial_offer_base_price)),
+                "currency_code": offer_currency,
+                "reliability_score": 0.75,
+                "status": "ACTIVE",
+            }
+            if initial_offer_description:
+                offer_data["description"] = initial_offer_description
+            await prisma.logisticoffer.create(data=offer_data)
         return
