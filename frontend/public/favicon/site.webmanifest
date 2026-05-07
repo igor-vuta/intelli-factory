@@ -1,0 +1,52 @@
+{
+  "name": "Intelli-Factory",
+  "short_name": "IntelliF",
+  "description": "Supply-chain orchestration platform",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0f1117",
+  "background_color": "#0f1117",
+  "icons": [
+    {
+      "src": "/favicon/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/favicon/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Intelli-Factory dashboard on desktop"
+    },
+    {
+      "src": "/favicon/screenshot-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Intelli-Factory on mobile"
+    }
+  ]
+}
