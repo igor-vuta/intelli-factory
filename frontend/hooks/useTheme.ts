@@ -1,8 +1,42 @@
 import { useEffect, useState } from 'react';
-import { THEME_CLASSES, type Theme } from '../styles/themePresets';
+import { THEME_CLASSES, THEME_PRESETS, type Theme } from '../styles/themePresets';
 
 const STORAGE_KEY = 'if-theme';
 const DEFAULT_THEME: Theme = 'modernDark';
+
+const THEME_ACCENT_HEX: Record<Theme, string> = THEME_PRESETS.reduce(
+  (acc, p) => { acc[p.id] = p.palette.accent; return acc; },
+  {} as Record<Theme, string>
+);
+
+/** Cached raw SVG source for the favicon (fetched once, recolored per theme). */
+let _faviconSvgRaw: string | null = null;
+
+function getFaviconSvg(): Promise<string | null> {
+  if (_faviconSvgRaw !== null) return Promise.resolve(_faviconSvgRaw);
+  return fetch('/favicon/favicon.svg')
+    .then((res) => (res.ok ? res.text() : null))
+    .then((text) => { _faviconSvgRaw = text; return text; })
+    .catch(() => null);
+}
+
+export function updateFavicon(accentHex: string): void {
+  getFaviconSvg().then((svg) => {
+    if (!svg) return;
+    const recolored = svg.replace(/fill="#[0-9a-fA-F]{3,8}"/gi, `fill="${accentHex}"`);
+    const dataUrl = `data:image/svg+xml,${encodeURIComponent(recolored)}`;
+    // Browsers only re-render the favicon when a *new* <link> is appended —
+    // mutating an existing element's href is silently ignored by most engines.
+    document
+      .querySelectorAll<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"]')
+      .forEach((el) => el.remove());
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/svg+xml';
+    link.href = dataUrl;
+    document.head.appendChild(link);
+  });
+}
 
 /** Applies the theme class to <html> so CSS vars cascade everywhere (body, portals, scrollbars). */
 function applyThemeToRoot(theme: Theme) {
@@ -11,6 +45,7 @@ function applyThemeToRoot(theme: Theme) {
     if (cls.startsWith('theme-')) root.classList.remove(cls);
   });
   root.classList.add(THEME_CLASSES[theme]);
+  updateFavicon(THEME_ACCENT_HEX[theme]);
 }
 
 export function useTheme(): [Theme, (theme: Theme) => void] {

@@ -27,7 +27,6 @@ export default function Document() {
 
         {/* Windows */}
         <meta name="msapplication-TileColor" content="#f97316" />
-        <meta name="msapplication-config" content="/favicon/browserconfig.xml" />
 
         {/* Theme */}
         <meta name="theme-color" content="#0f1117" />

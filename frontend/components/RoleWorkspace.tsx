@@ -68,7 +68,7 @@ export default function RoleWorkspace({ expectedRole }: RoleWorkspaceProps) {
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
             <Image
-              src="/presets/logo.svg"
+              src="/favicon/favicon.svg"
               alt="Intelli-Factory logo"
               width={32}
               height={32}

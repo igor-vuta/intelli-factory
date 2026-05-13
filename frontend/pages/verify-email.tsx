@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useState } from 'react';
@@ -75,20 +75,10 @@ export default function VerifyEmailPage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <Image
-              src="/presets/logo.svg"
-              alt="Intelli-Factory logo"
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-md"
-              unoptimized
-              onError={(event) => {
-                event.currentTarget.style.display = 'none';
-              }}
-            />
+            <PresetIcon src="/favicon/favicon.svg" alt="Intelli-Factory" size={32} className="rounded-md" />
             <span>{copy.brand}</span>
           </Link>
-          <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
+          <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
