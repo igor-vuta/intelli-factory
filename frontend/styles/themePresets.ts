@@ -1,4 +1,4 @@
-export type Theme = 'midnightCore' | 'telegramBlue' | 'whatsappEmerald' | 'cyberNeon';
+export type Theme = 'midnightCore' | 'telegramBlue' | 'whatsappEmerald' | 'cyberNeon' | 'modernLight' | 'modernDark';
 
 export type ThemePreset = {
   id: Theme;
@@ -70,6 +70,34 @@ export const THEME_PRESETS: ThemePreset[] = [
       accent: '#ff4fd8',
       text: '#f6ebff',
       muted: '#c6addf',
+    },
+  },
+  {
+    id: 'modernLight',
+    label: 'Modern Light',
+    cssClass: 'theme-modern-light',
+    personality: 'Clean, minimal, professional — Vercel/Linear style',
+    useCase: 'Light mode dashboards and professional surfaces',
+    palette: {
+      bg: '#fafafc',
+      card: '#ffffff',
+      accent: '#3b82f6',
+      text: '#0f172a',
+      muted: '#64748b',
+    },
+  },
+  {
+    id: 'modernDark',
+    label: 'Modern Dark',
+    cssClass: 'theme-modern-dark',
+    personality: 'Deep charcoal with vibrant blue/purple — premium dark mode',
+    useCase: 'Default premium app surfaces and dashboards',
+    palette: {
+      bg: '#0f172a',
+      card: '#1e293b',
+      accent: '#60a5fa',
+      text: '#f8fafc',
+      muted: '#94a3b8',
     },
   },
 ];

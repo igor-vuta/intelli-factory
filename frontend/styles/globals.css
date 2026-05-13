@@ -3,11 +3,21 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100svh;
+  line-height: 1.65;
+  letter-spacing: -0.012em;
 }
 
 .text-main {
@@ -25,27 +35,38 @@ body {
 .surface-1 {
   background: rgb(var(--card));
   border: 1px solid rgb(var(--stroke) / 0.35);
+  box-shadow: 0 2px 16px rgb(0 0 0 / 0.22), inset 0 1px 0 rgb(var(--stroke) / 0.08);
+  transition: box-shadow 200ms ease, border-color 200ms ease, transform 220ms ease;
+}
+
+.surface-1:hover {
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.22), 0 0 0 1px rgb(var(--stroke) / 0.18), inset 0 1px 0 rgb(var(--stroke) / 0.12);
+  transform: translateY(-2px) scale(1.005);
 }
 
 .surface-2 {
   background: rgb(var(--card) / 0.7);
   border: 1px solid rgb(var(--stroke) / 0.24);
+  box-shadow: 0 1px 8px rgb(0 0 0 / 0.16);
+  transition: box-shadow 200ms ease;
 }
 
 .surface-panel {
   background: rgb(var(--panel));
   border: 1px solid rgb(var(--stroke) / 0.28);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.18);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
 }
 
 .focus-theme:focus-visible {
-  @apply outline-none ring-2;
-  ring-color: rgb(var(--accent));
-  ring-offset: 2px;
-  ring-offset-color: rgb(var(--bg));
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--bg)), 0 0 0 4px rgb(var(--accent) / 0.7);
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .theme-midnight-core {
   --bg: 7 11 20;
+  color-scheme: dark;
   --text: 238 243 255;
   --text-soft: 219 230 255;
   --muted: 166 181 211;
@@ -60,6 +81,7 @@ body {
 
 .theme-telegram-blue {
   --bg: 12 22 40;
+  color-scheme: dark;
   --text: 237 245 255;
   --text-soft: 219 233 252;
   --muted: 159 184 217;
@@ -74,6 +96,7 @@ body {
 
 .theme-whatsapp-emerald {
   --bg: 7 25 22;
+  color-scheme: dark;
   --text: 234 255 246;
   --text-soft: 214 244 232;
   --muted: 153 205 187;
@@ -88,6 +111,7 @@ body {
 
 .theme-cyber-neon {
   --bg: 20 10 33;
+  color-scheme: dark;
   --text: 246 235 255;
   --text-soft: 234 217 248;
   --muted: 198 173 223;
@@ -100,37 +124,125 @@ body {
   --dot: 255 198 242;
 }
 
+.theme-modern-light {
+  --bg: 250 250 252;
+  --card: 255 255 255;
+  --panel: 248 248 250;
+  --text: 15 23 42;
+  --text-soft: 51 65 85;
+  --muted: 100 116 139;
+  --accent: 59 130 246;
+  --accent-soft: 224 242 255;
+  --stroke: 226 232 240;
+  --stroke-muted: 241 245 249;
+  --dot: 147 197 253;
+  color-scheme: light;
+}
+
+/* ── Light theme adaptations ──────────────────────────────────────────────── */
+/* Status/badge text colors: -300 variants are too light on white bg           */
+.theme-modern-light .text-amber-300  { color: rgb(180 83 9)   !important; }
+.theme-modern-light .text-sky-300    { color: rgb(3 105 161)  !important; }
+.theme-modern-light .text-indigo-300 { color: rgb(67 56 202)  !important; }
+.theme-modern-light .text-violet-300 { color: rgb(109 40 217) !important; }
+.theme-modern-light .text-emerald-300 { color: rgb(6 95 70)   !important; }
+.theme-modern-light .text-red-300    { color: rgb(185 28 28)  !important; }
+
+/* Feedback message backgrounds — swap dark tints for light tints */
+.theme-modern-light .bg-emerald-950\/40 {
+  background-color: rgb(209 250 229 / 0.75) !important;
+}
+.theme-modern-light .bg-red-950\/40 {
+  background-color: rgb(254 226 226 / 0.75) !important;
+}
+
+/* Button ripples: white-on-white is invisible — use dark ink instead */
+.theme-modern-light .btn::after,
+.theme-modern-light button:not(.btn)::after {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Orbs are too saturated on a white page */
+.theme-modern-light .orb { opacity: 0.05; }
+
+/* Surface shadow is lighter and more appropriate for a light background */
+.theme-modern-light .surface-1 {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.07), inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+.theme-modern-light .surface-1:hover {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.07);
+}
+
+.theme-modern-dark {
+  --bg: 15 23 42;
+  color-scheme: dark;
+  --card: 30 41 59;
+  --panel: 24 32 48;
+  --text: 248 250 252;
+  --text-soft: 203 213 225;
+  --muted: 148 163 184;
+  --accent: 96 165 250;
+  --accent-soft: 30 64 96;
+  --stroke: 51 65 85;
+  --stroke-muted: 30 41 59;
+  --dot: 147 197 253;
+}
+
 .btn {
   @apply rounded-xl border border-transparent px-3 py-2 font-semibold no-underline;
+  position: relative;
+  overflow: hidden;
   transform: translateY(0) scale(1);
   transition:
-    transform 180ms ease,
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
     background-color 180ms ease,
     color 180ms ease,
     border-color 180ms ease,
-    filter 180ms ease;
+    filter 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .btn:focus-visible {
-  @apply outline-none ring-2;
-  ring-color: rgb(var(--accent));
-  ring-offset: 2px;
-  ring-offset-color: rgb(var(--bg));
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--bg)), 0 0 0 4px rgb(var(--accent) / 0.7);
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.45s;
+}
+
+.btn:active::after {
+  width: 320px;
+  height: 320px;
+  opacity: 0;
 }
 
 .btn-primary {
   @apply text-black;
   background: linear-gradient(135deg, rgb(var(--accent)), color-mix(in srgb, rgb(var(--accent)) 75%, white));
+  box-shadow: 0 2px 12px rgb(var(--accent) / 0.25);
 }
 
 .btn-primary:hover {
-  transform: translateY(-1px) scale(1.035);
-  filter: brightness(1.06);
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.07);
+  box-shadow: 0 6px 20px rgb(var(--accent) / 0.38);
 }
 
 .btn-primary:active {
-  transform: translateY(1px) scale(0.98);
-  filter: brightness(0.84);
+  transform: translateY(1px) scale(0.96);
+  filter: brightness(0.88);
+  box-shadow: 0 1px 6px rgb(var(--accent) / 0.18);
 }
 
 .btn-ghost {
@@ -138,16 +250,20 @@ body {
   border-color: rgb(var(--stroke) / 0.45);
   background: rgb(var(--card) / 0.45);
   color: rgb(var(--text));
+  backdrop-filter: blur(4px);
 }
 
 .btn-ghost:hover {
-  transform: translateY(-1px) scale(1.035);
-  background: rgb(var(--card) / 0.7);
+  transform: translateY(-2px) scale(1.03);
+  background: rgb(var(--card) / 0.75);
+  border-color: rgb(var(--stroke) / 0.65);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
 }
 
 .btn-ghost:active {
-  transform: translateY(1px) scale(0.98);
+  transform: translateY(1px) scale(0.96);
   background: rgb(var(--panel));
+  box-shadow: none;
 }
 
 .btn-lg {
@@ -195,6 +311,108 @@ body {
 
 .pulse {
   animation: pulse 1.3s ease-in-out infinite;
+}
+
+/* ── Micro-interaction utilities ─────────────────────────────────── */
+
+.action-scale {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.action-scale:active {
+  transform: scale(0.95);
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease both;
+}
+
+.slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Standalone ripple class (for non-.btn elements) */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: width 0.4s, height 0.4s, opacity 0.4s;
+}
+.btn-ripple:active::after {
+  width: 300px;
+  height: 300px;
+  opacity: 0;
+}
+
+/* Apply ripple + scale to ALL buttons not already using .btn */
+button:not(.btn) {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 180ms ease,
+    background-color 180ms ease;
+}
+
+button:not(.btn):active {
+  transform: scale(0.95);
+}
+
+button:not(.btn)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s;
+}
+
+button:not(.btn):active::after {
+  width: 220px;
+  height: 220px;
+  opacity: 0;
+}
+
+/* Input / select polish */
+input, select, textarea {
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--bg)), 0 0 0 4px rgb(var(--accent) / 0.55);
+  border-color: rgb(var(--accent) / 0.7) !important;
+  transform: scale(1.005);
+}
+
+/* Table row hover */
+tbody tr {
+  transition: background-color 150ms ease;
+}
+tbody tr:hover {
+  background-color: rgb(var(--card) / 0.65);
+}
+
+/* Success / error feedback messages auto-animate on mount */
+.rounded-lg.bg-emerald-950\/40,
+.rounded-lg.bg-red-950\/40 {
+  animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .snap-collapse {
@@ -246,11 +464,89 @@ body {
   }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgb(var(--stroke) / 0.3);
+  border-top-color: rgb(var(--accent));
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Page section entrance */
+.surface-1 {
+  animation: slideUp 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Skeleton shimmer for loading states */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--card) / 0.6) 25%,
+    rgb(var(--stroke) / 0.18) 50%,
+    rgb(var(--card) / 0.6) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
+}
+
+/* Stat card vibrant glow */
+.stat-card {
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+  animation: statGlow 3.5s ease-in-out infinite both;
+}
+.stat-card:nth-child(1) { animation-delay: 0.0s; }
+.stat-card:nth-child(2) { animation-delay: 0.35s; }
+.stat-card:nth-child(3) { animation-delay: 0.70s; }
+.stat-card:nth-child(4) { animation-delay: 1.05s; }
+.stat-card:nth-child(5) { animation-delay: 1.40s; }
+.stat-card:nth-child(6) { animation-delay: 1.75s; }
+
+@keyframes statGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(var(--gc) / 0);
+    border-color: rgb(var(--stroke) / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px 2px rgb(var(--gc) / 0.22);
+    border-color: rgb(var(--gc) / 0.55);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orb,
   .ticker,
   .pulse,
-  .btn {
+  .btn,
+  .fade-in,
+  .slide-up,
+  .action-scale,
+  .spinner,
+  .skeleton,
+  .surface-1,
+  .stat-card,
+  button:not(.btn) {
     animation: none !important;
     transition: none !important;
   }

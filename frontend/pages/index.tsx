@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import HeaderActions from '../components/HeaderActions';
 import LocaleSwitcher from '../components/LocaleSwitcher';
+import { useTheme } from '../hooks/useTheme';
 import { getLocaleFromQuery, t } from '../lib/i18n';
 import { THEME_CLASSES, THEME_LABELS, type Theme } from '../styles/themePresets';
 
@@ -19,7 +20,7 @@ export default function Home() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
-  const [theme, setTheme] = useState<Theme>('midnightCore');
+  const [theme, setTheme] = useTheme();
 
   const roleCards = useMemo(
     () => [
@@ -71,7 +72,7 @@ export default function Home() {
           <p className="mb-2 text-xs uppercase tracking-[0.14em] text-[rgb(var(--accent))]">
             Supply Chain Orchestration
           </p>
-          <h1 className="max-w-[14ch] text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+          <h1 className="slide-up max-w-[14ch] text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
             {copy.landingHeroTitle}
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-[rgb(var(--muted))]">

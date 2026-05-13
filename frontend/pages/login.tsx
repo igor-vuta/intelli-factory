@@ -5,14 +5,16 @@ import { FormEvent, useMemo, useState } from 'react';
 
 import { login, type UserRole } from '../lib/authClient';
 import { getLocaleFromQuery, supportedLocales, t } from '../lib/i18n';
-import { THEME_CLASSES, type Theme } from '../styles/themePresets';
+import ThemeSwitcher from '../components/ThemeSwitcher';
+import { useTheme } from '../hooks/useTheme';
+import { THEME_CLASSES } from '../styles/themePresets';
 
 export default function LoginPage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme] = useState<Theme>('midnightCore');
+  const [theme, setTheme] = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -81,20 +83,23 @@ export default function LoginPage() {
             <span>{copy.brand}</span>
           </Link>
 
-          <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--card))]/80 p-1">
-            {localeLinks.map((entry) => (
-              <Link
-                key={entry.lang}
-                href={entry.href}
-                className={`rounded-md px-2 py-1 text-xs transition ${
-                  entry.lang === locale
-                    ? 'bg-[rgb(var(--accent-soft))] text-[rgb(var(--text))]'
-                    : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
-                }`}
-              >
-                {entry.lang.toUpperCase()}
-              </Link>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--card))]/80 p-1">
+              {localeLinks.map((entry) => (
+                <Link
+                  key={entry.lang}
+                  href={entry.href}
+                  className={`rounded-md px-2 py-1 text-xs transition ${
+                    entry.lang === locale
+                      ? 'bg-[rgb(var(--accent-soft))] text-[rgb(var(--text))]'
+                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
+                  }`}
+                >
+                  {entry.lang.toUpperCase()}
+                </Link>
+              ))}
+            </div>
+            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
           </div>
         </header>
 

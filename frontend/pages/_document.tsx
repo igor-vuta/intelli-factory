@@ -4,6 +4,13 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+        {/* Prevent FOUC: apply stored theme class to <html> before any paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('if-theme');var v=['midnightCore','telegramBlue','whatsappEmerald','cyberNeon','modernLight','modernDark'];var m={midnightCore:'theme-midnight-core',telegramBlue:'theme-telegram-blue',whatsappEmerald:'theme-whatsapp-emerald',cyberNeon:'theme-cyber-neon',modernLight:'theme-modern-light',modernDark:'theme-modern-dark'};var t=v.indexOf(s)!==-1?s:'modernDark';document.documentElement.classList.add(m[t]);}catch(e){document.documentElement.classList.add('theme-modern-dark');}})();`,
+          }}
+        />
+
         {/* Standard favicons */}
         <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
         <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />

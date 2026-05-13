@@ -5,14 +5,16 @@ import { FormEvent, useEffect, useState } from 'react';
 
 import { resendVerificationEmail, verifyEmail } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import { THEME_CLASSES, type Theme } from '../styles/themePresets';
+import ThemeSwitcher from '../components/ThemeSwitcher';
+import { useTheme } from '../hooks/useTheme';
+import { THEME_CLASSES } from '../styles/themePresets';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme] = useState<Theme>('midnightCore');
+  const [theme, setTheme] = useTheme();
   const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,6 +88,7 @@ export default function VerifyEmailPage() {
             />
             <span>{copy.brand}</span>
           </Link>
+          <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">

@@ -35,7 +35,9 @@ import {
 import { formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 import LocaleSwitcher from '../../components/LocaleSwitcher';
-import { THEME_CLASSES, type Theme } from '../../styles/themePresets';
+import ThemeSwitcher from '../../components/ThemeSwitcher';
+import { useTheme } from '../../hooks/useTheme';
+import { THEME_CLASSES } from '../../styles/themePresets';
 
 const REQUESTS_PAGE_SIZE = 5;
 
@@ -44,7 +46,7 @@ export default function AdminWorkspacePage() {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme] = useState<Theme>('midnightCore');
+  const [theme, setTheme] = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestSummary[]>([]);
@@ -310,7 +312,7 @@ export default function AdminWorkspacePage() {
     <main
       className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
     >
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
         <header className="flex items-center justify-between">
           <Link
             href="/"
@@ -332,6 +334,7 @@ export default function AdminWorkspacePage() {
 
           <div className="flex items-center gap-2">
             <LocaleSwitcher currentLocale={locale} basePath="/app/admin" />
+            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
             <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
               {copy.logout}
             </button>
@@ -339,7 +342,7 @@ export default function AdminWorkspacePage() {
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
-          <h1 className="text-2xl font-semibold sm:text-3xl">{copy.adminTitle}</h1>
+          <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.adminTitle}</h1>
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">
             Track request pipeline and status distribution.
           </p>
@@ -352,27 +355,27 @@ export default function AdminWorkspacePage() {
           {!loading && !error && (
             <>
               <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': 'var(--accent)' } as React.CSSProperties}>
                   <p className="text-xs text-[rgb(var(--muted))]">Total</p>
                   <p className="text-xl font-semibold">{statusStats.total}</p>
                 </div>
-                <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '245 158 11' } as React.CSSProperties}>
                   <p className="text-xs text-[rgb(var(--muted))]">Pending</p>
                   <p className="text-xl font-semibold text-amber-300">{statusStats.pending}</p>
                 </div>
-                <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '56 189 248' } as React.CSSProperties}>
                   <p className="text-xs text-[rgb(var(--muted))]">Pairing</p>
                   <p className="text-xl font-semibold text-sky-300">{statusStats.pairing}</p>
                 </div>
-                <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '52 211 153' } as React.CSSProperties}>
                   <p className="text-xs text-[rgb(var(--muted))]">Matched</p>
                   <p className="text-xl font-semibold text-emerald-300">{statusStats.matched}</p>
                 </div>
-                <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '248 113 113' } as React.CSSProperties}>
                   <p className="text-xs text-[rgb(var(--muted))]">Cancelled</p>
                   <p className="text-xl font-semibold text-red-300">{statusStats.cancelled}</p>
                 </div>
-                <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
+                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '52 211 153' } as React.CSSProperties}>
                   <p className="text-xs text-[rgb(var(--muted))]">Completed</p>
                   <p className="text-xl font-semibold text-emerald-300">{statusStats.completed}</p>
                 </div>
@@ -691,7 +694,7 @@ export default function AdminWorkspacePage() {
                         </p>
                         <ResponsiveContainer width="100%" height={280}>
                           <ScatterChart>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--stroke) / 0.1)" />
                             <XAxis
                               dataKey="x"
                               name="Cost"
@@ -749,13 +752,13 @@ export default function AdminWorkspacePage() {
                         </p>
                         <ResponsiveContainer width="100%" height={280}>
                           <BarChart data={barData} barCategoryGap="20%">
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--stroke) / 0.1)" />
                             <XAxis dataKey="strategy" tick={{ fontSize: 11 }} />
                             <YAxis tick={{ fontSize: 10 }} />
                             <Tooltip
                               contentStyle={{
-                                background: 'rgba(15,20,35,0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
+                                background: 'rgb(var(--card))',
+                                border: '1px solid rgb(var(--stroke) / 0.25)',
                                 borderRadius: 8,
                                 fontSize: 12,
                               }}
@@ -782,7 +785,7 @@ export default function AdminWorkspacePage() {
                             { axis: 'Speed Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.speed])) },
                             { axis: 'Reliability Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.reliability])) },
                           ]}>
-                            <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                            <PolarGrid stroke="rgb(var(--stroke) / 0.15)" />
                             <PolarAngleAxis dataKey="axis" tick={{ fontSize: 12 }} />
                             <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
                             {radarData.map((r) => (

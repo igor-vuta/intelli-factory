@@ -33,7 +33,9 @@ import {
 } from '../../lib/authClient';
 import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
-import { THEME_CLASSES, type Theme } from '../../styles/themePresets';
+import ThemeSwitcher from '../../components/ThemeSwitcher';
+import { useTheme } from '../../hooks/useTheme';
+import { THEME_CLASSES } from '../../styles/themePresets';
 
 const TABLE_PAGE_SIZE = 5;
 
@@ -97,12 +99,12 @@ function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-sm"
+      className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
+      <div className="slide-up w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{copy.placeBidTitle}</h2>
@@ -189,7 +191,7 @@ export default function FactoryWorkspacePage() {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme] = useState<Theme>('midnightCore');
+  const [theme, setTheme] = useTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -705,7 +707,7 @@ export default function FactoryWorkspacePage() {
     <main
       className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
     >
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
         <header className="flex items-center justify-between">
           <Link
             href="/"
@@ -726,6 +728,7 @@ export default function FactoryWorkspacePage() {
           </Link>
           <div className="flex items-center gap-2">
             <LocaleSwitcher currentLocale={locale} basePath="/app/factory" />
+            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
             <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
               {copy.logout}
             </button>
@@ -741,7 +744,7 @@ export default function FactoryWorkspacePage() {
           <>
             {/* ── Open Requests (PENDING) ─────────────────────────────── */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h1 className="text-2xl font-semibold sm:text-3xl">{copy.factoryWorkspaceTitle}</h1>
+              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.factoryWorkspaceTitle}</h1>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
                 {copy.factoryWorkspaceSubtitle}
               </p>

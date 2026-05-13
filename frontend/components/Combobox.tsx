@@ -116,7 +116,7 @@ export default function Combobox({
           />
 
           {open && (
-            <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl">
+            <ul className="fade-in absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl">
               {allowEmpty && (
                 <li
                   onMouseDown={() =>
