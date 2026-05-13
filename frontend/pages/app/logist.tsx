@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ApiError } from '../../lib/authClient';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
 import LocaleSwitcher from '../../components/LocaleSwitcher';
@@ -513,7 +514,12 @@ export default function LogistWorkspacePage() {
         setLogisticOffers(offers);
         setOfferCurrencyCode((prev) => prev || bootstrap.currencies[0]?.code || 'USD');
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load workspace');
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          await router.replace(`/login?lang=${locale}`);
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'Failed to load workspace');
       } finally {
         if (!cancelled) setLoading(false);
       }

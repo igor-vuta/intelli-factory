@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useMemo, useState } from 'react';
+import { ApiError } from '../../lib/authClient';
 import {
   Bar,
   BarChart,
@@ -82,11 +83,14 @@ export default function AdminWorkspacePage() {
           setRequests(rows);
         }
       } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error ? loadError.message : 'Failed to load admin workspace'
-          );
+        if (cancelled) return;
+        if (loadError instanceof ApiError && loadError.status === 401) {
+          await router.replace(`/login?lang=${locale}`);
+          return;
         }
+        setError(
+          loadError instanceof Error ? loadError.message : 'Failed to load admin workspace'
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }

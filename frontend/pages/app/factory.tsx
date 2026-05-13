@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ApiError } from '../../lib/authClient';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
 import Combobox, { type ComboboxOption } from '../../components/Combobox';
@@ -438,8 +439,12 @@ export default function FactoryWorkspacePage() {
         }
         if (bootstrap.currencies[0]) setCurrencyCode(bootstrap.currencies[0].code);
       } catch (loadError) {
-        if (!cancelled)
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load workspace');
+        if (cancelled) return;
+        if (loadError instanceof ApiError && loadError.status === 401) {
+          await router.replace(`/login?lang=${locale}`);
+          return;
+        }
+        setError(loadError instanceof Error ? loadError.message : 'Failed to load workspace');
       } finally {
         if (!cancelled) setLoading(false);
       }

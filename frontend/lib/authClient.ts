@@ -224,6 +224,16 @@ export type OptimizeResponse = {
 
 const apiBase = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     ...options,
@@ -238,7 +248,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const message = data?.detail || data?.message || 'Request failed';
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   return data as T;

@@ -9,6 +9,7 @@ import LocaleSwitcher from '../../components/LocaleSwitcher';
 import PaymentMockupModal from '../../components/PaymentMockupModal';
 import RatingModal from '../../components/RatingModal';
 import SearchableInput from '../../components/SearchableInput';
+import { ApiError } from '../../lib/authClient';
 import {
   acceptTransactionCompletion,
   captureTransactionPayment,
@@ -963,8 +964,12 @@ export default function CustomerWorkspacePage() {
         setRequests(rows);
         setTransactions(txRows);
       } catch (err) {
-        if (!cancelled)
-          setPageError(err instanceof Error ? err.message : 'Failed to load workspace');
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          await router.replace(`/login?lang=${locale}`);
+          return;
+        }
+        setPageError(err instanceof Error ? err.message : 'Failed to load workspace');
       } finally {
         if (!cancelled) setLoading(false);
       }
