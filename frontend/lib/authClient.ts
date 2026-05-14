@@ -670,8 +670,8 @@ export type OptimizeCompareResponse = {
   optimization_profile: string | null;
   weights: { cost: number; time: number; reliability: number };
   candidate_pool_size: number;
+  pool: { id: string; total_cost: number; delivery_days: number; reliability: number }[];
   greedy: CompareStrategyEntry[];
-  heuristic: CompareStrategyEntry[];
   fast: CompareStrategyEntry[];
   deep: CompareStrategyEntry[];
 };

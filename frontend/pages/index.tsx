@@ -5,7 +5,7 @@ import HeaderActions from '../components/HeaderActions';
 import LocaleSwitcher from '../components/LocaleSwitcher';
 import { useTheme } from '../hooks/useTheme';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import { THEME_CLASSES, THEME_LABELS, type Theme } from '../styles/themePresets';
+import { THEME_CLASSES, THEME_LABELS } from '../styles/themePresets';
 
 const liveEvents = [
   'Customer request created: Titanium pipes · Almaty',

@@ -61,7 +61,7 @@ export default function AdminWorkspacePage() {
   const [comparing, setComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [compareData, setCompareData] = useState<OptimizeCompareResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<'greedy' | 'heuristic' | 'fast' | 'deep'>('deep');
+  const [activeTab, setActiveTab] = useState<'greedy' | 'fast' | 'deep'>('deep');
   const [seedLoading, setSeedLoading] = useState(false);
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
 
@@ -185,12 +185,11 @@ export default function AdminWorkspacePage() {
     if (!compareData) return [];
     const COLORS: Record<string, string> = {
       greedy: '#f59e0b',
-      heuristic: '#60a5fa',
       fast: '#34d399',
       deep: '#a78bfa',
     };
     const entries: { x: number; y: number; z: number; strategy: string; fill: string; id: string }[] = [];
-    for (const strategy of ['greedy', 'heuristic', 'fast', 'deep'] as const) {
+    for (const strategy of ['greedy', 'fast', 'deep'] as const) {
       for (const sol of compareData[strategy]) {
         entries.push({
           x: sol.total_cost,
@@ -205,6 +204,34 @@ export default function AdminWorkspacePage() {
     return entries;
   }, [compareData]);
 
+  const poolScatterData = useMemo(() => {
+    if (!compareData) return [];
+    const selectedIds = new Set(scatterData.map((d) => d.id));
+    return compareData.pool
+      .filter((p) => !selectedIds.has(p.id))
+      .map((p) => ({ x: p.total_cost, y: p.delivery_days, z: p.reliability, id: p.id }));
+  }, [compareData, scatterData]);
+
+  const paretoLineData = useMemo(() => {
+    if (!compareData) return [];
+    // Collect all unique candidates (pool + all strategy results)
+    const seen = new Set<string>();
+    const all: { id: string; x: number; y: number }[] = [];
+    for (const p of compareData.pool) {
+      if (!seen.has(p.id)) { seen.add(p.id); all.push({ id: p.id, x: p.total_cost, y: p.delivery_days }); }
+    }
+    for (const strategy of ['greedy', 'fast', 'deep'] as const) {
+      for (const s of compareData[strategy]) {
+        if (!seen.has(s.id)) { seen.add(s.id); all.push({ id: s.id, x: s.total_cost, y: s.delivery_days }); }
+      }
+    }
+    // Non-dominated: no other point has cost ≤ and days ≤ (with at least one strictly better)
+    const pareto = all
+      .filter((p) => !all.some((o) => o.id !== p.id && o.x <= p.x && o.y <= p.y && (o.x < p.x || o.y < p.y)))
+      .sort((a, b) => a.x - b.x);
+    return pareto.map(({ x, y }) => ({ x, y }));
+  }, [compareData]);
+
   const barData = useMemo(() => {
     if (!compareData) return [];
     const best = (list: CompareStrategyEntry[]) =>
@@ -217,7 +244,6 @@ export default function AdminWorkspacePage() {
           };
     return [
       { strategy: 'Greedy', ...best(compareData.greedy) },
-      { strategy: 'Heuristic', ...best(compareData.heuristic) },
       { strategy: 'Fast', ...best(compareData.fast) },
       { strategy: 'Deep GA', ...best(compareData.deep) },
     ];
@@ -226,10 +252,9 @@ export default function AdminWorkspacePage() {
   const radarData = useMemo(() => {
     if (!compareData) return [];
     const top = (list: CompareStrategyEntry[]) => list[0];
-    type StrategyKey = 'greedy' | 'heuristic' | 'fast' | 'deep';
+    type StrategyKey = 'greedy' | 'fast' | 'deep';
     const strategies: { name: string; key: StrategyKey }[] = [
       { name: 'Greedy', key: 'greedy' },
-      { name: 'Heuristic', key: 'heuristic' },
       { name: 'Fast', key: 'fast' },
       { name: 'Deep GA', key: 'deep' },
     ];
@@ -307,7 +332,6 @@ export default function AdminWorkspacePage() {
 
   const STRATEGY_COLORS: Record<string, string> = {
     greedy: '#f59e0b',
-    heuristic: '#60a5fa',
     fast: '#34d399',
     deep: '#a78bfa',
   };
@@ -502,7 +526,7 @@ export default function AdminWorkspacePage() {
                   <div>
                     <h2 className="text-xl font-semibold">Optimization Engine Comparison</h2>
                     <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                      Compare Greedy, Weighted Heuristic, Fast and Deep (GA) strategies side-by-side.
+                      Compare Greedy, Fast Weighted, and Deep (GA) strategies side-by-side.
                     </p>
                   </div>
                   <button
@@ -613,8 +637,7 @@ export default function AdminWorkspacePage() {
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
                         <p className="text-xs text-[rgb(var(--muted))]">Solutions per strategy</p>
                         <p className="font-mono text-sm">
-                          G:{compareData.greedy.length} H:{compareData.heuristic.length} F:
-                          {compareData.fast.length} D:{compareData.deep.length}
+                          G:{compareData.greedy.length} F:{compareData.fast.length} D:{compareData.deep.length}
                         </p>
                       </div>
                     </div>
@@ -624,8 +647,7 @@ export default function AdminWorkspacePage() {
                       {(
                         [
                           { key: 'greedy', label: 'Greedy', subtitle: 'Lowest Cost First' },
-                          { key: 'heuristic', label: 'Heuristic', subtitle: 'Weighted Sum' },
-                          { key: 'fast', label: 'Fast', subtitle: 'Deterministic Opt.' },
+                          { key: 'fast', label: 'Fast Weighted', subtitle: 'Weighted Sum' },
                           { key: 'deep', label: 'Deep GA', subtitle: 'NSGA-II / DEAP' },
                         ] as const
                       ).map(({ key, label, subtitle }) => {
@@ -706,10 +728,10 @@ export default function AdminWorkspacePage() {
                             <Tooltip
                               content={({ payload }) => {
                                 if (!payload?.length) return null;
-                                const d = payload[0]?.payload as typeof scatterData[0];
+                                const d = payload[0]?.payload as { x: number; y: number; z: number; strategy?: string; fill?: string; id: string };
                                 return (
                                   <div className="rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-2 text-xs">
-                                    <p style={{ color: d.fill }}>{d.strategy.toUpperCase()}</p>
+                                    <p style={{ color: d.fill ?? '#9ca3af' }}>{d.strategy ? d.strategy.toUpperCase() : 'POOL'}</p>
                                     <p>Cost: {d.x.toFixed(2)}</p>
                                     <p>Days: {d.y.toFixed(1)}</p>
                                     <p>Reliability: {d.z.toFixed(3)}</p>
@@ -718,7 +740,24 @@ export default function AdminWorkspacePage() {
                               }}
                             />
                             <Legend />
-                            {(['greedy', 'heuristic', 'fast', 'deep'] as const).map((strategy) => (
+                            <Scatter
+                              name="Pool"
+                              data={poolScatterData}
+                              fill="#6b7280"
+                              opacity={0.35}
+                              legendType="none"
+                            />
+                            <Scatter
+                              name="Pareto Front"
+                              data={paretoLineData}
+                              fill="none"
+                              line={{ stroke: '#f472b6', strokeWidth: 1.5, strokeDasharray: '5 3' }}
+                              legendType="none"
+                              shape={(props: { cx?: number; cy?: number }) => (
+                                <circle cx={props.cx} cy={props.cy} r={0} />
+                              )}
+                            />
+                            {(['greedy', 'fast', 'deep'] as const).map((strategy) => (
                               <Scatter
                                 key={strategy}
                                 name={strategy.charAt(0).toUpperCase() + strategy.slice(1)}
@@ -802,7 +841,7 @@ export default function AdminWorkspacePage() {
                     {/* ── Strategy tabs ────────────────────────────────────────── */}
                     <div className="mt-6">
                       <div className="flex gap-1 border-b border-[rgb(var(--stroke))]">
-                        {(['greedy', 'heuristic', 'fast', 'deep'] as const).map((tab) => (
+                        {(['greedy', 'fast', 'deep'] as const).map((tab) => (
                           <button
                             key={tab}
                             type="button"
@@ -820,11 +859,9 @@ export default function AdminWorkspacePage() {
                           >
                             {tab === 'greedy'
                               ? 'Greedy'
-                              : tab === 'heuristic'
-                                ? 'Heuristic'
-                                : tab === 'fast'
-                                  ? 'Fast'
-                                  : 'Deep GA'}
+                              : tab === 'fast'
+                                ? 'Fast Weighted'
+                                : 'Deep GA'}
                           </button>
                         ))}
                       </div>

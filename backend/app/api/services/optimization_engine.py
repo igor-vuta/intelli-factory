@@ -354,7 +354,6 @@ class OptimizationEngine:
         pool = [self._candidate_to_dict(c, req) for c in feasible]
 
         greedy_result    = self._run_greedy(pool)
-        heuristic_result = self._score_pool(pool, weights)
         fast_result      = self._run_fast_optimization(pool, weights)
         deep_result      = self.run_deep_optimization(pool, weights)
 
@@ -363,10 +362,13 @@ class OptimizationEngine:
             "optimization_profile": active_profile,
             "weights": {"cost": weights[0], "time": weights[1], "reliability": weights[2]},
             "candidate_pool_size": len(pool),
-            "greedy":    greedy_result[:5],
-            "heuristic": heuristic_result[:5],
-            "fast":      fast_result[:5],
-            "deep":      deep_result[:5],
+            "pool": [
+                {"id": c["id"], "total_cost": c["total_cost"], "delivery_days": c["delivery_days"], "reliability": c["reliability"]}
+                for c in pool
+            ],
+            "greedy": greedy_result[:5],
+            "fast":   fast_result[:5],
+            "deep":   deep_result[:5],
         }
 
     # ── Private helpers ───────────────────────────────────────────────────

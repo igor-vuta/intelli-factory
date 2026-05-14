@@ -119,7 +119,7 @@ export default function HeaderActions({ theme, themeLabel, onThemeChange }: Head
         className="btn btn-primary hidden whitespace-nowrap text-sm md:inline-flex"
         aria-label="Create a new Intelli-Factory account"
       >
-        Get started
+        Register
       </Link>
 
       {mobileMenuOpen && (
@@ -142,7 +142,7 @@ export default function HeaderActions({ theme, themeLabel, onThemeChange }: Head
             role="menuitem"
             onClick={() => setMobileMenuOpen(false)}
           >
-            Get started
+            Register
           </Link>
         </div>
       )}
