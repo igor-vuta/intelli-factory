@@ -1061,13 +1061,28 @@ async def create_random_large_scale_request(
                     "update": {"company_name": label, "deleted_at": None},
                 },
             )
+            # Bug 1 fix: tier-appropriate per-km and per-kg rates
+            if tier == "express":
+                price_per_km = Decimal(str(round(rng.uniform(2.50, 4.00), 2)))
+                price_per_kg = Decimal(str(round(rng.uniform(1.50, 2.50), 2)))
+            elif tier == "standard":
+                price_per_km = Decimal(str(round(rng.uniform(1.20, 2.20), 2)))
+                price_per_kg = Decimal(str(round(rng.uniform(0.80, 1.40), 2)))
+            elif tier == "economy":
+                price_per_km = Decimal(str(round(rng.uniform(0.30, 0.80), 2)))
+                price_per_kg = Decimal(str(round(rng.uniform(0.20, 0.50), 2)))
+            else:  # mixed
+                price_per_km = Decimal(str(round(rng.uniform(1.50, 3.00), 2)))
+                price_per_kg = Decimal(str(round(rng.uniform(0.90, 1.80), 2)))
             price_jitter = Decimal(str(rng.randint(-2000, 2000)))
             actual_price = max(Decimal("5000"), base_price + price_jitter)
+            # Bug 2 fix: stable title key so re-runs update rather than create new rows
+            stable_title = f"rand-logist-{j + 1:02d}-primary"
             offer = await _ensure_logistic_offer(
-                prisma, l_profile.id, label,
+                prisma, l_profile.id, stable_title,
                 f"{tier.capitalize()} freight — {label}",
                 actual_price,
-                Decimal("1.00"), Decimal("0.70"),
+                price_per_km, price_per_kg,
                 days_min, days_max, log_rel, "EUR",
             )
             await _ensure_coverage(prisma, offer.id, country.id, region.id, city.id)
@@ -1116,6 +1131,8 @@ async def create_random_large_scale_request(
         # Shuffle all (factory, logistic) pairs so each run samples differently
         pairs = [(inv, lo) for inv in inventory_entries for lo in logistic_offers]
         rng.shuffle(pairs)
+        # Bug 3 fix: clamp target so the loop is never asked for more than available pairs
+        target = min(target, len(pairs))
 
         for inv, (offer, days_min, days_max, log_rel) in pairs:
             if candidate_count >= target:

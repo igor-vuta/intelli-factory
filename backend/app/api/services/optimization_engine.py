@@ -195,14 +195,17 @@ class OptimizationEngine:
         min_time, max_time = min(times),         max(times)
         min_rel,  max_rel  = min(reliabilities), max(reliabilities)
 
+        cost_w, time_w, rel_w = weights
+
         # Clean up any previous DEAP creator classes
-        for attr in ("FitnessMulti", "Individual"):
+        for attr in ("FitnessSingle", "Individual"):
             if hasattr(creator, attr):
                 delattr(creator, attr)
 
-        # NSGA-II: minimise cost, minimise time, maximise reliability
-        creator.create("FitnessMulti", base.Fitness, weights=(-1.0, -1.0, 1.0))
-        creator.create("Individual", list, fitness=creator.FitnessMulti)
+        # Single-objective: maximise the same weighted sum used by Fast Weighted
+        # so the GA always optimises for the actual profile (not fixed equal weights)
+        creator.create("FitnessSingle", base.Fitness, weights=(1.0,))
+        creator.create("Individual", list, fitness=creator.FitnessSingle)
 
         toolbox = base.Toolbox()
         toolbox.register("candidate_idx", random.randint, 0, n - 1)
@@ -215,13 +218,15 @@ class OptimizationEngine:
         )
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-        def evaluate(individual: list) -> tuple[float, float, float]:
+        def evaluate(individual: list) -> tuple[float]:
             idx = individual[0] % n
             c = feasible_candidates[idx]
             cost_n = _normalise(float(c["total_cost"]),    min_cost, max_cost)
             time_n = _normalise(float(c["delivery_days"]), min_time, max_time)
             rel_n  = _normalise(float(c["reliability"]),   min_rel,  max_rel)
-            return (cost_n, time_n, rel_n)
+            # lower cost/time is better → invert; higher reliability is better
+            score = cost_w * (1.0 - cost_n) + time_w * (1.0 - time_n) + rel_w * rel_n
+            return (score,)
 
         def mutate(individual: list, indpb: float = 0.3) -> tuple:
             """Higher mutation rate spreads exploration across more indices."""
@@ -294,8 +299,12 @@ class OptimizationEngine:
                     seen.add(orig_idx)
                     selected_indices.append(orig_idx)
 
-        selected = [feasible_candidates[i] for i in selected_indices]
-        return self._score_pool(selected, weights)[:_GA_TOP_N]
+        # Score every candidate relative to the FULL pool (same normalization base
+        # as Fast Weighted) then keep only the GA-selected indices, in rank order.
+        selected_ids = {feasible_candidates[i]["id"] for i in selected_indices}
+        all_scored = self._score_pool(feasible_candidates, weights)
+        ga_results = [c for c in all_scored if c["id"] in selected_ids]
+        return ga_results[:_GA_TOP_N]
 
     async def compare_baselines(self, request_id: str, profile: str | None = None) -> dict:
         """
