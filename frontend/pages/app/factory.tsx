@@ -823,7 +823,7 @@ export default function FactoryWorkspacePage() {
                             {row.status}
                           </td>
                           <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {new Date(row.created_at).toLocaleString()}
+                            {new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'UTC' })}
                           </td>
                           <td className="py-2">
                             {inventory.length > 0 ? (

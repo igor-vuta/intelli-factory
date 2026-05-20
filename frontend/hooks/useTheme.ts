@@ -49,18 +49,17 @@ function applyThemeToRoot(theme: Theme) {
 }
 
 export function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return DEFAULT_THEME;
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      return (stored && stored in THEME_CLASSES ? stored : DEFAULT_THEME) as Theme;
-    } catch {
-      return DEFAULT_THEME;
-    }
-  });
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
-    applyThemeToRoot(theme);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+      const initial = (stored && stored in THEME_CLASSES ? stored : DEFAULT_THEME) as Theme;
+      setThemeState(initial);
+      applyThemeToRoot(initial);
+    } catch {
+      applyThemeToRoot(DEFAULT_THEME);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

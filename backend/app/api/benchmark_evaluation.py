@@ -1,7 +1,7 @@
 """
 Chapter 5 Benchmark Evaluation Script — Intelli-Factory
 ========================================================
-Runs the four optimisation modes (Greedy, Weighted-Heuristic, Fast Weighted,
+Runs the three optimisation modes (Greedy, Fast Weighted,
 Deep GA / NSGA-II) across 120 synthetic scenarios (30 Monte-Carlo seeds each)
 and prints Table XII–style aggregate results plus hypervolume statistics.
 
@@ -187,15 +187,6 @@ def _run_scenario(pool: list[dict], seed: int) -> dict[str, Any]:
         "front":  greedy,
     }
 
-    # ── Weighted Heuristic ────────────────────────────────────────────────
-    t0 = time.perf_counter()
-    heuristic = engine._score_pool(list(pool), DEFAULT_WEIGHTS)
-    results["heuristic"] = {
-        "time_s": time.perf_counter() - t0,
-        "best":   heuristic[0] if heuristic else None,
-        "front":  heuristic,
-    }
-
     # ── Fast Weighted ─────────────────────────────────────────────────────
     t0 = time.perf_counter()
     fast = engine._run_fast_optimization(list(pool), DEFAULT_WEIGHTS)
@@ -237,7 +228,7 @@ def run_benchmark() -> None:
     # Per-mode accumulators
     acc: dict[str, dict] = {
         m: {"fitness": [], "cost": [], "time": [], "rel": [], "latency": []}
-        for m in ("greedy", "heuristic", "fast", "deep")
+        for m in ("greedy", "fast", "deep")
     }
     hv_acc: list[float] = []
     feasibility = {"total": 0, "feasible": 0}
@@ -251,7 +242,7 @@ def run_benchmark() -> None:
             seed = run_seed * 1000 + sc_idx
             res = _run_scenario(pool, seed)
 
-            for mode in ("greedy", "heuristic", "fast", "deep"):
+            for mode in ("greedy", "fast", "deep"):
                 best = res[mode].get("best")
                 acc[mode]["latency"].append(res[mode]["time_s"])
                 if best:
@@ -292,12 +283,12 @@ def run_benchmark() -> None:
 
     # ── Table XII ─────────────────────────────────────────────────────────
     print("TABLE XII — Average performance across 120 test scenarios (30 runs each)")
-    print("-" * 90)
-    print(f"{'Metric':<38} {'Greedy':>10} {'W.Heuristic':>13} {'Fast Wtd':>10} {'Deep GA':>10}")
-    print("-" * 90)
+    print("-" * 73)
+    print(f"{'Metric':<38} {'Greedy':>10} {'Fast Wtd':>10} {'Deep GA':>10}")
+    print("-" * 73)
 
-    def row(label: str, gv: str, hv: str, fv: str, dv: str) -> None:
-        print(f"{label:<38} {gv:>10} {hv:>13} {fv:>10} {dv:>10}")
+    def row(label: str, gv: str, fv: str, dv: str) -> None:
+        print(f"{label:<38} {gv:>10} {fv:>10} {dv:>10}")
 
     def fmt(v: float, d: int = 3) -> str:
         return f"{v:.{d}f}"
@@ -309,41 +300,36 @@ def run_benchmark() -> None:
     # Fitness score (higher = better, matches engine convention)
     row("Fitness Score (↑ better)",
         fmt(g_fitness),
-        fmt(mean(acc["heuristic"]["fitness"])),
         fmt(mean(acc["fast"]["fitness"])),
         fmt(mean(acc["deep"]["fitness"])))
 
     # Fitness score % improvement vs greedy
     row("Fitness Score improvement (%)",
         "–",
-        fmtp(pct_fitness(acc["heuristic"]["fitness"])),
         fmtp(pct_fitness(acc["fast"]["fitness"])),
         fmtp(pct_fitness(acc["deep"]["fitness"])))
 
     # Raw cost change (greedy = cheapest by design)
     row("Raw cost vs greedy (%, +ve = saving)",
         "–",
-        fmtp(pct_cost(acc["heuristic"]["cost"])),
         fmtp(pct_cost(acc["fast"]["cost"])),
         fmtp(pct_cost(acc["deep"]["cost"])))
 
     # Delivery time
     row("Delivery time reduction (%)",
         "–",
-        fmtp(pct_time(acc["heuristic"]["time"])),
         fmtp(pct_time(acc["fast"]["time"])),
         fmtp(pct_time(acc["deep"]["time"])))
 
     # Reliability
     row("Reliability improvement (%)",
         "–",
-        fmtp(pct_rel(acc["heuristic"]["rel"])),
         fmtp(pct_rel(acc["fast"]["rel"])),
         fmtp(pct_rel(acc["deep"]["rel"])))
 
     # Hypervolume (deep only)
     row("Hypervolume (normalised, ↑ better)",
-        "–", "–", "–",
+        "–", "–",
         fmt(mean(hv_acc)))
 
     # Feasibility
@@ -351,17 +337,15 @@ def run_benchmark() -> None:
     row("Feasibility rate (%)",
         fmt(feas_pct, 1),
         fmt(feas_pct, 1),
-        fmt(feas_pct, 1),
         fmt(feas_pct, 1))
 
     # Avg response time
     row("Avg response time (s)",
-        fmt(mean(acc["greedy"]["latency"]),    4),
-        fmt(mean(acc["heuristic"]["latency"]), 4),
-        fmt(mean(acc["fast"]["latency"]),      4),
-        fmt(mean(acc["deep"]["latency"]),      3))
+        fmt(mean(acc["greedy"]["latency"]), 4),
+        fmt(mean(acc["fast"]["latency"]),   4),
+        fmt(mean(acc["deep"]["latency"]),   3))
 
-    print("-" * 90)
+    print("-" * 73)
 
     # ── Extended stats ────────────────────────────────────────────────────
     print("\nExtended statistics:")
@@ -378,10 +362,9 @@ def run_benchmark() -> None:
     print("\nRaw objective means (all runs):")
     print(f"  {'Mode':<20} {'Avg Cost (KZT)':>17} {'Avg Days':>10} {'Avg Reliability':>17}")
     for mode, label in [
-        ("greedy",    "Greedy"),
-        ("heuristic", "Weighted Heuristic"),
-        ("fast",      "Fast Weighted"),
-        ("deep",      "Deep GA (NSGA-II)"),
+        ("greedy", "Greedy"),
+        ("fast",   "Fast Weighted"),
+        ("deep",   "Deep GA (NSGA-II)"),
     ]:
         mc = mean(acc[mode]["cost"])
         mt = mean(acc[mode]["time"])

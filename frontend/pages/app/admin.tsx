@@ -482,7 +482,7 @@ export default function AdminWorkspacePage() {
                         </td>
                         <td className="py-2 pr-3">{row.preferred_currency_code}</td>
                         <td className="py-2 pr-3">{row.status}</td>
-                        <td className="py-2">{new Date(row.created_at).toLocaleString()}</td>
+                        <td className="py-2">{new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
                       </tr>
                     ))}
                   </tbody>

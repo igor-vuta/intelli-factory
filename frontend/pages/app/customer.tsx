@@ -1261,7 +1261,7 @@ export default function CustomerWorkspacePage() {
                             </div>
                           </td>
                           <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                            {new Date(row.created_at).toLocaleString()}
+                            {new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'UTC' })}
                           </td>
                         </tr>
                       ))}

@@ -34,6 +34,9 @@ secure-keys/
 # Local test cookie artifacts
 backend/app/api/cookies*.txt
 
+# Benchmark output
+backend/app/api/benchmark_results.txt
+
 # Only README file is committed
 *.md
 !README.md
