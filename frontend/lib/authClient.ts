@@ -222,7 +222,10 @@ export type OptimizeResponse = {
   solutions: OptimizeSolution[];
 };
 
-const apiBase = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api';
+// Use a relative path so all requests go through the Next.js server (see
+// next.config.js rewrites). This makes session cookies first-party and
+// avoids cross-origin cookie blocking on Safari / mobile browsers.
+const apiBase = '/api';
 
 export class ApiError extends Error {
   constructor(

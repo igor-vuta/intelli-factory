@@ -1,18 +1,36 @@
 # Python
 .venv/
+venv/
 env/
+ENV/
 __pycache__/
 *.pyc
 *.pyo
+*.py[cod]
+*$py.class
+*.so
+.Python
+dist/
+build/
+*.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Next
+# Next.js / Node
 node_modules/
 .next/
 .next/cache/
+out/
+.nuxt/
 
 # Logs / OS
 *.log
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
 
 # Environment files
 .env
@@ -24,6 +42,11 @@ frontend/.env.local
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
 
 # Ruff cache
 .ruff_cache/
@@ -46,5 +69,20 @@ file-list.txt
 
 # Local diaries / temp notes
 temp/
+
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma
+prisma/.env
+
+# Docker
+docker-compose.override.yml
+
+# Deployment
+.vercel
