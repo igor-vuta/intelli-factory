@@ -1,6 +1,6 @@
 # Intelli-Factory: Multi-Objective Optimization Platform for Supply Chain Matching
 
-**Project Status:** Phase 1 Complete – Deployment Live (Target Completion: 22 May 2026)  
+**Project Status:** Complete – Submitted 22 May 2026  
 **Student:** Igor Vuta (P2773339)  
 **Supervisor:** Shengxiang Yang  
 **University:** De Montfort University  
@@ -50,9 +50,9 @@ Intelli-Factory automates this process with:
 
 ### Frontend
 
-- **Framework:** Next.js 14
+- **Framework:** Next.js 16
 - **Language:** TypeScript / React
-- **Styling:** Tailwind
+- **Styling:** Tailwind CSS
 - **Build Tool:** npm
 
 ### Infrastructure
@@ -210,7 +210,7 @@ curl -X POST http://localhost:8000/api/automations/optimize \
 ### ✅ Phase 1 Complete (Authentication & Session Management)
 
 - FastAPI backend with Prisma ORM
-- Next.js 14 frontend with TypeScript
+- Next.js 16 frontend with TypeScript
 - PostgreSQL database with Prisma schema
 - **User Registration** - signup with email verification
 - **Email Verification** - Brevo SMTP integration
@@ -221,21 +221,25 @@ curl -X POST http://localhost:8000/api/automations/optimize \
 - **Docker containerization** for local development
 - Development tooling (linting with Ruff, formatting, conventional commits)
 
-### 🟡 Phase 2–3 In Progress (Access Control & UI)
+### ✅ Phase 2–3 Complete (Access Control & UI)
 
-- Enhanced role dashboards (customer, factory operator, logistics partner, admin)
-- Form submission and validation
-- Backend API expansion for order/request lifecycle
-- Frontend page scaffolding for all user roles
-- Countries list fix for registration page (this week)
+- Role dashboards for all four roles (customer, factory operator, logistics partner, admin)
+- Request lifecycle: creation, pairing candidates, approval, and tracking
+- Agreement signing modal and payment mockup flow
+- Rating system with post-delivery feedback
+- Address picker with country/region search
+- Internationalisation support (i18n)
+- Theme switcher (light/dark presets, SSR-safe hydration)
 
-### ⏳ Phase 4–7 Planned (Algorithm, Testing, Deployment)
+### ✅ Phase 4–7 Complete (Algorithm, Testing, Deployment)
 
-- Matching algorithm implementation (DEAP genetic algorithms)
-- Synthetic data generation (100+ products, 10+ suppliers, 8+ logistics providers)
-- Comprehensive testing (unit, integration, UAT)
-- Production hardening and security audit
-- Final report writing and viva preparation
+- Multi-objective optimisation engine using DEAP (NSGA-II / Pareto-front)
+- Three optimisation modes: Greedy, Fast Weighted, Deep GA
+- Benchmark evaluation across 120 synthetic scenarios (30 Monte-Carlo seeds each)
+- Synthetic data seeding (country references, workflow scenarios)
+- Backend unit and integration tests (pytest)
+- Rate limiting, CORS hardening, auth security guards
+- CI/CD via GitHub Actions; deployed to Vercel (frontend) and Render (backend)
 
 ---
 
@@ -243,14 +247,8 @@ curl -X POST http://localhost:8000/api/automations/optimize \
 
 ### Quick Reference
 
-- **Problem Overview:** [documentation/01_Problem_Specification.md](documentation/01_Problem_Specification.md)
-- **Project Requirements:** [documentation/03_Requirements_Specification.md](documentation/03_Requirements_Specification.md)
 - **API Documentation:** Run `uvicorn main:app --reload` → visit http://localhost:8000/docs
-
-### Full Documentation
-
-- See [documentation/README.md](documentation/README.md) for complete index
-- GitHub CI/CD setup guide: [docs/guides/GITHUB_SETUP.md](docs/guides/GITHUB_SETUP.md)
+- **CI/CD Pipelines:** [.github/workflows/](.github/workflows/)
 
 ---
 
@@ -284,10 +282,6 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 # Backend tests
 cd backend/app/api
 pytest tests/
-
-# Frontend tests
-cd frontend
-npm run test
 ```
 
 ---
@@ -308,7 +302,7 @@ cd frontend && npm install && npm run dev
 **Frontend:** Deployed to Vercel at https://intelli-factory-frontend.vercel.app/
 
 - Auto-deploys on push to `main` branch
-- Environment: Next.js 14 on Vercel serverless
+- Environment: Next.js 16 on Vercel serverless
 
 **Backend:** Deployed to Render at https://intelli-factory-api.onrender.com
 
@@ -327,26 +321,26 @@ cd frontend && npm install && npm run dev
 ## Project Timeline
 
 **Start Date:** 11 February 2026  
-**Report Deadline:** 22 May 2026  
-**Current Week:** 5 of 14
+**Submitted:** 22 May 2026  
+**Week:** 14 of 14
 
-| Phase | Focus                                            | Week(s) | Status         |
-| ----- | ------------------------------------------------ | ------- | -------------- |
-| 1     | Authentication, session, email verification      | W1–W5   | ✅ Complete    |
-| 2     | Backend API expansion, access control            | W5–W10  | 🟡 In Progress |
-| 3     | Frontend UI for all roles, form integration      | W6–W11  | 🟡 In Progress |
-| 4     | Matching algorithm (DEAP), fitness functions     | W9–W12  | ⏳ Planned     |
-| 5     | Synthetic data generation, comprehensive testing | W8–W14  | ⏳ Planned     |
-| 6     | User acceptance testing, security hardening      | W10–W13 | ⏳ Planned     |
-| 7     | Production deployment, release                   | W11–W13 | ⏳ Planned     |
+| Phase | Focus                                            | Week(s) | Status      |
+| ----- | ------------------------------------------------ | ------- | ----------- |
+| 1     | Authentication, session, email verification      | W1–W5   | ✅ Complete |
+| 2     | Backend API expansion, access control            | W5–W10  | ✅ Complete |
+| 3     | Frontend UI for all roles, form integration      | W6–W11  | ✅ Complete |
+| 4     | Matching algorithm (DEAP), fitness functions     | W9–W12  | ✅ Complete |
+| 5     | Synthetic data generation, comprehensive testing | W8–W14  | ✅ Complete |
+| 6     | User acceptance testing, security hardening      | W10–W13 | ✅ Complete |
+| 7     | Production deployment, release                   | W11–W13 | ✅ Complete |
 
 **Key Milestones:**
 
-- 13 Mar 2026 (W5): Contract & ethics submission ✅ (tomorrow)
-- 24 Mar 2026 (W6): Literature review finalized
-- 31 Mar 2026 (W7): System design approved
-- 7 Apr 2026 (W10): Phases 1–3 complete
-- 22 May 2026 (W14): Report & code submission (deadline)
+- 13 Mar 2026 (W5): Contract & ethics submission ✅
+- 24 Mar 2026 (W6): Literature review finalised ✅
+- 31 Mar 2026 (W7): System design approved ✅
+- 7 Apr 2026 (W10): Phases 1–3 complete ✅
+- 22 May 2026 (W14): Report & code submission ✅
 - 15 Jun 2026 (W18): Viva examination
 
 ---
@@ -372,6 +366,5 @@ cd frontend && npm install && npm run dev
 
 ---
 
-**Last Updated:** 12 March 2026  
-**Project Status:** Phase 1 Complete – Deployment Live  
-**Next Milestone:** Forms Submission (13 Mar), Phases 2–3 (W6–W11)
+**Last Updated:** 20 May 2026  
+**Project Status:** Complete – Submitted
