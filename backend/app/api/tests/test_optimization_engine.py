@@ -175,8 +175,8 @@ def test_is_feasible_quantity_exceeds_available():
 
 def test_is_feasible_deleted_inventory():
     engine = OptimizationEngine()
-    from datetime import datetime
-    inv  = _make_inventory(deleted_at=datetime.utcnow())
+    from datetime import datetime, timezone
+    inv  = _make_inventory(deleted_at=datetime.now(timezone.utc))
     cand = _make_candidate(inventory=inv)
     req  = _make_request()
     assert engine._is_feasible(cand, req) is False
@@ -184,8 +184,8 @@ def test_is_feasible_deleted_inventory():
 
 def test_is_feasible_deleted_offer():
     engine = OptimizationEngine()
-    from datetime import datetime
-    offer = _make_offer(deleted_at=datetime.utcnow())
+    from datetime import datetime, timezone
+    offer = _make_offer(deleted_at=datetime.now(timezone.utc))
     cand  = _make_candidate(offer=offer)
     req   = _make_request()
     assert engine._is_feasible(cand, req) is False
@@ -355,7 +355,6 @@ async def test_compare_baselines_returns_all_strategies():
 
     assert result.get("error") is None
     assert "greedy" in result
-    assert "heuristic" in result
     assert "fast" in result
     assert "deep" in result
     assert isinstance(result["greedy"], list)

@@ -20,8 +20,7 @@
     "format": "npm run format:ts && npm run format:py",
     "format:ts": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:py": "bash scripts/format-python.sh",
-    "test": "echo \"Tests pending for Week 2+\"",
-    "commit": "cz commit",
+    "test": "echo \"Tests pending\"",
     "prepare": "husky install || true"
   },
   "devDependencies": {

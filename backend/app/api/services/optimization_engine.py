@@ -224,12 +224,10 @@ class OptimizationEngine:
             cost_n = _normalise(float(c["total_cost"]),    min_cost, max_cost)
             time_n = _normalise(float(c["delivery_days"]), min_time, max_time)
             rel_n  = _normalise(float(c["reliability"]),   min_rel,  max_rel)
-            # lower cost/time is better → invert; higher reliability is better
             score = cost_w * (1.0 - cost_n) + time_w * (1.0 - time_n) + rel_w * rel_n
             return (score,)
 
         def mutate(individual: list, indpb: float = 0.3) -> tuple:
-            """Higher mutation rate spreads exploration across more indices."""
             if random.random() < indpb:
                 individual[0] = random.randint(0, n - 1)
             return (individual,)

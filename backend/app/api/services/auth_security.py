@@ -90,9 +90,9 @@ def set_session_cookie(response: Response, token: str) -> None:
 
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        secure=is_production,
+        value=token,            # raw token sent to browser only
+        httponly=True,          # no JavaScript access
+        secure=is_production,   # HTTPS-only in production
         samesite=samesite,
         max_age=SESSION_TTL_HOURS * 60 * 60,
         path="/",

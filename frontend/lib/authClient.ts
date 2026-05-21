@@ -222,9 +222,6 @@ export type OptimizeResponse = {
   solutions: OptimizeSolution[];
 };
 
-// Use a relative path so all requests go through the Next.js server (see
-// next.config.js rewrites). This makes session cookies first-party and
-// avoids cross-origin cookie blocking on Safari / mobile browsers.
 const apiBase = '/api';
 
 export class ApiError extends Error {
