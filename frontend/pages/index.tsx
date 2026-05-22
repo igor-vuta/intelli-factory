@@ -125,11 +125,11 @@ export default function Home() {
 
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
             <Pill text="Request" active />
-            <span className="text-[rgb(var(--muted))]">→</span>
+            <span className="text-[rgb(var(--muted))]">-</span>
             <Pill text="Match" active />
-            <span className="text-[rgb(var(--muted))]">→</span>
+            <span className="text-[rgb(var(--muted))]">-</span>
             <Pill text="Contract" active />
-            <span className="text-[rgb(var(--muted))]">→</span>
+            <span className="text-[rgb(var(--muted))]">-</span>
             <Pill text="Payment" pulse />
           </div>
         </div>

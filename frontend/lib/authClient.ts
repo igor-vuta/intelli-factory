@@ -266,18 +266,17 @@ export function register(input: {
   role: UserRole;
   display_name: string;
   country_code: string;
-  /** Structured address fields (preferred) */
+  // Structured address fields
   region_name?: string;
   city_name?: string;
   street?: string;
   postal_code?: string;
-  /** Legacy flat address (fallback) */
+  // Legacy flat address
   address?: string;
   preferred_currency_code: string;
-  /** Optional profile enrichment */
   phone?: string;
   contact_name?: string;
-  /** Logist-only: seed first logistic offer */
+  // Logist-only: seed first logistic offer
   initial_offer_base_price?: number;
   initial_offer_currency_code?: string;
   initial_offer_description?: string;
@@ -382,7 +381,7 @@ export function listMyLogisticOffers() {
   return request<LogisticOfferItem[]>('/requests/logistic-offers/mine');
 }
 
-// ── Pairing / matching workflow ───────────────────────────────────────────────
+// Matching workflow 
 
 export type OpenRequest = {
   id: string;
@@ -555,7 +554,7 @@ export function selectCandidate(candidateId: string) {
   });
 }
 
-// Contract / payment / fulfillment workflow
+// Request workflow
 export function listMyTransactions() {
   return request<WorkflowTransaction[]>('/transactions/mine');
 }
@@ -652,7 +651,7 @@ export function optimizeSupply(payload: {
   });
 }
 
-// ── Full 4-strategy comparison ────────────────────────────────────────────────
+// Full 3-strategy comparison 
 
 export type CompareStrategyEntry = {
   id: string;

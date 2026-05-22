@@ -1,7 +1,7 @@
 {
   "name": "intelli-factory",
   "version": "0.1.0",
-  "description": "AI-optimized supply chain matching platform - Project root",
+  "description": "Multi-objective optimization platform for supply chain matching",
   "private": true,
   "workspaces": [
     "frontend"

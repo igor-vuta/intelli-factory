@@ -57,8 +57,6 @@ const STATUS_COLOR: Record<string, string> = {
 
 const REQUESTS_PAGE_SIZE = 5;
 
-// ── Proposals modal ─────────────────────────────────────────────────────────
-
 type ProposalsModalProps = {
   requestId: string;
   requestStatus: string;
@@ -229,12 +227,12 @@ function ProposalsModal({
               <div className="rounded-lg border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-sm">
                 <div className="font-medium text-sky-200">Recommended proposal</div>
                 <div className="mt-1 text-xs text-[rgb(var(--muted))]">
-                  Factory: {recommendedCandidate.factory_legal_name ?? '—'} | Total:{' '}
-                  {recommendedCandidate.total_cost ?? '—'} {recommendedCandidate.currency_code} | Days:{' '}
-                  {recommendedCandidate.delivery_days ?? '—'} | Reliability:{' '}
+                  Factory: {recommendedCandidate.factory_legal_name ?? '-'} | Total:{' '}
+                  {recommendedCandidate.total_cost ?? '-'} {recommendedCandidate.currency_code} | Days:{' '}
+                  {recommendedCandidate.delivery_days ?? '-'} | Reliability:{' '}
                   {recommendedCandidate.reliability_score != null
                     ? `${Math.round(recommendedCandidate.reliability_score * 100)}%`
-                    : '—'}
+                    : '-'}
                 </div>
               </div>
             ) : (
@@ -278,7 +276,7 @@ function ProposalsModal({
                       ? (
                           parseFloat(c.quoted_quantity) * parseFloat(c.inventory_price_per_unit)
                         ).toFixed(2)
-                      : '—';
+                      : '-';
                   return (
                     <tr
                       key={c.id}
@@ -288,7 +286,7 @@ function ProposalsModal({
                     >
                       <td className="py-2 pr-3 text-xs">
                         <div className="flex flex-col gap-0.5">
-                          <span>{c.factory_legal_name ?? '—'}</span>
+                          <span>{c.factory_legal_name ?? '-'}</span>
                           {c.factory_avg_rating != null && (
                             <span
                               className={`text-[10px] font-medium ${
@@ -311,15 +309,15 @@ function ProposalsModal({
                         {c.source_address_label
                           ? c.source_address_label.split(',').slice(1, 3).join(',').trim() ||
                             c.source_address_label
-                          : '—'}
+                          : '-'}
                       </td>
-                      <td className="py-2 pr-3">{c.item_name ?? '—'}</td>
+                      <td className="py-2 pr-3">{c.item_name ?? '-'}</td>
                       <td className="py-2 pr-3">
                         {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
                       </td>
                       <td className="py-2 pr-3 text-xs">
                         <div className="flex flex-col gap-0.5">
-                          <span>{c.logist_legal_name ?? '—'}</span>
+                          <span>{c.logist_legal_name ?? '-'}</span>
                           {c.logistic_title && c.logistic_title !== c.logist_legal_name && (
                             <span className="text-[10px] text-[rgb(var(--muted))]">
                               {c.logistic_title}
@@ -344,14 +342,14 @@ function ProposalsModal({
                         {goodsCost} {c.currency_code}
                       </td>
                       <td className="py-2 pr-3">
-                        {c.delivery_price ?? '—'} {c.currency_code}
+                        {c.delivery_price ?? '-'} {c.currency_code}
                       </td>
                       <td className="py-2 pr-3 font-medium">
-                        {c.total_cost ?? '—'} {c.currency_code}
+                        {c.total_cost ?? '-'} {c.currency_code}
                       </td>
-                      <td className="py-2 pr-3">{c.delivery_days ?? '—'}d</td>
+                      <td className="py-2 pr-3">{c.delivery_days ?? '-'}d</td>
                       <td className="py-2 pr-3 text-xs text-sky-300">
-                        {c.fitness_score != null ? c.fitness_score.toFixed(4) : '—'}
+                        {c.fitness_score != null ? c.fitness_score.toFixed(4) : '-'}
                       </td>
                       <td className="py-2">
                         <div className="flex items-center gap-2">
@@ -390,8 +388,6 @@ function ProposalsModal({
   );
 }
 
-// ── Request creation modal ──────────────────────────────────────────────────
-
 type ModalProps = {
   categories: BootstrapCategory[];
   items: BootstrapItem[];
@@ -423,7 +419,6 @@ function NewRequestModal({
 
   const [categoryText, setCategoryText] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  // itemText = what the user typed; itemId = matched catalogue id ('' if free text)
   const [itemText, setItemText] = useState('');
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState('100');
@@ -451,7 +446,7 @@ function NewRequestModal({
     [categories]
   );
 
-  // Suggestions: items scoped to selected category, or all items
+  // Items scoped to selected category
   const itemSuggestions = useMemo<ComboboxOption[]>(() => {
     const pool = categoryId ? items.filter((i) => i.category_id === categoryId) : items;
     return pool.map((i) => ({
@@ -774,8 +769,6 @@ function NewRequestModal({
     </div>
   );
 }
-
-// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function CustomerWorkspacePage() {
   const router = useRouter();
@@ -1256,7 +1249,7 @@ export default function CustomerWorkspacePage() {
                               {row.status !== 'PENDING' &&
                                 row.status !== 'PAIRING_IN_PROGRESS' &&
                                 row.status !== 'MATCHED' && (
-                                  <span className="text-xs text-[rgb(var(--muted))]">—</span>
+                                  <span className="text-xs text-[rgb(var(--muted))]">-</span>
                                 )}
                             </div>
                           </td>

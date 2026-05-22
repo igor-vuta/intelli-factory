@@ -1,10 +1,5 @@
-"""This script creates schema-aligned, cross-referenced demo data for:
-- geo references (via existing Country rows)
-- users and role profiles
-- categories and items
-- inventory and logistics offers
-- requests, match candidates, transactions, signatures, payments, and event logs
-
+"""This script creates cross-referenced demo data for: geo references, users and role profiles, categories and items, 
+inventory and logistics offers, requests, match candidates, transactions, signatures, payments, and event logs.
 Run seed_reference_geo.py first to load countries.
 """
 

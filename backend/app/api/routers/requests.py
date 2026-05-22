@@ -68,8 +68,7 @@ class UpdateInventoryEntryStatusBody(BaseModel):
 
 
 class InventoryEntryCreateBody(BaseModel):
-    # Either an existing item_id OR a custom item_name + category_id (backend
-    # will find-or-create the catalogue item automatically).
+    # Either an existing item_id OR a custom item_name + category_id (backend will find-or-create the catalogue item automatically).
     item_id: str | None = None
     item_name: str | None = Field(default=None, min_length=2, max_length=200)
     category_id: str | None = None
@@ -340,9 +339,7 @@ async def bootstrap(user=Depends(_require_authenticated_user)):
             profile_registration_country_code = profile.registration_country_code
             profile_registration_address = profile.registration_address
 
-    # Collect address IDs that belong to this user:
-    # 1) their primary address on the profile
-    # 2) any destination address they used in past requests
+    # Collect address IDs that belong to this user, either their primary address or destination address from the past.
     user_address_ids: set[str] = set()
     if profile_primary_address_id:
         user_address_ids.add(profile_primary_address_id)
@@ -668,7 +665,7 @@ async def create_inventory_entry(
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
     else:
-        # Custom item name — find or create in the catalogue
+        # Custom item name - find or create in the catalogue
         custom_name = payload.item_name.strip()  # type: ignore[union-attr]
         if not provided_unit:
             raise HTTPException(

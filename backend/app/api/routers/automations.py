@@ -1,13 +1,4 @@
-"""
-Automation router for supply chain optimization.
-
-Uses the shared OptimizationEngine (services/optimization_engine.py) to
-produce ranked, Prisma-driven results.  The previous mock-data DEAP demo
-has been replaced by a real database-backed endpoint.
-
-Author: Igor Vuta (P2773339)
-Date: May 2026
-"""
+# Automation router, wraps OptimizationEngine for supply chain matching.
 
 import logging
 from typing import Optional, List
@@ -21,24 +12,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
-# ============================================================================
-# Pydantic Models
-# ============================================================================
-
-
 class OptimizeRequest(BaseModel):
-    """Request model for optimization endpoint."""
-
-    request_id: str = Field(..., description="DB Request UUID to optimise")
-    mode: str = Field(
-        "fast",
-        description="Optimization mode: 'fast' (heuristic) or 'deep' (GA/NSGA-II)",
-    )
-    profile: Optional[str] = Field(
-        None,
-        description="Optional profile override (balanced/cost/speed/reliability)",
-    )
+    request_id: str = Field(..., description="DB Request UUID")
+    mode: str = Field("fast", description="'fast' (heuristic) or 'deep' (GA)")
+    profile: Optional[str] = Field(None, description="Profile override: balanced/cost/speed/reliability")
 
     class Config:
         json_schema_extra = {
@@ -58,8 +35,6 @@ class ScoreBreakdown(BaseModel):
 
 
 class RankedSolution(BaseModel):
-    """Single ranked solution from the optimizer."""
-
     rank:               int
     candidate_id:       str
     request_id:         str
@@ -74,31 +49,15 @@ class RankedSolution(BaseModel):
 
 
 class OptimizeResponse(BaseModel):
-    """Response model for optimization endpoint."""
-
     status:         str
     request_id:     str
     mode:           str
     solution_count: int
     solutions:      List[RankedSolution]
 
-
-# ============================================================================
-# API Endpoints
-# ============================================================================
-
-
 @router.post("/optimize", response_model=OptimizeResponse)
 async def optimize(request: OptimizeRequest):
-    """
-    Optimize supply chain matching for an existing customer Request.
-
-    Uses OptimizationEngine in 'fast' (weighted-sum heuristic) or
-    'deep' (DEAP eaMuPlusLambda GA) mode to score and rank all
-    feasible MatchCandidates for the given request.
-
-    Results are persisted to MatchCandidate.fitness_score / score_breakdown / rank.
-    """
+    # score and rank feasible MatchCandidates, persist results to DB
     engine = OptimizationEngine()
     mode = request.mode if request.mode in ("fast", "deep") else "fast"
 
@@ -138,10 +97,7 @@ async def optimize(request: OptimizeRequest):
 
 @router.post("/optimize/compare", response_model=dict)
 async def optimize_compare(request: OptimizeRequest):
-    """
-    Run greedy, heuristic, fast and deep modes against the same candidate pool
-    and return all four result sets for Chapter 5 benchmarking.
-    """
+    # runs greedy, fast, and deep against the same pool, returns all results for benchmarking
     engine = OptimizationEngine()
     try:
         result = await engine.compare_baselines(request.request_id, profile=request.profile)
@@ -157,11 +113,7 @@ async def optimize_compare(request: OptimizeRequest):
 
 @router.post("/seed-large-scale")
 async def seed_large_scale():
-    """
-    Trigger large-scale random seed scenario (130–170 MatchCandidates).
-    Generates fresh, varied data on every call (no fixed seed).
-    Intended for development / demo use only.
-    """
+    # dev only
     import sys
     import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -171,7 +123,7 @@ async def seed_large_scale():
 
         request_id = await create_random_large_scale_request(
             num_candidates=150,
-            random_seed=None,  # truly random every call
+            random_seed=None,
         )
 
         # Count candidates for the created request

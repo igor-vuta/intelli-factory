@@ -1,15 +1,4 @@
-/**
- * Free-text input with autocomplete suggestion dropdown.
- *
- * Unlike Combobox, the user is NOT locked to picking from the list — they can
- * type anything. Selecting a suggestion fills the text field and records the
- * matched option id so the backend can use an existing FK when available.
- *
- * Props:
- *   text      — current raw string in the input
- *   selectedId — id of the matched suggestion, or '' for free-text
- *   onChange  — called with (text, id) on every change
- */
+// Free-text input with autocomplete suggestion dropdown. 
 import { useMemo, useRef, useState } from 'react';
 
 import { type ComboboxOption } from './Combobox';

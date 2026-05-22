@@ -1,4 +1,4 @@
--- Auto-generated from pycountry (ISO 3166)
+-- generated from pycountry (ISO 3166)
 BEGIN;
 
 INSERT INTO "Country" ("id", "iso2", "iso3", "default_name", "is_active", "created_at", "updated_at")

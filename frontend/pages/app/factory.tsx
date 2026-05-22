@@ -40,8 +40,6 @@ import { THEME_CLASSES } from '../../styles/themePresets';
 
 const TABLE_PAGE_SIZE = 5;
 
-// ── Bid modal ────────────────────────────────────────────────────────────────
-
 type BidModalProps = {
   request: OpenRequest;
   inventory: InventoryEntryItem[];
@@ -184,8 +182,6 @@ function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalPr
     </div>
   );
 }
-
-// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FactoryWorkspacePage() {
   const router = useRouter();
@@ -470,7 +466,6 @@ export default function FactoryWorkspacePage() {
       setError('Please enter item name');
       return;
     }
-    // Strip star prefix as safety net (shouldn't happen but guard it)
     const safeItemText = itemText.startsWith('★ ') ? itemText.slice(2) : itemText;
     if (!factoryCategoryText.trim()) {
       setError('Please choose or type a category');
@@ -518,7 +513,6 @@ export default function FactoryWorkspacePage() {
     }
   }
 
-  // ── derived options ────────────────────────────────────────────────────────
   const categoryNameById = useMemo(
     () => new Map(categories.map((c) => [c.id, c.name])),
     [categories]
@@ -557,7 +551,7 @@ export default function FactoryWorkspacePage() {
     return out;
   }, [openRequests]);
 
-  // Merged item name options: request-derived first, then catalogue
+  // Merged item name options, request-derived first, then catalogue
   const itemNameOptions = useMemo<ComboboxOption[]>(() => {
     const seen = new Set<string>();
     const merged: ComboboxOption[] = [];
@@ -606,7 +600,7 @@ export default function FactoryWorkspacePage() {
 
   function handleItemChange(text: string, id: string) {
     const cleanText = text.startsWith('★ ') ? text.slice(2) : text;
-    // Request-derived suggestion: id starts with 'req:'
+    // Request-derived suggestion, id starts with 'req:'
     if (id.startsWith('req:')) {
       setItemText(cleanText);
       setItemId('');
@@ -737,7 +731,7 @@ export default function FactoryWorkspacePage() {
 
         {!loading && (
           <>
-            {/* ── Open Requests (PENDING) ─────────────────────────────── */}
+            {/* Open Requests (PENDING) */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
               <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.factoryWorkspaceTitle}</h1>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
@@ -880,7 +874,7 @@ export default function FactoryWorkspacePage() {
               )}
             </section>
 
-            {/* ── My Bids ─────────────────────────────────────────────── */}
+            {/* My Bids  */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
               <h2 className="text-lg font-semibold">{copy.myBidsTitle}</h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
@@ -1168,7 +1162,7 @@ export default function FactoryWorkspacePage() {
               )}
             </section>
 
-            {/* ── Add Inventory ────────────────────────────────────────── */}
+            {/* Add Inventory */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
               <h2 className="text-lg font-semibold">{copy.addInventoryTitle}</h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">

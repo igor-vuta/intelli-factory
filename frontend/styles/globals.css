@@ -139,8 +139,7 @@ body {
   color-scheme: light;
 }
 
-/* ── Light theme adaptations ──────────────────────────────────────────────── */
-/* Status/badge text colors: -300 variants are too light on white bg           */
+/* Light theme adaptations */
 .theme-modern-light .text-amber-300  { color: rgb(180 83 9)   !important; }
 .theme-modern-light .text-sky-300    { color: rgb(3 105 161)  !important; }
 .theme-modern-light .text-indigo-300 { color: rgb(67 56 202)  !important; }
@@ -148,7 +147,7 @@ body {
 .theme-modern-light .text-emerald-300 { color: rgb(6 95 70)   !important; }
 .theme-modern-light .text-red-300    { color: rgb(185 28 28)  !important; }
 
-/* Feedback message backgrounds — swap dark tints for light tints */
+/* Feedback message backgrounds */
 .theme-modern-light .bg-emerald-950\/40 {
   background-color: rgb(209 250 229 / 0.75) !important;
 }
@@ -156,16 +155,14 @@ body {
   background-color: rgb(254 226 226 / 0.75) !important;
 }
 
-/* Button ripples: white-on-white is invisible — use dark ink instead */
+/* Button ripples */
 .theme-modern-light .btn::after,
 .theme-modern-light button:not(.btn)::after {
   background: rgba(0, 0, 0, 0.08);
 }
 
-/* Orbs are too saturated on a white page */
 .theme-modern-light .orb { opacity: 0.05; }
 
-/* Surface shadow is lighter and more appropriate for a light background */
 .theme-modern-light .surface-1 {
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.07), inset 0 1px 0 rgb(255 255 255 / 0.9);
 }
@@ -313,7 +310,7 @@ body {
   animation: pulse 1.3s ease-in-out infinite;
 }
 
-/* ── Micro-interaction utilities ─────────────────────────────────── */
+/* Micro-interaction utilities */
 
 .action-scale {
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -330,7 +327,7 @@ body {
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* Standalone ripple class (for non-.btn elements) */
+/* Standalone ripple class */
 .btn-ripple {
   position: relative;
   overflow: hidden;
@@ -354,7 +351,6 @@ body {
   opacity: 0;
 }
 
-/* Apply ripple + scale to ALL buttons not already using .btn */
 button:not(.btn) {
   position: relative;
   overflow: hidden;
@@ -388,7 +384,6 @@ button:not(.btn):active::after {
   opacity: 0;
 }
 
-/* Input / select polish */
 input, select, textarea {
   transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
@@ -409,7 +404,6 @@ tbody tr:hover {
   background-color: rgb(var(--card) / 0.65);
 }
 
-/* Success / error feedback messages auto-animate on mount */
 .rounded-lg.bg-emerald-950\/40,
 .rounded-lg.bg-red-950\/40 {
   animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -488,7 +482,6 @@ tbody tr:hover {
   animation: spin 0.7s linear infinite;
 }
 
-/* Page section entrance */
 .surface-1 {
   animation: slideUp 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
 }

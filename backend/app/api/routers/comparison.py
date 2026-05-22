@@ -1,10 +1,4 @@
-"""Baseline comparison router – Prisma-backed, using OptimizationEngine.
-
-Provides deterministic greedy and weighted-heuristic strategies on real
-MatchCandidate data, comparable against the evolutionary optimizer.
-The previous mock-data (SKU/PRODUCTS/MANUFACTURERS/LOGISTICS_PROVIDERS) has
-been removed; all scoring now goes through OptimizationEngine.
-"""
+# Baseline comparison router, greedy vs weighted-heuristic(fast) on real MatchCandidate data.
 
 import logging
 from typing import Literal
@@ -21,13 +15,9 @@ router = APIRouter()
 
 Priority = Literal["balanced", "cost", "speed", "reliability"]
 
-
-# ── Request / response models ────────────────────────────────────────────────
-
-
 class BaselineCompareRequest(BaseModel):
-    request_id: str = Field(..., description="DB Request UUID to compare baselines for")
-    priority: Priority = Field("balanced", description="Weight profile for heuristic")
+    request_id: str = Field(..., description="DB Request UUID")
+    priority: Priority = Field("balanced", description="Weight profile")
 
 
 class BaselineResult(BaseModel):
@@ -51,16 +41,9 @@ class ComparisonCatalogResponse(BaseModel):
     status:     str
     priorities: list[Priority]
 
-
-# ── Endpoints ────────────────────────────────────────────────────────────────
-
-
 @router.post("/baselines", response_model=BaselineCompareResponse)
 async def compare_baselines(payload: BaselineCompareRequest):
-    """
-    Compare greedy (min total_cost) vs weighted-heuristic baselines
-    against real MatchCandidates for a given Request.
-    """
+    # greedy (min cost) vs weighted-heuristic for a given request
     req = await prisma.request.find_first(
         where={"id": payload.request_id, "deleted_at": None},
         include={
@@ -117,10 +100,10 @@ async def compare_baselines(payload: BaselineCompareRequest):
 
     pool = [engine._candidate_to_dict(c, req) for c in feasible]  # noqa: SLF001
 
-    # Greedy: lowest total_cost
+    # greedy, lowest cost
     greedy_raw = min(pool, key=lambda c: c["total_cost"])
 
-    # Heuristic: weighted-sum over normalised objectives
+    # heuristic, weighted-sum
     weights = WEIGHT_PROFILES.get(payload.priority, WEIGHT_PROFILES["balanced"])
     heuristic_pool = engine._score_pool(pool, weights)  # noqa: SLF001
     heuristic_raw = heuristic_pool[0] if heuristic_pool else greedy_raw

@@ -42,7 +42,6 @@ export default function AddressPicker({
   const street = value?.street ?? '';
   const postalCode = value?.postalCode ?? '';
 
-  // When country changes, load regions + cities
   useEffect(() => {
     if (!countryCode) return;
     let active = true;
@@ -69,7 +68,6 @@ export default function AddressPicker({
     };
   }, [countryCode]);
 
-  // Derive filtered cities from selected region (no effect needed)
   const filteredCities = useMemo(() => {
     if (!regionName || regions.length === 0) return cities;
     const matched = regions.find((r) => r.name.toLowerCase() === regionName.toLowerCase());
@@ -119,7 +117,7 @@ export default function AddressPicker({
         </select>
       </div>
 
-      {/* Region — dropdown if data exists, text input otherwise */}
+      {/* Region - dropdown if data exists, text input otherwise */}
       {countryCode && (
         <div>
           <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
@@ -151,7 +149,7 @@ export default function AddressPicker({
         </div>
       )}
 
-      {/* City — dropdown if data exists, text input otherwise */}
+      {/* City - dropdown if data exists, text input otherwise */}
       {regionName && (
         <div>
           <label className="mb-1 block text-sm text-[rgb(var(--muted))]">

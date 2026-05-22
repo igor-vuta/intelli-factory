@@ -5,7 +5,6 @@ import { THEME_LABELS, THEME_PRESETS, type Theme } from '../styles/themePresets'
 type ThemeSwitcherProps = {
   currentTheme: Theme;
   onThemeChange: (theme: Theme) => void;
-  /** When true the pill row is never shown — always renders as hamburger dropdown. */
   compact?: boolean;
 };
 
@@ -28,7 +27,7 @@ export default function ThemeSwitcher({ currentTheme, onThemeChange, compact }: 
 
   return (
     <>
-      {/* Desktop — pill row (hidden when compact) */}
+      {/* Desktop - pill row */}
       {!compact && (
         <div
           role="group"

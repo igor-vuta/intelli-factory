@@ -123,11 +123,11 @@ export default function RatingModal({
         <div className="mb-4 rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-3 text-xs">
           <div className="grid grid-cols-2 gap-y-1">
             <span className="text-[rgb(var(--muted))]">Factory</span>
-            <span>{transaction.factory_legal_name ?? '—'}</span>
+            <span>{transaction.factory_legal_name ?? '-'}</span>
             <span className="text-[rgb(var(--muted))]">Logist</span>
-            <span>{transaction.logist_legal_name ?? '—'}</span>
+            <span>{transaction.logist_legal_name ?? '-'}</span>
             <span className="text-[rgb(var(--muted))]">Item</span>
-            <span>{transaction.item_name ?? '—'}</span>
+            <span>{transaction.item_name ?? '-'}</span>
           </div>
         </div>
 

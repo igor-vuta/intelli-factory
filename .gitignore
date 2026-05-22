@@ -18,14 +18,14 @@ build/
 .coverage
 htmlcov/
 
-# Next.js / Node
+# Next.js
 node_modules/
 .next/
 .next/cache/
 out/
 .nuxt/
 
-# Logs / OS
+# Logs 
 *.log
 .DS_Store
 .AppleDouble
@@ -39,7 +39,7 @@ Thumbs.db
 backend/app/api/.env
 frontend/.env.local
 
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
@@ -67,7 +67,7 @@ backend/app/api/benchmark_results.txt
 # List of all project files
 file-list.txt
 
-# Local diaries / temp notes
+# Local diaries 
 temp/
 
 # TypeScript incremental build cache

@@ -1,370 +1,298 @@
-# Intelli-Factory: Multi-Objective Optimization Platform for Supply Chain Matching
+<a id="readme-top"></a>
 
-**Project Status:** Complete – Submitted 22 May 2026  
-**Student:** Igor Vuta (P2773339)  
-**Supervisor:** Shengxiang Yang  
-**University:** De Montfort University  
-**Course:** BSc (Hons) Computer Science
+<!-- SHIELDS -->
+[![Python][python-shield]][python-url]
+[![FastAPI][fastapi-shield]][fastapi-url]
+[![Next.js][nextjs-shield]][nextjs-url]
+[![PostgreSQL][postgres-shield]][postgres-url]
+[![License][license-shield]](#license)
 
-### Live Deployments
-
-- **Frontend:** https://intelli-factory-frontend.vercel.app/ (Vercel)
-- **Backend:** https://intelli-factory-api.onrender.com (Render, free tier – 50s spin-up)
-- **Database:** PostgreSQL 15 (Aiven)
-
----
-
-## Project Overview
-
-Intelli-Factory is a B2B2C platform that automates supply chain coordination between manufacturers, customers, and logistics providers. By utilizing evolutionary computation algorithms, the system solves the "Supply Chain Trilemma" by finding optimal solutions that allocate preference to one aspect from: cost, delivery speed, and reliability in real-time.
-
-### The Problem
-
-Supply chain coordinators in Almaty, Kazakhstan rely on manual phone calls and messaging to provide customer orders withfinal solutions to their specific request, that usually are not accessible on regular market. This process:
-
-- Takes significant amount of time to order, ususally hours
-- Produces suboptimal decisions
-- Doesn't scale with more providers
-- Lacks consistency and transparency
-
-### The Solution
-
-Intelli-Factory automates this process with:
-
-- **Multi-objective optimization** - balances cost, speed, and reliability
-- **Genetic algorithms** - finds Pareto-optimal solutions using DEAP
-- **Real-time API** - delivers results in < 1 second
-- **Clean web UI** - simple form for coordinators to request optimization
+<br />
+<div align="center">
+  <h2 align="center">Intelli-Factory</h2>
+  <p align="center">
+    Multi-Objective Supply Chain Optimisation Platform - BSc Computer Science, De Montfort University
+    <br />
+    <a href="https://intelli-factory-frontend.vercel.app/"><strong>Live Demo »</strong></a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://intelli-factory-api.onrender.com/docs"><strong>API Docs »</strong></a>
+  </p>
+</div>
 
 ---
 
-## Technical Stack
-
-### Backend
-
-- **Framework:** FastAPI (Python)
-- **Optimization:** DEAP (genetic algorithms)
-- **Database:** PostgreSQL 15 + Prisma ORM
-- **Server:** Uvicorn
-- **Language:** Python 3.12
-
-### Frontend
-
-- **Framework:** Next.js 16
-- **Language:** TypeScript / React
-- **Styling:** Tailwind CSS
-- **Build Tool:** npm
-
-### Infrastructure
-
-- **Containerization:** Docker & Docker Compose (local dev)
-- **Frontend Deployment:** Vercel (auto-deploy from GitHub main)
-- **Backend Deployment:** Render (auto-deploy from GitHub main, free tier)
-- **Database:** Aiven Managed PostgreSQL 15
-- **Version Control:** Git + GitHub
-- **Email Service:** Brevo SMTP for verification emails
-
-### Development Tools
-
-- **Linting:** ESLint (frontend), Ruff (backend)
-- **Formatting:** Prettier (frontend), Ruff (backend)
-- **Git Hooks:** Husky (pre-commit linting, commit-msg validation)
-- **Commit Linting:** Commitlint (conventional commits)
-- **Testing:** pytest (backend), Vitest (frontend)
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#about">About</a></li>
+    <li><a href="#tech-stack">Tech Stack</a></li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+        <li><a href="#seeding">Database Seeding</a></li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#api">API Reference</a></li>
+    <li><a href="#deployment">Deployment</a></li>
+    <li><a href="#testing">Testing</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
 
 ---
 
-## Quick Start
+## About
+
+Intelli-Factory is a B2B2C platform that automates supply chain matching between manufacturers, customers, and logistics providers. 
+It solves the **Supply Chain Trilemma** - balancing cost, delivery speed, and reliability - using evolutionary computation (NSGA-II genetic algorithm via DEAP).
+
+Three optimisation strategies are available per admin request:
+
+| Mode | Description |
+|------|-------------|
+| **Greedy** | Sort by lowest raw cost |
+| **Fast** | Min-max normalised weighted-sum scoring |
+| **Deep (GA)** | NSGA-II Pareto-front search via DEAP |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Tech Stack
+
+### Built With
+
+* [![FastAPI][fastapi-shield]][fastapi-url] Python 3.12 · DEAP · Prisma ORM · Uvicorn
+* [![Next.js][nextjs-shield]][nextjs-url] TypeScript · React · Tailwind CSS
+* [![PostgreSQL][postgres-shield]][postgres-url] Aiven managed · Docker (local)
+* **Email:** Brevo SMTP · **Auth:** HttpOnly sessions · **Testing:** pytest / Vitest
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
 - Python 3.12+
 - Node.js 18+
 - Docker & Docker Compose
-- Git
+- [Poetry](https://python-poetry.org/)
 
 ### Installation
 
-1. **Clone repository**
+1. **Clone the repo**
 
-   ```bash
-   git clone [repository-url]
+   ```sh
+   git clone [https://github.com/aihiweahosd/intelli-factory]
    cd intelli-factory
    ```
 
-2. **Install Node.js dependencies**
+2. **Install root Node.js dependencies** (frontend + scripts)
 
-   ```bash
+   ```sh
    npm install
    ```
 
-3. **Set up backend**
+3. **Install backend dependencies**
 
-   ```bash
+   ```sh
    cd backend/app/api
    poetry install
    ```
 
-4. **Set up database**
+4. **Configure environment variables**
 
-   ```bash
-   # Start PostgreSQL container
+   Create `backend/app/api/.env`:
+   ```env
+   DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB
+   SECRET_KEY=your-secret-key
+   BREVO_API_KEY=your-brevo-key
+   ```
+
+   Create `frontend/.env.local`:
+   ```env
+   BACKEND_API_URL=http://localhost:8000
+   ```
+
+5. **Start PostgreSQL** (Docker)
+
+   ```sh
+   # from project root
    docker-compose up -d
+   ```
 
-   # Run migrations and seed data
+6. **Run database migrations**
+
+   ```sh
+   cd backend/app/api
    poetry run prisma migrate dev
-   poetry run python seed.py
    ```
 
-5. **Start backend only** (from `backend/app/api/`)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-   ```bash
-   poetry run uvicorn main:app --reload --port 8000
-   ```
+### Seeding
 
-   Backend runs on `http://localhost:8000`
+The seed scripts populate reference data (countries, regions, cities) and workflow demo scenarios.
 
-6. **Start frontend only** (from project root)
+```sh
+cd backend/app/api
 
-   ```bash
-   npm run dev:frontend
-   ```
+# 1 - Reference geography (countries / regions / cities)
+poetry run python seed_reference_geo.py
 
-   Frontend runs on `http://localhost:3000`
+# 2 - All workflow scenarios + large-scale optimisation demo
+poetry run python seed.py
+```
 
-### Run Frontend and Backend
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-From project root:
+---
 
-```bash
-# Starts both services via concurrently
+## Usage
+
+### Run both services
+
+```sh
+# from project root - starts backend + frontend via concurrently
 npm run dev
 ```
 
-### Run Frontend and Backend Separately
+### Run separately
 
-From project root:
-
-```bash
-# Terminal 1 - backend
+```sh
+# Terminal 1 - backend (http://localhost:8000)
 npm run dev:backend
 
-# Terminal 2 - frontend
+# Terminal 2 - frontend (http://localhost:3000)
 npm run dev:frontend
 ```
 
-```bash
-# frontend/.env.local
-BACKEND_API_URL=http://localhost:8000
+### Interactive API docs
+
+```
+http://localhost:8000/docs
 ```
 
-### Usage
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-1. **Open browser** to `http://localhost:3000`
-2. **Fill in order form:**
-   - SKU: `textile-001` (or any SKU from database)
-   - Destination: `almaty`
-   - Quantity: `100`
-   - Priority: `balanced`
-3. **Click "Get Recommendations"**
-4. **View results** - sorted by overall fitness score
+---
 
-### API Examples
+## API Reference
 
-**Request:**
+**POST** `/api/automations/optimize`
 
-```bash
+```sh
 curl -X POST http://localhost:8000/api/automations/optimize \
   -H "Content-Type: application/json" \
   -d '{
-    "sku": "textile-001",
-    "destination": "almaty",
-    "quantity": 100,
-    "priority": "balanced"
+    "request_id": "<uuid>",
+    "mode": "deep"
   }'
 ```
+
+`mode` options: `fast` (default) · `deep` (NSGA-II GA)
 
 **Response:**
 
 ```json
 {
   "status": "success",
+  "request_id": "...",
+  "mode": "deep",
+  "solution_count": 5,
   "solutions": [
     {
       "rank": 1,
-      "manufacturer": "textile-factory-a",
-      "logistics_provider": "regional-courier",
-      "total_cost": 3200,
-      "delivery_days": 5,
-      "reliability_score": 0.92,
-      "fitness_score": 0.87
+      "candidate_id": "...",
+      "total_cost": 124500.0,
+      "delivery_days": 4.0,
+      "reliability": 0.934,
+      "fitness_score": 0.8712,
+      "score_breakdown": {
+        "cost_norm": 0.31,
+        "time_norm": 0.18,
+        "reliability_norm": 0.91,
+        "final_score": 0.8712,
+        "weights": { "cost": 0.34, "time": 0.33, "reliability": 0.33 }
+      }
     }
   ]
 }
 ```
 
----
+**GET** `/api/automations/compare/{request_id}` - runs greedy, fast, and deep GA in parallel and returns a side-by-side scoreboard.
 
-## Key Features
-
-### ✅ Phase 1 Complete (Authentication & Session Management)
-
-- FastAPI backend with Prisma ORM
-- Next.js 16 frontend with TypeScript
-- PostgreSQL database with Prisma schema
-- **User Registration** - signup with email verification
-- **Email Verification** - Brevo SMTP integration
-- **Session Authentication** - HttpOnly cookies, 24h TTL
-- **Account Lockout** - 5 failed attempts → 15-minute lockout
-- **Role-based Access Control** - customer, factory_operator, logistics_partner, admin roles
-- **Landing Page** - public marketing page with theme selector
-- **Docker containerization** for local development
-- Development tooling (linting with Ruff, formatting, conventional commits)
-
-### ✅ Phase 2–3 Complete (Access Control & UI)
-
-- Role dashboards for all four roles (customer, factory operator, logistics partner, admin)
-- Request lifecycle: creation, pairing candidates, approval, and tracking
-- Agreement signing modal and payment mockup flow
-- Rating system with post-delivery feedback
-- Address picker with country/region search
-- Internationalisation support (i18n)
-- Theme switcher (light/dark presets, SSR-safe hydration)
-
-### ✅ Phase 4–7 Complete (Algorithm, Testing, Deployment)
-
-- Multi-objective optimisation engine using DEAP (NSGA-II / Pareto-front)
-- Three optimisation modes: Greedy, Fast Weighted, Deep GA
-- Benchmark evaluation across 120 synthetic scenarios (30 Monte-Carlo seeds each)
-- Synthetic data seeding (country references, workflow scenarios)
-- Backend unit and integration tests (pytest)
-- Rate limiting, CORS hardening, auth security guards
-- CI/CD via GitHub Actions; deployed to Vercel (frontend) and Render (backend)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
-## Documentation
+## Testing
 
-### Quick Reference
-
-- **API Documentation:** Run `uvicorn main:app --reload` → visit http://localhost:8000/docs
-- **CI/CD Pipelines:** [.github/workflows/](.github/workflows/)
-
----
-
-## Development Workflow
-
-### Commit Conventions
-
-This project uses [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-### Code Quality
-
-**Before Commit:** Pre-commit hooks run:
-
-- ESLint (frontend) - must pass
-- Ruff format/lint (backend) - must pass
-- Commit message validation - must follow conventions
-
-### Testing
-
-```bash
-# Backend tests
+```sh
 cd backend/app/api
-pytest tests/
+
+# full test suite
+poetry run pytest tests/ -v
+
+# optimisation engine only
+poetry run pytest tests/test_optimization_engine.py -v
+
+# benchmark evaluation (120 synthetic scenarios)
+poetry run python benchmark_evaluation.py
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
 ## Deployment
 
-### Local Development
+| Service | Platform | URL |
+|---------|----------|-----|
+| Frontend | Vercel (auto-deploy `main`) | https://intelli-factory-frontend.vercel.app/ |
+| Backend | Render free tier | https://intelli-factory-api.onrender.com |
+| Database | Aiven PostgreSQL 15 | via `DATABASE_URL` env var |
 
-```bash
-docker-compose up       # Starts PostgreSQL
-# In separate terminals:
-cd backend/app/api && poetry install && poetry run uvicorn main:app --reload
-cd frontend && npm install && npm run dev
-```
+> **Note:** Render free tier cold-starts in ~50 s on the first request.
 
-### Production (Live)
-
-**Frontend:** Deployed to Vercel at https://intelli-factory-frontend.vercel.app/
-
-- Auto-deploys on push to `main` branch
-- Environment: Next.js 16 on Vercel serverless
-
-**Backend:** Deployed to Render at https://intelli-factory-api.onrender.com
-
-- Auto-deploys on push to `main` branch
-- Environment: FastAPI on Render free tier (~50s spin-up on first request)
-- Binary caching: Prisma query engine auto-fetched on startup
-
-**Database:** Hosted on Aiven
-
-- PostgreSQL 15 managed service
-- Connection via `DATABASE_URL` environment variable
-- Automatic backups and high availability
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
-## Project Timeline
+## Contact
 
-**Start Date:** 11 February 2026  
-**Submitted:** 22 May 2026  
-**Week:** 14 of 14
+**Igor Vuta** (P2773339) - BSc Computer Science, De Montfort University  
+**Supervisor:** Shengxiang Yang
 
-| Phase | Focus                                            | Week(s) | Status      |
-| ----- | ------------------------------------------------ | ------- | ----------- |
-| 1     | Authentication, session, email verification      | W1–W5   | ✅ Complete |
-| 2     | Backend API expansion, access control            | W5–W10  | ✅ Complete |
-| 3     | Frontend UI for all roles, form integration      | W6–W11  | ✅ Complete |
-| 4     | Matching algorithm (DEAP), fitness functions     | W9–W12  | ✅ Complete |
-| 5     | Synthetic data generation, comprehensive testing | W8–W14  | ✅ Complete |
-| 6     | User acceptance testing, security hardening      | W10–W13 | ✅ Complete |
-| 7     | Production deployment, release                   | W11–W13 | ✅ Complete |
-
-**Key Milestones:**
-
-- 13 Mar 2026 (W5): Contract & ethics submission ✅
-- 24 Mar 2026 (W6): Literature review finalised ✅
-- 31 Mar 2026 (W7): System design approved ✅
-- 7 Apr 2026 (W10): Phases 1–3 complete ✅
-- 22 May 2026 (W14): Report & code submission ✅
-- 15 Jun 2026 (W18): Viva examination
-
----
-
-## Contact & Feedback
-
-**Student:** Igor Vuta (P2773339)  
-**Supervisor:** Shengxiang Yang  
-**Questions?** Raise an issue on GitHub or contact supervisor.
-
----
-
-## License
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
 ## Acknowledgments
 
-- DEAP developers for excellent genetic algorithm library
-- FastAPI for modern Python web framework
-- Industry contact in Almaty for validating problem statement
-- Supervisor Shengxiang Yang for guidance
+* [DEAP](https://github.com/DEAP/deap) - genetic algorithm / NSGA-II framework
+* [FastAPI](https://fastapi.tiangolo.com/) - modern Python web framework
+* [Prisma](https://www.prisma.io/) - type-safe ORM
+* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - README structure
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
-**Last Updated:** 20 May 2026  
-**Project Status:** Complete – Submitted
+<!-- MARKDOWN LINKS & BADGES -->
+[python-shield]: https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white
+[python-url]: https://python.org
+[fastapi-shield]: https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi&logoColor=white
+[fastapi-url]: https://fastapi.tiangolo.com
+[nextjs-shield]: https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
+[nextjs-url]: https://nextjs.org
+[postgres-shield]: https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
+[postgres-url]: https://postgresql.org
+[license-shield]: https://img.shields.io/badge/License-Academic-lightgrey?style=for-the-badge

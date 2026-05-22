@@ -230,7 +230,6 @@ async def create_role_profile(
         extra: dict = {}
         if phone:
             extra["phone"] = phone
-        # CustomerProfile has no contact_name column
         await prisma.customerprofile.create(
             data={
                 "user_id": user_id,
@@ -280,7 +279,6 @@ async def create_role_profile(
                 **extra,
             }
         )
-        # Seed initial logistic offer if base price provided
         if initial_offer_base_price is not None and initial_offer_base_price >= 0:
             offer_currency = initial_offer_currency_code or preferred_currency_code
             offer_data: dict = {

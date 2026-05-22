@@ -5,10 +5,6 @@ type PresetIconProps = {
   className?: string;
 };
 
-/**
- * Renders a preset SVG icon masked with the active theme's accent colour
- * (`rgb(var(--accent))`). The icon adapts automatically on theme switch.
- */
 export default function PresetIcon({ src, alt, size = 32, className = '' }: PresetIconProps) {
   return (
     <span

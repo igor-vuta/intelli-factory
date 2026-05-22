@@ -400,7 +400,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Logist: seed initial delivery offer */}
+            {/* Logist seed initial delivery offer */}
             {role === 'LOGIST' && (
               <details
                 open={showLogistOffer}
@@ -438,7 +438,7 @@ export default function RegisterPage() {
                           disabled={currenciesLoading || currencies.length === 0}
                           className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
                         >
-                          <option value="">—</option>
+                          <option value="">-</option>
                           {currencies.map((item) => (
                             <option key={item.code} value={item.code}>
                               {formatCurrencyOptionLabel(item.code, item.name)}

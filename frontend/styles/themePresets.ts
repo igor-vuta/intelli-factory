@@ -76,7 +76,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: 'modernLight',
     label: 'Modern Light',
     cssClass: 'theme-modern-light',
-    personality: 'Clean, minimal, professional — Vercel/Linear style',
+    personality: 'Clean, minimal, professional - Vercel/Linear style',
     useCase: 'Light mode dashboards and professional surfaces',
     palette: {
       bg: '#fafafc',
@@ -90,7 +90,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: 'modernDark',
     label: 'Modern Dark',
     cssClass: 'theme-modern-dark',
-    personality: 'Deep charcoal with vibrant blue/purple — premium dark mode',
+    personality: 'Deep charcoal with vibrant blue/purple - premium dark mode',
     useCase: 'Default premium app surfaces and dashboards',
     palette: {
       bg: '#0f172a',

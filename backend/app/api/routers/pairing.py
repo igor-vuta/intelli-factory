@@ -1,16 +1,6 @@
-"""
-Pairing / matching workflow endpoints.
-
-Status flow
------------
-PENDING  ─► factory creates a factory bid (MatchCandidate with no logist)
-         ─► Request.status → PAIRING_IN_PROGRESS
-PAIRING_IN_PROGRESS ─► logist attaches a delivery quote to a factory bid
-                     ─► MatchCandidate gains logistic_offer_id, delivery_price, total_cost
-PAIRING_IN_PROGRESS ─► customer selects one complete candidate
-                     ─► Transaction created, Request.status → MATCHED, candidate → ACCEPTED,
-                        others → REJECTED
-"""
+# Pairing/matching workflow.
+# Status flow: PENDING - PAIRING_IN_PROGRESS - CONTRACT_DRAFTED
+# Factory bids - logist attaches quote - customer selects - Transaction created.
 
 from decimal import Decimal, InvalidOperation
 import logging
@@ -29,9 +19,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 
-
-# ── Auth helpers ─────────────────────────────────────────────────────────────
-
 async def _require_authenticated_user(request: Request):
     raw = request.cookies.get(SESSION_COOKIE_NAME)
     if not raw:
@@ -43,6 +30,7 @@ async def _require_authenticated_user(request: Request):
     await prisma.session.update(where={"id": session.id}, data={"last_seen_at": _now()})
     return user
 
+# Helpers
 
 def _require_role(*roles: str):
     async def dep(user=Depends(_require_authenticated_user)):
@@ -72,7 +60,7 @@ def _address_label(address) -> str | None:
     return ", ".join([part for part in parts if part]) or None
 
 
-# ── Serializers ──────────────────────────────────────────────────────────────
+# Serializers 
 
 def _serialize_request(row) -> dict[str, Any]:
     quantity_unit = (
@@ -140,14 +128,11 @@ async def _serialize_candidate_async(c) -> dict[str, Any]:
         "created_at": c.created_at.isoformat(),
     }
 
-
-# ═══════════════════════════════════════════════════════════════════════
 #  FACTORY  – see open requests and place bids
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/open-requests")
 async def get_open_requests(user=Depends(_require_role("FACTORY"))):
-    """Open requests visible to factories (initially PENDING, then PAIRING_IN_PROGRESS)."""
+    """Open requests visible to factories """
     rows = await prisma.request.find_many(
         where={"status": {"in": ["PENDING", "PAIRING_IN_PROGRESS"]}, "deleted_at": None},
         include={"item": True, "category": True},
@@ -171,7 +156,6 @@ async def create_factory_bid(payload: FactoryBidBody, user=Depends(_require_role
     if not factory_profile:
         raise HTTPException(400, "Factory profile not found")
 
-    # Validate request
     req = await prisma.request.find_first(
         where={"id": payload.request_id, "deleted_at": None}
     )
@@ -180,7 +164,6 @@ async def create_factory_bid(payload: FactoryBidBody, user=Depends(_require_role
     if req.status not in ("PENDING", "PAIRING_IN_PROGRESS"):
         raise HTTPException(400, f"Cannot bid on request in status '{req.status}'")
 
-    # Validate inventory entry belongs to this factory
     inv = await prisma.inventoryentry.find_first(
         where={
             "id": payload.inventory_entry_id,
@@ -191,7 +174,7 @@ async def create_factory_bid(payload: FactoryBidBody, user=Depends(_require_role
     if not inv:
         raise HTTPException(404, "Inventory entry not found or not yours")
 
-    # Prevent duplicate bids from same factory on same request using same inventory
+    # prevent duplicate bids on same request+inventory
     existing = await prisma.matchcandidate.find_first(
         where={
             "request_id": payload.request_id,
@@ -225,12 +208,10 @@ async def create_factory_bid(payload: FactoryBidBody, user=Depends(_require_role
 
 @router.get("/factory-bids/mine")
 async def list_my_factory_bids(user=Depends(_require_role("FACTORY"))):
-    """All factory bids placed by the current factory (including complete proposals)."""
     factory_profile = await prisma.factoryprofile.find_unique(where={"user_id": user.id})
     if not factory_profile:
         return []
 
-    # Get all inventory entry ids belonging to this factory
     inv_rows = await prisma.inventoryentry.find_many(
         where={"factory_profile_id": factory_profile.id, "deleted_at": None},
         take=200,
@@ -268,16 +249,11 @@ async def list_my_factory_bids(user=Depends(_require_role("FACTORY"))):
     return [await _serialize_candidate_async(c) for c in candidates]
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  LOGIST  – see factory bids and attach logistics quotes
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/factory-bids-needing-logistics")
 async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"))):
-    """
-    Returns all incomplete MatchCandidates (factory bid only, no logist yet)
-    across all PAIRING_IN_PROGRESS requests.
-    """
+    # incomplete candidates (no logist yet)
     logist_profile = await prisma.logistprofile.find_unique(where={"user_id": user.id})
     if not logist_profile:
         raise HTTPException(400, "Logistics profile not found")
@@ -309,7 +285,7 @@ async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"
         take=200,
     )
 
-    # Keep factory-only bids visible and mark whether this logist already quoted that pair.
+    # mark whether this logist already quoted each factory-bid pair
     quoted_pairs = await prisma.matchcandidate.find_many(
         where={"logistic_offer_id": {"not": None}, "deleted_at": None},
         include={"logistic_offer": True},
@@ -332,7 +308,7 @@ async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"
 
 
 class LogistQuoteBody(BaseModel):
-    factory_bid_id: str          # id of the MatchCandidate (factory-only bid)
+    factory_bid_id: str         
     title: str = Field(..., min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     base_price: float = Field(..., ge=0)
@@ -347,11 +323,7 @@ class LogistQuoteBody(BaseModel):
 
 @router.post("/logist-quotes", status_code=201)
 async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_role("LOGIST"))):
-    """
-    Logist attaches a delivery quote to an existing factory bid.
-    For each factory bid × logistic offer combination, a separate complete
-    MatchCandidate is created (or the existing incomplete one is promoted).
-    """
+    # attach a delivery quote to a factory bid, creates or updates MatchCandidate
     logist_profile = await prisma.logistprofile.find_unique(where={"user_id": user.id})
     if not logist_profile:
         raise HTTPException(400, "Logistics profile not found")
@@ -412,7 +384,7 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
         }
         logist_offer = await prisma.logisticoffer.create(data=create_offer_data)
 
-    # Check for duplicate: same factory bid + same logist offer
+    # check duplicate: same factory bid + logist offer
     duplicate = await prisma.matchcandidate.find_first(
         where={
             "request_id": factory_bid.request_id,
@@ -440,7 +412,7 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
                 "status": "PENDING",
             },
         )
-        # Re-score all candidates for this request via the optimization engine
+        # re-score candidates
         await OptimizationEngine().generate_candidates_for_request(
             factory_bid.request_id, mode="fast"
         )
@@ -450,7 +422,7 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
             "message": "Quote updated",
         }
 
-    # Create a new COMPLETE MatchCandidate (factory + logist)
+    # create complete MatchCandidate (factory + logist)
     complete = await prisma.matchcandidate.create(
         data={
             "request": {"connect": {"id": factory_bid.request_id}},
@@ -467,7 +439,7 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
         }
     )
 
-    # Score all candidates for this request via the optimization engine
+    # score all candidates
     await OptimizationEngine().generate_candidates_for_request(
         factory_bid.request_id, mode="fast"
     )
@@ -478,20 +450,14 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
         "message": "Quote created",
     }
 
-
-# ═══════════════════════════════════════════════════════════════════════
 #  CUSTOMER  – view complete proposals and select one
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/candidates/{request_id}")
 async def list_candidates_for_request(
     request_id: str,
     user=Depends(_require_authenticated_user),
 ):
-    """
-    Complete MatchCandidates (both factory + logist) for a given request.
-    Customers can only see their own requests; factories/logists/admins see all.
-    """
+    # complete proposals (factory + logist) for a request, customers see only their own
     req = await prisma.request.find_first(
         where={"id": request_id, "deleted_at": None}
     )
@@ -504,9 +470,7 @@ async def list_candidates_for_request(
         if not profile or req.customer_profile_id != profile.id:
             raise HTTPException(403, "Forbidden")
 
-    # Ensure fitness_score is populated on each candidate by running the
-    # optimization engine in 'fast' mode.  Best-effort: failures must not
-    # block proposal display.
+    # pre-run optimizer to populate fitness_score
     try:
         await OptimizationEngine().generate_candidates_for_request(request_id, mode="fast")
     except Exception:  # noqa: BLE001
@@ -553,11 +517,7 @@ async def select_candidate(
     payload: SelectCandidateBody,
     user=Depends(_require_authenticated_user),
 ):
-    """
-    Customer (or admin) selects a complete MatchCandidate.
-    Creates a Transaction, advances request to MATCHED,
-    marks chosen candidate ACCEPTED, others REJECTED.
-    """
+    # customer selects a candidate, creates Transaction, accepts it, rejects others
     candidate = await prisma.matchcandidate.find_first(
         where={"id": payload.candidate_id, "deleted_at": None},
         include={"request": {"include": {"customer_profile": True}}},
@@ -573,13 +533,13 @@ async def select_candidate(
     if req.status not in ("PAIRING_IN_PROGRESS", "PENDING"):
         raise HTTPException(400, f"Request cannot be matched in status '{req.status}'")
 
-    # Authorisation: customer may only select their own request
+    # customers can only select their own request
     if user.role == "CUSTOMER":
         profile = await prisma.customerprofile.find_unique(where={"user_id": user.id})
         if not profile or req.customer_profile_id != profile.id:
             raise HTTPException(403, "Forbidden")
 
-    # Idempotency: if a Transaction already exists for this request, refuse
+    # refuse if transaction already exists
     existing_tx = await prisma.transaction.find_unique(where={"request_id": req.id})
     if existing_tx:
         raise HTTPException(409, "A transaction already exists for this request")
@@ -590,7 +550,7 @@ async def select_candidate(
         data={"status": "ACCEPTED"},
     )
 
-    # Reject all other PENDING candidates for this request
+    # reject all other PENDING candidates
     all_other = await prisma.matchcandidate.find_many(
         where={
             "request_id": req.id,
@@ -614,7 +574,7 @@ async def select_candidate(
         }
     )
 
-    # Bootstrap first contract packet and signature slots for all parties.
+    # create contract packet and signature slots
     await prisma.contractpacket.create(
         data={
             "transaction": {"connect": {"id": transaction.id}},

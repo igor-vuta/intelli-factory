@@ -2,7 +2,7 @@ export function formatCurrencyOptionLabel(code: string, name: string): string {
   const normalizedCode = code.trim().toUpperCase();
   const cleanedName = name
     .replace(/\\u2014/gi, "-")
-    .replace(/[—–]/g, "-")
+    .replace(/[-–]/g, "-")
     .replace(/\s+/g, " ")
     .trim();
 

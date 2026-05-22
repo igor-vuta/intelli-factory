@@ -77,7 +77,6 @@ async def resolve_or_create_address(
     street: str,
     postal_code: str | None,
 ) -> dict:
-    """Resolve country → region → city → address, creating geo entities if missing."""
     normalized_cc = country_code.strip().upper()
     country = await prisma.country.find_unique(where={"iso2": normalized_cc})
     if not country:
@@ -85,7 +84,7 @@ async def resolve_or_create_address(
 
     region_name_clean = region_name.strip()
 
-    # Try to match existing region by name (case-insensitive in Python)
+    # Try to match existing region by name
     all_regions = await prisma.region.find_many(where={"country_id": country.id})
     region = next(
         (r for r in all_regions if r.default_name.lower() == region_name_clean.lower()),
@@ -112,7 +111,7 @@ async def resolve_or_create_address(
 
     city_name_clean = city_name.strip()
 
-    # Try to match existing city by name (case-insensitive in Python)
+    # Try to match existing city by name
     all_cities = await prisma.city.find_many(where={"region_id": region.id})
     city = next(
         (c for c in all_cities if c.default_name.lower() == city_name_clean.lower()),
@@ -129,7 +128,7 @@ async def resolve_or_create_address(
 
     street_clean = street.strip()
 
-    # Upsert address row (same country+region+city+street → reuse)
+    # Upsert address row
     all_addrs = await prisma.address.find_many(
         where={
             "country_id": country.id,

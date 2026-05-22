@@ -1,6 +1,6 @@
 """
-Rating system — customers (and factories) rate completed deliveries.
-Each rating feeds into the logist's (or factory's) reliability_score.
+Rating system - customers rate completed deliveries.
+Each rating feeds into the logist's or factory's reliability_score.
 """
 
 from typing import Any, Literal
@@ -17,7 +17,6 @@ DEFAULT_RELIABILITY: float = 0.75
 
 
 async def get_avg_rating(target_profile_id: str, target_type: str) -> float | None:
-    """Return avg star rating (1–5) for a profile, or None if no ratings."""
     rows = await prisma.rating.find_many(
         where={"target_profile_id": target_profile_id, "target_type": target_type}  # type: ignore[arg-type]
     )
@@ -26,7 +25,7 @@ async def get_avg_rating(target_profile_id: str, target_type: str) -> float | No
     return round(sum(r.score for r in rows) / len(rows), 2)
 
 
-# ── Auth helper ───────────────────────────────────────────────────────────────
+# Auth helper 
 
 async def _require_authenticated_user(request: Request):
     raw = request.cookies.get(SESSION_COOKIE_NAME)
@@ -40,7 +39,7 @@ async def _require_authenticated_user(request: Request):
     return user
 
 
-# ── Reliability recalculation ─────────────────────────────────────────────────
+# Reliability recalculation
 
 async def _recalculate_logist_reliability(logist_profile_id: str) -> float:
     ratings = await prisma.rating.find_many(
@@ -70,7 +69,6 @@ async def _recalculate_factory_reliability(factory_profile_id: str) -> float:
 
 
 async def get_computed_reliability(logist_profile_id: str) -> float:
-    """Return the computed reliability score for a logist, defaulting to 0.75."""
     ratings = await prisma.rating.find_many(
         where={"target_type": "LOGIST", "target_profile_id": logist_profile_id}
     )
@@ -79,9 +77,6 @@ async def get_computed_reliability(logist_profile_id: str) -> float:
     avg_stars = sum(r.score for r in ratings) / len(ratings)
     return round(avg_stars / 5.0, 4)
 
-
-# ── Payload ───────────────────────────────────────────────────────────────────
-
 class CreateRatingPayload(BaseModel):
     transaction_id: str
     target_type: Literal["LOGIST", "FACTORY"]
@@ -89,7 +84,7 @@ class CreateRatingPayload(BaseModel):
     comment: str | None = Field(default=None, max_length=1000)
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# Endpoints 
 
 @router.post("", status_code=201)
 async def submit_rating(
@@ -97,7 +92,6 @@ async def submit_rating(
     user=Depends(_require_authenticated_user),
 ):
     """Submit a 1–5 star rating for a logist or factory after a COMPLETED transaction."""
-    # Validate transaction
     tx = await prisma.transaction.find_first(
         where={"id": payload.transaction_id, "deleted_at": None},
         include={
@@ -133,7 +127,7 @@ async def submit_rating(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No inventory entry on this transaction")
         target_profile_id = inv.factory_profile_id
 
-    # Enforce one rating per (transaction, user, target_type)
+    # Enforce one rating per transaction, user, target_type.
     existing = await prisma.rating.find_first(
         where={
             "transaction_id": payload.transaction_id,
@@ -158,7 +152,6 @@ async def submit_rating(
         }
     )
 
-    # Recalculate and propagate
     if payload.target_type == "LOGIST":
         new_score = await _recalculate_logist_reliability(target_profile_id)
     else:
@@ -169,8 +162,7 @@ async def submit_rating(
 
 @router.get("/my")
 async def get_my_ratings(user=Depends(_require_authenticated_user)) -> dict[str, Any]:
-    """Returns ratings that the caller received (as logist or factory profile)."""
-    # Determine which profile ids this user owns
+    """Returns ratings that the caller received."""
     profile_ids: list[str] = []
 
     logist = await prisma.logistprofile.find_unique(where={"user_id": user.id})

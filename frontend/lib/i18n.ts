@@ -151,7 +151,7 @@ const dictionary = {
     categoriesSection: 'Categories',
     itemsSection: 'Items',
     // Landing page
-    landingHeroTitle: 'Every request finds its best path—fast, accurate, and live.',
+    landingHeroTitle: 'Every request finds its best path-fast, accurate, and live.',
     landingHeroSubtitle: 'Intelli-Factory connects customers, manufacturers, and logistics in one real-time execution loop with contract and payment gates built in.',
     createAccount: 'Create account',
     openDashboard: 'Open dashboard',
@@ -237,7 +237,7 @@ const dictionary = {
     initialOfferBasePrice: 'Базовая цена доставки',
     initialOfferCurrency: 'Валюта предложения',
     initialOfferDescription: 'Описание доставки (необязательно)',
-    // Фабрика
+    // Factory workspace
     factoryWorkspaceTitle: 'Рабочее пространство фабрики',
     factoryWorkspaceSubtitle: 'Участвуйте в тендерах, управляйте складом и отслеживайте свои предложения.',
     openRequestsTitle: 'Открытые заявки клиентов',
@@ -275,7 +275,7 @@ const dictionary = {
     qtyAvailableLabel: 'Доступное кол-во',
     pricePerUnitLabel: 'Цена за единицу',
     addInventoryAction: 'Добавить товар',
-    // Клиент
+    // Customer workspace
     myRequestsTitle: 'Мои заявки',
     myRequestsSubtitle: 'Отслеживайте заявки и статус подбора.',
     newRequestAction: '+ Новая заявка',
@@ -291,7 +291,7 @@ const dictionary = {
     colDeliveryDays: 'Дни доставки',
     colFitnessScore: 'Оценка',
     acceptProposal: 'Принять',
-    // Логист
+    // Logist workspace
     logistWorkspaceTitle: 'Рабочее пространство логиста',
     logistWorkspaceSubtitle: 'Котируйте доставку для тендеров фабрик. Каждая котировка становится полным предложением для клиента.',
     bidsNeedingQuoteTitle: 'Тендеры, требующие котировки',
@@ -309,13 +309,13 @@ const dictionary = {
     colTo: 'Получатель',
     colGoods: 'Товар',
     colQuantity: 'Количество',
-    // Админ
+    // Admin workspace
     adminTitle: 'Панель администратора',
     usersSection: 'Пользователи',
     categoriesSection: 'Категории',
     itemsSection: 'Товары',
-    // Лендинг
-    landingHeroTitle: 'Каждая заявка находит лучший путь — быстро, точно и в реальном времени.',
+    // Landing worksapce
+    landingHeroTitle: 'Каждая заявка находит лучший путь - быстро, точно и в реальном времени.',
     landingHeroSubtitle: 'Intelli-Factory связывает клиентов, производителей и логистику в едином цикле реального времени со встроенными контрактными и платёжными шлюзами.',
     createAccount: 'Создать аккаунт',
     openDashboard: 'Открыть дашборд',
@@ -401,7 +401,7 @@ const dictionary = {
     initialOfferBasePrice: 'Негізгі жеткізу бағасы',
     initialOfferCurrency: 'Ұсыныс валютасы',
     initialOfferDescription: 'Жеткізу сипаттамасы (міндетті емес)',
-    // Фабрика
+    // Factory workspace
     factoryWorkspaceTitle: 'Фабрика жұмыс кеңістігі',
     factoryWorkspaceSubtitle: 'Тендерлерге қатысыңыз, қоймаңды басқарыңыз және ұсыныстарыңызды бақылаңыз.',
     openRequestsTitle: 'Ашық тұтынушылар өтініштері',
@@ -439,7 +439,7 @@ const dictionary = {
     qtyAvailableLabel: 'Қол жетімді сан',
     pricePerUnitLabel: 'Бірлік бағасы',
     addInventoryAction: 'Тауар қосу',
-    // Атыгой
+    // Customer workspace
     myRequestsTitle: 'Менің өтініштерім',
     myRequestsSubtitle: 'Өтініштерді және сәйкестестіру мәртебесін бақылаңыз.',
     newRequestAction: '+ Жаңа өтініш',
@@ -455,7 +455,7 @@ const dictionary = {
     colDeliveryDays: 'Жеткізу күндері',
     colFitnessScore: 'Бағалау',
     acceptProposal: 'Қабылдау',
-    // Логист
+    // Logist workspace
     logistWorkspaceTitle: 'Логист жұмыс кеңістігі',
     logistWorkspaceSubtitle: 'Фабрика тендерлеріне жеткізу бағасын ұсыныңыз. Әр котировка атыгойға толық ұсынысқа айналады.',
     bidsNeedingQuoteTitle: 'Котировка күтіп отырған тендерлер',
@@ -473,13 +473,13 @@ const dictionary = {
     colTo: 'Алушы',
     colGoods: 'Тауар',
     colQuantity: 'Сан',
-    // Админ
+    // Admin workspace
     adminTitle: 'Администратор панелі',
     usersSection: 'Пайдаланушылар',
     categoriesSection: 'Санаттар',
     itemsSection: 'Тауарлар',
-    // Лендинг
-    landingHeroTitle: 'Әр өтініш ең жақсы жолды табады — жылдам, дәл және нақты уақытта.',
+    // Landing workspace
+    landingHeroTitle: 'Әр өтініш ең жақсы жолды табады - жылдам, дәл және нақты уақытта.',
     landingHeroSubtitle: 'Intelli-Factory атыгоуыларды, өндірушілерді және логистиканы шартты және төлем шлюздары бар нақты уақыт ортаға біріктіреді.',
     createAccount: 'Аккаунт жасау',
     openDashboard: 'Дашбордты ашу',

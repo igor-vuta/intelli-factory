@@ -50,7 +50,7 @@ class RegisterRequest(BaseModel):
     role: UserRole
     display_name: str = Field(..., min_length=2, max_length=120)
     country_code: str = Field(..., min_length=2, max_length=2)
-    # Legacy flat address (kept for backward compat, ignored when structured fields present)
+    # Legacy flat address (kept for backward compatibility)
     address: str | None = Field(None, max_length=300)
     # Structured address fields
     region_name: str | None = Field(None, max_length=100)
@@ -58,10 +58,9 @@ class RegisterRequest(BaseModel):
     street: str | None = Field(None, max_length=300)
     postal_code: str | None = Field(None, max_length=20)
     preferred_currency_code: str = Field(..., min_length=3, max_length=3)
-    # Optional profile enrichment
     phone: str | None = Field(None, max_length=30)
     contact_name: str | None = Field(None, max_length=120)
-    # Logist-only: seed first logistic offer at registration
+    # Logist-only
     initial_offer_base_price: float | None = Field(None, ge=0)
     initial_offer_currency_code: str | None = Field(None, min_length=3, max_length=3)
     initial_offer_description: str | None = Field(None, max_length=500)
@@ -185,7 +184,6 @@ async def register(payload: RegisterRequest, request: Request):
         }
     )
 
-    # Resolve structured address if provided, else fall back to flat text
     address_id: str | None = None
     address_label: str = payload.address.strip() if payload.address else ""
 
@@ -488,9 +486,7 @@ async def me(request: Request):
     )
 
 
-# ---------------------------------------------------------------------------
-# DEV-ONLY: instant email verification (blocked in production)
-# ---------------------------------------------------------------------------
+# Instant email verification (blocked in production) - DEVELOPMENT ONLY
 
 class DevVerifyRequest(BaseModel):
     email: str
@@ -498,7 +494,7 @@ class DevVerifyRequest(BaseModel):
 
 @router.post("/dev-verify", response_model=MessageResponse)
 async def dev_verify(payload: DevVerifyRequest):
-    """Instantly mark an account as email-verified. Only available outside production."""
+    
     if _is_production_env():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 

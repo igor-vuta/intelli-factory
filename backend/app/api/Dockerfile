@@ -1,6 +1,5 @@
-# Multi-stage Dockerfile for FastAPI application
-# Build: docker build -t intelli-factory:latest .
-# Run: docker run -p 8000:8000 intelli-factory:latest
+# Build: docker build -t
+# Run: docker run -p
 
 FROM python:3.12-slim as base
 

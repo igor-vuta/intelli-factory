@@ -1,16 +1,9 @@
 """
 Multi-Objective Optimization Engine for Intelli-Factory.
 
-Implements the Supply Chain Trilemma:
-  - Minimise Cost
-  - Minimise Time (delivery days)
-  - Maximise Reliability
-
 Two modes:
-  fast  – deterministic weighted-sum heuristic (< 500 ms, for live UI)
-  deep  – DEAP NSGA-II style eaMuPlusLambda GA (background / benchmarks)
-
-Author: Igor Vuta (P2773339)
+  fast  - deterministic weighted-sum fast
+  deep  - DEAP NSGA-II 
 """
 
 from __future__ import annotations
@@ -26,7 +19,7 @@ from db import prisma
 
 logger = logging.getLogger(__name__)
 
-# ── Weight profiles ──────────────────────────────────────────────────────────
+# Weight profiles
 
 WEIGHT_PROFILES: dict[str, tuple[float, float, float]] = {
     "balanced":    (0.40, 0.30, 0.30),  # cost, time, reliability
@@ -41,38 +34,21 @@ _GA_NGEN       = 80
 _GA_CXPB       = 0.7
 _GA_MUTPB      = 0.2
 _GA_RANDOM_SEED = 42
-_GA_TOP_N      = 20  # return up to this many ranked solutions
-
-
-# ── Helper: min-max normalisation ────────────────────────────────────────────
+_GA_TOP_N      = 20  
 
 def _normalise(value: float, lo: float, hi: float) -> float:
     if hi == lo:
         return 0.0
     return (value - lo) / (hi - lo)
 
-
-# ── OptimizationEngine ───────────────────────────────────────────────────────
-
 class OptimizationEngine:
-    """
-    Unified Prisma-driven, DEAP-based multi-objective optimization service.
-    """
-
-    # ── Public API ────────────────────────────────────────────────────────
 
     async def generate_candidates_for_request(
         self,
         request_id: str,
         mode: str = "fast",
     ) -> list[dict]:
-        """
-        Main entry point.  Loads feasible MatchCandidates for *request_id*,
-        scores them, persists score_breakdown / fitness_score / rank back to
-        the DB, and returns the ranked list as dicts.
 
-        mode: "fast" | "deep"
-        """
         req = await prisma.request.find_first(
             where={"id": request_id, "deleted_at": None},
             include={
@@ -88,7 +64,7 @@ class OptimizationEngine:
 
         weights = self._resolve_weights(req.optimization_profile)
 
-        # Load complete candidates (factory + logist) that are PENDING
+        # Load  candidates that have PENDING status
         candidates = await prisma.matchcandidate.find_many(
             where={
                 "request_id": request_id,
@@ -136,7 +112,6 @@ class OptimizationEngine:
         else:
             ranked = self._run_fast_optimization(candidate_dicts, weights)
 
-        # Persist results back to DB
         await self._persist_results(ranked, mode)
 
         return ranked
@@ -147,12 +122,10 @@ class OptimizationEngine:
         weights: tuple[float, float, float],
     ) -> dict:
         """
-        Compute normalised score breakdown for a single candidate
-        relative to a pool of one (used when called standalone).
+        Compute normalised score breakdown for a single candidate relative to a pool of one.
         Returns score_breakdown dict.
         """
         cost_w, time_w, rel_w = weights
-        # With a single candidate, all norms are 0; fitness = reliability weight
         breakdown = {
             "cost_norm": 0.0,
             "time_norm": 0.0,
@@ -162,22 +135,12 @@ class OptimizationEngine:
         }
         return breakdown
 
+    # GA, returns up to _GA_TOP_N ranked candidates
     def run_deep_optimization(
         self,
         feasible_candidates: list[dict],
         weights: tuple[float, float, float],
     ) -> list[dict]:
-        """
-        DEAP eaMuPlusLambda multi-objective GA (NSGA-II inspired).
-        Returns up to _GA_TOP_N diverse, high-quality solutions ranked by
-        weighted sum of normalised objectives.  Fixed random seed 42 for
-        reproducibility.
-
-        To guarantee multiple results, the method collects unique candidate
-        indices both from the Hall-of-Fame (best ever seen) and from the final
-        population, then pads with top-ranked pool entries if needed, ensuring
-        at least min(n, 5) distinct solutions are always returned.
-        """
         n = len(feasible_candidates)
         if n == 0:
             return []
@@ -186,7 +149,7 @@ class OptimizationEngine:
 
         random.seed(_GA_RANDOM_SEED)
 
-        # Pre-compute raw metrics for the pool
+        # extract raw metrics
         costs         = [float(c["total_cost"])    for c in feasible_candidates]
         times         = [float(c["delivery_days"]) for c in feasible_candidates]
         reliabilities = [float(c["reliability"])   for c in feasible_candidates]
@@ -197,13 +160,12 @@ class OptimizationEngine:
 
         cost_w, time_w, rel_w = weights
 
-        # Clean up any previous DEAP creator classes
+        # remove stale DEAP creator classes
         for attr in ("FitnessSingle", "Individual"):
             if hasattr(creator, attr):
                 delattr(creator, attr)
 
-        # Single-objective: maximise the same weighted sum used by Fast Weighted
-        # so the GA always optimises for the actual profile (not fixed equal weights)
+        # Fitness and individual DEAP profiles
         creator.create("FitnessSingle", base.Fitness, weights=(1.0,))
         creator.create("Individual", list, fitness=creator.FitnessSingle)
 
@@ -240,17 +202,16 @@ class OptimizationEngine:
         pop_size = min(_GA_POP_SIZE, n * 10)
         population = toolbox.population(n=pop_size)
 
-        # Hall-of-Fame tracks the best _GA_TOP_N unique individuals ever seen
+        # Hall-of-Fame tracks the best _GA_TOP_N unique individuals
         hof = tools.HallOfFame(maxsize=_GA_TOP_N, similar=lambda a, b: a[0] == b[0])
 
-        # Evaluate initial population
+        # Evaluate initial population and seed HOF
         fitnesses = list(map(toolbox.evaluate, population))
         for ind, fit in zip(population, fitnesses):
             ind.fitness.values = fit
         hof.update(population)
 
-        # eaMuPlusLambda — update HOF after every generation manually since
-        # the built-in halloffame param only updates once at the end
+        # Main generational loop: pop=100 (population size), gen=80 (generations), cxpb=0.7 (crossover prob.),mutpb=0.2 (mutation prob.)
         for _gen in range(_GA_NGEN):
             offspring = algorithms.varOr(population, toolbox, lambda_=pop_size, cxpb=_GA_CXPB, mutpb=_GA_MUTPB)
             invalid = [ind for ind in offspring if not ind.fitness.valid]
@@ -259,18 +220,17 @@ class OptimizationEngine:
             population = toolbox.select(population + offspring, k=pop_size)
             hof.update(population)
 
-        # ── Collect unique indices from HOF + final population ────────────────
+        # HOF first, then final population
         seen: set[int] = set()
         selected_indices: list[int] = []
 
-        # HOF first — best solutions encountered during all generations
         for ind in hof:
             idx = ind[0] % n
             if idx not in seen:
                 seen.add(idx)
                 selected_indices.append(idx)
 
-        # Then sweep the final population for any additional diversity
+        # fill remaining slots from final population
         for ind in population:
             if len(selected_indices) >= _GA_TOP_N:
                 break
@@ -279,16 +239,13 @@ class OptimizationEngine:
                 seen.add(idx)
                 selected_indices.append(idx)
 
-        # ── Diversity floor: if fewer than 5 unique solutions, pad with the
-        # top-weighted-score candidates from the full pool ─────────────────────
+        # choose at least 5 top solutions
         min_solutions = min(n, 5)
         if len(selected_indices) < min_solutions:
-            # Score entire pool and take highest-ranked not already included
             full_scored = self._score_pool(feasible_candidates, weights)
             for entry in full_scored:
                 if len(selected_indices) >= _GA_TOP_N:
                     break
-                # Find original index of this entry
                 orig_idx = next(
                     (i for i, c in enumerate(feasible_candidates) if c["id"] == entry["id"]),
                     None,
@@ -297,21 +254,14 @@ class OptimizationEngine:
                     seen.add(orig_idx)
                     selected_indices.append(orig_idx)
 
-        # Score every candidate relative to the FULL pool (same normalization base
-        # as Fast Weighted) then keep only the GA-selected indices, in rank order.
+        # re-score full pool for consistent normalization
         selected_ids = {feasible_candidates[i]["id"] for i in selected_indices}
         all_scored = self._score_pool(feasible_candidates, weights)
         ga_results = [c for c in all_scored if c["id"] in selected_ids]
         return ga_results[:_GA_TOP_N]
 
+    # runs greedy, fast, and deep modes
     async def compare_baselines(self, request_id: str, profile: str | None = None) -> dict:
-        """
-        Run both fast and deep modes plus greedy and weighted-heuristic baselines.
-        Returns a dict with all four result sets for Chapter 5 comparison.
-
-        If *profile* is provided it overrides Request.optimization_profile for
-        weight resolution (handy for the admin profile-selector UI).
-        """
         req = await prisma.request.find_first(
             where={"id": request_id, "deleted_at": None},
             include={
@@ -378,8 +328,6 @@ class OptimizationEngine:
             "deep":   deep_result[:5],
         }
 
-    # ── Private helpers ───────────────────────────────────────────────────
-
     @staticmethod
     def _resolve_weights(
         profile: str | None,
@@ -389,12 +337,6 @@ class OptimizationEngine:
 
     @staticmethod
     def _is_feasible(candidate: Any, req: Any) -> bool:
-        """
-        Hard constraints:
-          1. quoted_quantity ≤ inventory quantity_available
-          2. Logistic offer covers the request destination country (at minimum)
-          3. Only ACTIVE / non-deleted inventory entries
-        """
         inv = candidate.inventory_entry
         offer = candidate.logistic_offer
 
@@ -405,19 +347,17 @@ class OptimizationEngine:
         if offer.deleted_at is not None or offer.status not in ("ACTIVE", "PENDING"):
             return False
 
-        # Quantity check
         quoted_qty = candidate.quoted_quantity or inv.quantity_available
         if quoted_qty > inv.quantity_available:
             return False
 
-        # Coverage check – need destination address
         dest_addr = getattr(req, "destination_address", None)
         if dest_addr is None:
-            return True  # cannot verify; allow through
+            return True
 
         covered_areas = getattr(offer, "covered_areas", []) or []
         if not covered_areas:
-            return True  # no coverage restrictions recorded; allow
+            return True
 
         dest_country_id = getattr(dest_addr, "country_id", None)
         dest_region_id  = getattr(dest_addr, "region_id",  None)
@@ -428,7 +368,6 @@ class OptimizationEngine:
                 continue
             if area.country_id != dest_country_id:
                 continue
-            # country matches; if no finer constraint, it's covered
             if area.region_id is None:
                 return True
             if area.region_id != dest_region_id:
@@ -440,12 +379,9 @@ class OptimizationEngine:
 
         return False
 
+    # converts ORM candidate to plain scoring dict
     @staticmethod
     def _candidate_to_dict(candidate: Any, req: Any) -> dict:
-        """
-        Convert a Prisma MatchCandidate ORM object to a plain dict
-        containing the raw metrics needed for scoring.
-        """
         inv   = candidate.inventory_entry
         offer = candidate.logistic_offer
 
@@ -470,20 +406,15 @@ class OptimizationEngine:
             "reliability":      float(reliability),
             "currency_code":    candidate.currency_code,
             "quoted_quantity":  float(quoted_qty),
-            # keep for passthrough
             "_orm": candidate,
         }
 
+    # min-max normalise objectives, compute weighted-sum score, sort desc, attach rank
     @staticmethod
     def _score_pool(
         pool: list[dict],
         weights: tuple[float, float, float],
     ) -> list[dict]:
-        """
-        Min-max normalise all three objectives across the pool,
-        compute weighted-sum final_score, sort descending (higher = better),
-        attach score_breakdown, rank.
-        """
         if not pool:
             return []
 
@@ -503,7 +434,7 @@ class OptimizationEngine:
             time_n = _normalise(c["delivery_days"], min_time, max_time)
             rel_n  = _normalise(c["reliability"],   min_rel,  max_rel)
 
-            # lower cost/time is better → invert norms; higher reliability is better
+            # invert cost/time norms (lower=better), reliability stays as-is
             final_score = (
                 cost_w * (1.0 - cost_n)
                 + time_w * (1.0 - time_n)
@@ -528,17 +459,17 @@ class OptimizationEngine:
 
         return scored
 
+    # fast mode: deterministic weighted-sum over full pool
     def _run_fast_optimization(
         self,
         pool: list[dict],
         weights: tuple[float, float, float],
     ) -> list[dict]:
-        """Fast mode: straightforward min-max weighted-sum over the full pool."""
         return self._score_pool(pool, weights)
 
+    # greedy baseline: sort by raw cost ascending
     @staticmethod
     def _run_greedy(pool: list[dict]) -> list[dict]:
-        """Baseline: sort by raw total_cost ascending."""
         sorted_pool = sorted(pool, key=lambda c: c["total_cost"])
         for rank, c in enumerate(sorted_pool, start=1):
             c = dict(c)
@@ -550,12 +481,8 @@ class OptimizationEngine:
             sorted_pool[rank - 1] = c
         return sorted_pool
 
+    # writes fitness_score, score_breakdown, mode, rank back to DB
     async def _persist_results(self, ranked: list[dict], mode: str) -> None:
-        """
-        Write fitness_score, score_breakdown, optimization_mode, rank
-        back to each MatchCandidate in the DB.
-        Uses individual updates (no batch upsert in Prisma-Py).
-        """
         from prisma import Json
 
         for item in ranked:

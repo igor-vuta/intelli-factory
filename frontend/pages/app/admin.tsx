@@ -129,8 +129,7 @@ export default function AdminWorkspacePage() {
     }
   }
 
-  // Re-run comparison automatically when profile changes, but only if a
-  // comparison has already been run for the currently selected request.
+  // Re-run comparison automatically on change.
   useEffect(() => {
     if (!compareData || !selectedRequestId.trim() || comparing) return;
     let cancelled = false;
@@ -149,7 +148,7 @@ export default function AdminWorkspacePage() {
     setSeedMessage(null);
     try {
       const result = await seedLargeScale();
-      setSeedMessage(`✓ ${result.message} — ${result.candidates_created} candidates created. Reload the page to see the new request.`);
+      setSeedMessage(`✓ ${result.message} - ${result.candidates_created} candidates created. Reload the page to see the new request.`);
       const rows = await listRequests();
       setRequests(rows);
     } catch (err) {
@@ -225,7 +224,7 @@ export default function AdminWorkspacePage() {
         if (!seen.has(s.id)) { seen.add(s.id); all.push({ id: s.id, x: s.total_cost, y: s.delivery_days }); }
       }
     }
-    // Non-dominated: no other point has cost ≤ and days ≤ (with at least one strictly better)
+    // Non-dominated
     const pareto = all
       .filter((p) => !all.some((o) => o.id !== p.id && o.x <= p.x && o.y <= p.y && (o.x < p.x || o.y < p.y)))
       .sort((a, b) => a.x - b.x);
@@ -521,7 +520,7 @@ export default function AdminWorkspacePage() {
               </div>
 
               <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
-                {/* ── Section header + seed button ─────────────────────────── */}
+                {/* Section header + seed button */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-semibold">Optimization Engine Comparison</h2>
@@ -551,7 +550,7 @@ export default function AdminWorkspacePage() {
                   </p>
                 )}
 
-                {/* ── Request selector + run button ─────────────────────────── */}
+                {/* Request selector + run button */}
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   <div className="flex-1 min-w-0">
                     <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
@@ -571,7 +570,7 @@ export default function AdminWorkspacePage() {
                         .filter((r) => r.status === 'PAIRING_IN_PROGRESS')
                         .map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.id.slice(0, 8)}… — {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
+                            {r.id.slice(0, 8)}… - {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
                           </option>
                         ))}
                     </select>
@@ -611,7 +610,7 @@ export default function AdminWorkspacePage() {
                   </p>
                 )}
 
-                {/* ── Results ───────────────────────────────────────────────── */}
+                {/* Results */}
                 {compareData && (
                   <>
                     {/* Summary card */}
@@ -697,13 +696,13 @@ export default function AdminWorkspacePage() {
                       })}
                     </div>
 
-                    {/* ── Charts ──────────────────────────────────────────────── */}
+                    {/* Charts*/}
                     <div className="mt-6 grid gap-5 lg:grid-cols-2">
 
                       {/* Pareto scatter: Cost vs Delivery Days */}
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
                         <p className="mb-2 text-sm font-semibold">
-                          Pareto Front — Cost vs Delivery Days
+                          Pareto Front - Cost vs Delivery Days
                         </p>
                         <p className="mb-3 text-xs text-[rgb(var(--muted))]">
                           Each dot is a candidate solution. Lower-left corner is optimal.
@@ -807,7 +806,7 @@ export default function AdminWorkspacePage() {
                       {/* Radar chart: normalised score balance */}
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-4 lg:col-span-2">
                         <p className="mb-2 text-sm font-semibold">
-                          Weighted Score Balance (Radar — top solution per strategy)
+                          Weighted Score Balance (Radar - top solution per strategy)
                         </p>
                         <p className="mb-3 text-xs text-[rgb(var(--muted))]">
                           Scores normalised 0–100. Larger area = better balanced performance.
@@ -838,7 +837,7 @@ export default function AdminWorkspacePage() {
                       </div>
                     </div>
 
-                    {/* ── Strategy tabs ────────────────────────────────────────── */}
+                    {/* Strategy tabs */}
                     <div className="mt-6">
                       <div className="flex gap-1 border-b border-[rgb(var(--stroke))]">
                         {(['greedy', 'fast', 'deep'] as const).map((tab) => (

@@ -9,7 +9,6 @@ from pathlib import Path
 
 from prisma import Json, Prisma
 
-# Ensure the API root is on the path so optimization_engine can be imported
 _API_ROOT = Path(__file__).resolve().parent
 if str(_API_ROOT) not in sys.path:
     sys.path.insert(0, str(_API_ROOT))
@@ -417,27 +416,12 @@ async def _seed_stage_scenario(
     if payment_status:
         await _upsert_payment(prisma, tx.id, total_cost, payment_status, stage_name.lower())
 
-# ── Factory / logistics archetype definitions ────────────────────────────────
-#
-# V2 — tuned for the Chapter 5 viva demo.  Ranges match the task spec:
-#   price per unit: 90–480 EUR · delivery days: 3–15 · reliability: 0.65–0.97
-#
-# Strong anti-correlation:
-#   cheap (< 220) → longer delivery + lower reliability
-#   premium (> 350) → shorter delivery + high reliability
-#   ~25% mixed wildcards break the pattern (cheap+decent, expensive+slow)
-#
-# 20 factories × 13 logistics = 260 possible pairs; target cap = 150 so we
-# generate a rich but not bloated pool (within 120–180 requirement).
-#
-# Factory tuple:
-#   (label, unit_price_eur, qty_available, archetype, reliability_factor, days_offset)
-# Logistic tuple:
-#   (label, days_min, days_max, reliability, base_price_eur, archetype)
-#
+# Factory / logistics archetype definitions
+# Factory: (label, unit_price_eur, qty_available, archetype, reliability_factor, days_offset)
+# Logistic: (label, days_min, days_max, reliability, base_price_eur, archetype)
 
 _FACTORY_ARCHETYPES = [
-    # Budget tier (price 90–215) — cheap, slower handling, lower reliability
+    # Budget tier 
     ("Discount Steelworks Almaty",   Decimal("92"),  Decimal("4500"),  "budget",  0.65, 7),
     ("Karaganda Bulk Supply",        Decimal("108"), Decimal("5500"),  "budget",  0.68, 6),
     ("Talgar Materials Co.",         Decimal("128"), Decimal("6000"),  "budget",  0.72, 5),
@@ -446,46 +430,46 @@ _FACTORY_ARCHETYPES = [
     ("Ust-Kamenogorsk Standard",     Decimal("188"), Decimal("7500"),  "budget",  0.79, 4),
     ("Pavlodar Resource Group",      Decimal("212"), Decimal("6500"),  "budget",  0.81, 3),
 
-    # Mid tier (price 240–330) — balanced
+    # Mid tier 
     ("Almaty Trade House",           Decimal("245"), Decimal("9000"),  "mid",     0.84, 2),
     ("Astana Procurement Ltd",       Decimal("268"), Decimal("9500"),  "mid",     0.86, 2),
     ("Kazakh Industrial Mid-Co",     Decimal("292"), Decimal("10500"), "mid",     0.88, 1),
     ("Aktobe Forge Partners",        Decimal("312"), Decimal("11000"), "mid",     0.89, 1),
     ("Atyrau Refining Mid",          Decimal("328"), Decimal("9000"),  "mid",     0.90, 1),
 
-    # Premium tier (price 355–478) — fast, reliable, expensive
+    # Premium tier 
     ("Tau-Ken Premium Steel",        Decimal("358"), Decimal("8000"),  "premium", 0.91, 0),
     ("KazMineral Top Grade",         Decimal("395"), Decimal("8500"),  "premium", 0.93, 0),
     ("Eurasian Quality Holding",     Decimal("432"), Decimal("9000"),  "premium", 0.95, -1),
     ("Caspian Elite Metals",         Decimal("478"), Decimal("7500"),  "premium", 0.97, -1),
 
-    # Mixed wildcards (~25%): break price/quality pattern for Pareto richness
-    ("Family Plant Talgar (Gem)",    Decimal("152"), Decimal("4000"),  "mixed",   0.90, 1),  # cheap+reliable
-    ("Co-op Pavlodar (Underdog)",    Decimal("178"), Decimal("4500"),  "mixed",   0.92, 0),  # cheap+fast
-    ("Boutique Slow Premium",        Decimal("415"), Decimal("3500"),  "mixed",   0.82, 5),  # expensive+slow
-    ("Astana Inflated Standard",     Decimal("358"), Decimal("4000"),  "mixed",   0.77, 4),  # expensive+unreliable
+    # Mixed wildcards 
+    ("Family Plant Talgar (Gem)",    Decimal("152"), Decimal("4000"),  "mixed",   0.90, 1),
+    ("Co-op Pavlodar (Underdog)",    Decimal("178"), Decimal("4500"),  "mixed",   0.92, 0),
+    ("Boutique Slow Premium",        Decimal("415"), Decimal("3500"),  "mixed",   0.82, 5),
+    ("Astana Inflated Standard",     Decimal("358"), Decimal("4000"),  "mixed",   0.77, 4),
 ]
 
 _LOGISTIC_ARCHETYPES = [
-    # Express tier (1–4 days, very reliable, expensive)
+    # Express tier 
     ("Air Astana Cargo Premium",    1,  3,  0.97, Decimal("56000"), "express"),
     ("KTZ Express Rail Alpha",      2,  4,  0.94, Decimal("46000"), "express"),
     ("Almaty Premium Roadway",      2,  5,  0.91, Decimal("40000"), "express"),
 
-    # Standard tier (4–8 days)
+    # Standard tier
     ("KTZ Standard Rail",           4,  6,  0.87, Decimal("30000"), "standard"),
     ("Silk Road Trucking",          5,  7,  0.84, Decimal("25000"), "standard"),
     ("Eurasian Mid-Freight",        5,  8,  0.81, Decimal("21000"), "standard"),
     ("Kazpost Bulk Standard",       6,  9,  0.78, Decimal("18000"), "standard"),
 
-    # Economy tier (8–15 days, slow, cheap, low reliability)
+    # Economy tier
     ("Almaty Bulk Rail Discount",   8,  10, 0.74, Decimal("14500"), "economy"),
     ("Pavlodar Slow Freight",       9,  11, 0.70, Decimal("11500"), "economy"),
     ("Shymkent Road Budget",        10, 12, 0.67, Decimal("9500"),  "economy"),
     ("Backhaul Consolidator KZ",    11, 13, 0.65, Decimal("8000"),  "economy"),
     ("Steppe Long-Haul Economy",    12, 15, 0.63, Decimal("7000"),  "economy"),
 
-    # Wildcard: mid-fast / mid-cost but high reliability
+    # Wildcard
     ("Hybrid Reliable Carrier",     4,  7,  0.91, Decimal("32000"), "mixed"),
 ]
 
@@ -515,7 +499,6 @@ async def create_large_scale_request_scenario(
     archetypes = _FACTORY_ARCHETYPES[:num_factories]
     log_archetypes = _LOGISTIC_ARCHETYPES[:num_logistics]
 
-    # ── Reuse the demo customer so the request appears in the customer UI ────
     ls_customer_user = await _ensure_user(prisma, "customer.demo@intelli.local", "CUSTOMER")
     ls_customer_profile = await prisma.customerprofile.find_first(
         where={"user_id": ls_customer_user.id}
@@ -532,7 +515,7 @@ async def create_large_scale_request_scenario(
             }
         )
 
-    # ── Request ───────────────────────────────────────────────────────────────
+    # Request 
     req_qty = Decimal("300")
     request_full_name = f"[LARGE_SCALE] {request_name} - Coal 99% pure"
     existing_req = await prisma.request.find_first(
@@ -561,9 +544,9 @@ async def create_large_scale_request_scenario(
             data={"customer_profile_id": ls_customer_profile.id, **req_payload}
         )
 
-    # ── Factory profiles + inventory ──────────────────────────────────────────
+    # Factory profiles + inventory
     inventory_entries = []
-    factory_meta: dict[str, tuple[float, int]] = {}  # inventory_id → (rel_factor, days_offset)
+    factory_meta: dict[str, tuple[float, int]] = {}  # inventory_id - (rel_factor, days_offset)
     for i, (label, unit_price, qty_avail, _arch, rel_factor, days_offset) in enumerate(archetypes):
         email = f"ls.factory.{i + 1:02d}@intelli.local"
         f_user = await _ensure_user(prisma, email, "FACTORY")
@@ -581,7 +564,6 @@ async def create_large_scale_request_scenario(
                 "update": {"legal_name": label, "deleted_at": None},
             },
         )
-        # Add small random jitter so prices aren't perfectly uniform
         jitter = Decimal(str(rng.randint(-3, 3)))
         inv = await _ensure_inventory(
             prisma,
@@ -596,7 +578,7 @@ async def create_large_scale_request_scenario(
         inventory_entries.append(inv)
         factory_meta[inv.id] = (rel_factor, days_offset)
 
-    # ── Logistics profiles + offers + coverage ────────────────────────────────
+    # Logistics profiles + offers + coverage 
     logistic_offers = []
     for j, (label, days_min, days_max, reliability, base_price, _arch) in enumerate(log_archetypes):
         email = f"ls.logist.{j + 1:02d}@intelli.local"
@@ -615,7 +597,6 @@ async def create_large_scale_request_scenario(
                 "update": {"company_name": label, "deleted_at": None},
             },
         )
-        # Jitter on base_price and reliability for realism
         price_jitter = Decimal(str(rng.randint(-1500, 1500)))
         rel_jitter = round(rng.uniform(-0.02, 0.02), 3)
         actual_reliability = max(0.60, min(0.99, reliability + rel_jitter))
@@ -635,19 +616,11 @@ async def create_large_scale_request_scenario(
         await _ensure_coverage(prisma, offer.id, country_id, region_id, city_id)
         logistic_offers.append((offer, days_min, days_max))
 
-    # ── MatchCandidates: all inventory × logistic offer pairs ─────────────────
-    #
-    # Purge any stale candidates from previous seeding runs so that the final
-    # count is exactly what this run generates (no accumulation).
+    # MatchCandidates: all inventory × logistic offer pairs
     await prisma.matchcandidate.delete_many(
         where={"request_id": ls_request.id, "deleted_at": None}
     )
 
-    # Candidate reliability is a blend of factory and logistic reliability so
-    # cheap factories paired with cheap logistics produce candidates that are
-    # both slow AND unreliable.  This anti-correlation is what makes the
-    # Pareto front rich enough for the GA to outperform pure greedy / weighted
-    # heuristic baselines.
     t0 = time.perf_counter()
     candidate_count = 0
     for inv in inventory_entries:
@@ -656,11 +629,11 @@ async def create_large_scale_request_scenario(
             if candidate_count >= target_candidates:
                 break
 
-            # Delivery days = logistic-sampled days + factory handling offset
+            # delivery days: logistic base + factory offset
             base_days = rng.randint(days_min, days_max)
             delivery_days = max(3, min(15, base_days + days_offset))
 
-            # Blended reliability: 60% logistic, 40% factory, plus tiny noise
+            # reliability: 60% logistic + 40% factory + noise
             offer_rel = float(offer.reliability_score)
             blended = 0.6 * offer_rel + 0.4 * rel_factor + rng.uniform(-0.01, 0.01)
             candidate_reliability = round(max(0.65, min(0.97, blended)), 3)
@@ -697,7 +670,7 @@ async def create_large_scale_request_scenario(
     print(f"  MatchCandidates:   {candidate_count}")
     print(f"  Seeding time:      {elapsed_seed:.2f}s")
 
-    # ── Run all four strategies and print comparison ───────────────────────────
+    # Run three strategies and print comparison 
     try:
         from services.optimization_engine import OptimizationEngine  # noqa: E402
         engine = OptimizationEngine()
@@ -717,7 +690,6 @@ async def create_large_scale_request_scenario(
         scoreboard: list[tuple[str, float]] = []
         for key, label in [
             ("greedy",    "greedy"),
-            ("heuristic", "heuristic"),
             ("fast",      "fast"),
             ("deep",      "deep (GA)"),
         ]:
@@ -730,15 +702,14 @@ async def create_large_scale_request_scenario(
             cost  = float(top.get("total_cost", 0))
             days  = top.get("delivery_days", "?")
             rel   = float(top.get("reliability", 0))
-            score = float(top.get("fitness_score") or top.get("heuristic_score") or 0)
+            score = float(top.get("fitness_score") or 0)
             print(f"  {label:<14} {cost:>14,.0f} {days:>6} {rel:>12.3f} {score:>8.4f}")
             scoreboard.append((key, score))
 
-        # Determine the winner (Deep wins on ties — most sophisticated method)
         scoreboard.sort(key=lambda kv: (kv[1], 1 if kv[0] == "deep" else 0), reverse=True)
         winner_key, winner_score = scoreboard[0]
         winner_pretty = {
-            "greedy": "Greedy", "heuristic": "Heuristic",
+            "greedy": "Greedy",
             "fast": "Fast", "deep": "Deep (NSGA-II GA)",
         }.get(winner_key, winner_key)
 
@@ -756,8 +727,7 @@ async def create_large_scale_request_scenario(
     return ls_request.id
 
 
-# ── Random name pools ────────────────────────────────────────────────────────
-# Used by create_random_large_scale_request to give each run realistic names.
+# Random name pools 
 
 _RAND_FACTORY_NAMES = [
     "Karaganda Bulk Supply",
@@ -812,7 +782,6 @@ _RAND_LOGIST_NAMES = [
 
 
 def _print_comparison_summary(comparison: dict, candidate_count: int, request_name: str, t_compare: float) -> None:
-    """Shared helper: print the four-strategy scoreboard and announce the winner."""
     print(f"\n  Candidate pool size: {comparison.get('candidate_pool_size', candidate_count)}")
     print(f"  Profile / weights:   {comparison.get('optimization_profile', 'balanced')}  "
           f"{comparison.get('weights', {})}")
@@ -822,7 +791,6 @@ def _print_comparison_summary(comparison: dict, candidate_count: int, request_na
     scoreboard: list[tuple[str, float]] = []
     for key, label in [
         ("greedy",    "Greedy"),
-        ("heuristic", "Heuristic"),
         ("fast",      "Fast"),
         ("deep",      "Deep (GA)"),
     ]:
@@ -835,14 +803,14 @@ def _print_comparison_summary(comparison: dict, candidate_count: int, request_na
         cost  = float(top.get("total_cost", 0))
         days  = top.get("delivery_days", "?")
         rel   = float(top.get("reliability", 0))
-        score = float(top.get("fitness_score") or top.get("heuristic_score") or 0)
+        score = float(top.get("fitness_score") or 0)
         print(f"  {label:<14} {cost:>14,.0f} {days:>6} {rel:>12.3f} {score:>8.4f}")
         scoreboard.append((key, score))
 
     scoreboard.sort(key=lambda kv: (kv[1], 1 if kv[0] == "deep" else 0), reverse=True)
     winner_key, winner_score = scoreboard[0]
     winner_pretty = {
-        "greedy": "Greedy", "heuristic": "Heuristic",
+        "greedy": "Greedy",
         "fast": "Fast", "deep": "Deep (NSGA-II GA)",
     }.get(winner_key, winner_key)
 
@@ -861,33 +829,11 @@ async def create_random_large_scale_request(
     random_seed: int | None = None,
     item_name: str = "Coal 99% pure",
 ) -> str:
-    """
-    Self-contained random large-scale scenario generator.
-
-    Creates its own Prisma connection, ensures all reference data,
-    then generates ``num_candidates`` (clamped 130–170) MatchCandidates
-    with strong price/speed/reliability anti-correlation.
-
-    Parameters
-    ----------
-    num_candidates:
-        Target number of candidates (130–170 after clamping).
-    random_seed:
-        ``None`` → truly random every run.
-        ``int`` → reproducible (same seed → same data).
-    item_name:
-        Item requested in the scenario.
-
-    Returns
-    -------
-    str
-        The ID of the created / updated Request.
-    """
+    """Random large-scale scenario. random_seed=None - fresh, int - reproducible. Returns Request ID."""
     import time
 
-    rng = random.Random(random_seed)  # None = system random; int = reproducible
+    rng = random.Random(random_seed)
 
-    # Ensure geo reference data (idempotent)
     await seed_reference_geo()
 
     prisma = Prisma()
@@ -911,7 +857,6 @@ async def create_random_large_scale_request(
             {"purity_percent": 99, "type": "anthracite"},
         )
 
-        # ── Customer profile ──────────────────────────────────────────────────
         cust_user = await _ensure_user(prisma, "customer.demo@intelli.local", "CUSTOMER")
         cust_profile = await prisma.customerprofile.find_first(
             where={"user_id": cust_user.id}
@@ -928,42 +873,40 @@ async def create_random_large_scale_request(
                 }
             )
 
-        # ── Determine factory / logistic counts ───────────────────────────────
-        # Choose counts so total pairs ≈ 1.2 × num_candidates (gives enough
-        # surplus to clamp to the 130–170 target range).
+        # Determine factory / logistic counts
         n_factories = max(10, round((num_candidates * 1.3) ** 0.5))
         n_logistics = max(8,  (num_candidates // n_factories) + 2)
-        # Actual target candidates: random in [130, 170] (or ±20 of num_candidates)
+        # target: random in [130, 170] or ±20 of num_candidates
         target = rng.randint(
             max(130, num_candidates - 20),
             min(170, num_candidates + 20),
         )
 
-        # ── Random factory archetypes ─────────────────────────────────────────
+        # Random factory archetypes
         inventory_entries: list = []
-        factory_meta: dict[str, tuple[float, int]] = {}  # inv_id → (rel_factor, days_offset)
+        factory_meta: dict[str, tuple[float, int]] = {}
 
         factory_name_pool = _RAND_FACTORY_NAMES[:]
         rng.shuffle(factory_name_pool)
 
         for i in range(n_factories):
             tier_roll = rng.random()
-            if tier_roll < 0.35:                                   # budget (35%)
+            if tier_roll < 0.35:
                 price      = round(rng.uniform(90,  215), 2)
                 days_off   = rng.randint(4, 7)
                 rel_factor = round(rng.uniform(0.65, 0.78), 3)
                 tier       = "budget"
-            elif tier_roll < 0.65:                                 # mid (30%)
+            elif tier_roll < 0.65:
                 price      = round(rng.uniform(215, 355), 2)
                 days_off   = rng.randint(1, 3)
                 rel_factor = round(rng.uniform(0.78, 0.90), 3)
                 tier       = "mid"
-            elif tier_roll < 0.85:                                 # premium (20%)
+            elif tier_roll < 0.85:
                 price      = round(rng.uniform(355, 480), 2)
                 days_off   = rng.randint(-1, 1)
                 rel_factor = round(rng.uniform(0.88, 0.97), 3)
                 tier       = "premium"
-            else:                                                   # wildcard (15%)
+            else:
                 wc = rng.choice(
                     ["cheap_reliable", "cheap_fast", "expensive_slow", "expensive_unreliable"]
                 )
@@ -979,7 +922,7 @@ async def create_random_large_scale_request(
                     price      = round(rng.uniform(380, 460), 2)
                     days_off   = rng.randint(3, 6)
                     rel_factor = round(rng.uniform(0.78, 0.85), 3)
-                else:  # expensive_unreliable
+                else:
                     price      = round(rng.uniform(340, 420), 2)
                     days_off   = rng.randint(2, 4)
                     rel_factor = round(rng.uniform(0.68, 0.78), 3)
@@ -1012,32 +955,32 @@ async def create_random_large_scale_request(
             inventory_entries.append(inv)
             factory_meta[inv.id] = (rel_factor, days_off)
 
-        # ── Random logistic archetypes ────────────────────────────────────────
+        # Random logistic archetypes
         logistic_offers: list = []
         logist_name_pool = _RAND_LOGIST_NAMES[:]
         rng.shuffle(logist_name_pool)
 
         for j in range(n_logistics):
             tier_roll = rng.random()
-            if tier_roll < 0.25:                                   # express (25%)
+            if tier_roll < 0.25:
                 days_min     = rng.randint(1, 2)
                 days_max     = rng.randint(days_min + 1, 5)
                 log_rel      = round(rng.uniform(0.91, 0.97), 3)
                 base_price   = Decimal(str(rng.randint(42000, 60000)))
                 tier         = "express"
-            elif tier_roll < 0.55:                                 # standard (30%)
+            elif tier_roll < 0.55:
                 days_min     = rng.randint(4, 6)
                 days_max     = rng.randint(days_min + 1, 9)
                 log_rel      = round(rng.uniform(0.78, 0.88), 3)
                 base_price   = Decimal(str(rng.randint(18000, 32000)))
                 tier         = "standard"
-            elif tier_roll < 0.80:                                 # economy (25%)
+            elif tier_roll < 0.80:
                 days_min     = rng.randint(8, 11)
                 days_max     = rng.randint(days_min + 1, 15)
                 log_rel      = round(rng.uniform(0.62, 0.75), 3)
                 base_price   = Decimal(str(rng.randint(7000, 15000)))
                 tier         = "economy"
-            else:                                                   # mixed wildcard (20%)
+            else:
                 days_min     = rng.randint(3, 6)
                 days_max     = rng.randint(days_min + 1, 10)
                 log_rel      = round(rng.uniform(0.85, 0.93), 3)
@@ -1061,7 +1004,6 @@ async def create_random_large_scale_request(
                     "update": {"company_name": label, "deleted_at": None},
                 },
             )
-            # Bug 1 fix: tier-appropriate per-km and per-kg rates
             if tier == "express":
                 price_per_km = Decimal(str(round(rng.uniform(2.50, 4.00), 2)))
                 price_per_kg = Decimal(str(round(rng.uniform(1.50, 2.50), 2)))
@@ -1071,12 +1013,12 @@ async def create_random_large_scale_request(
             elif tier == "economy":
                 price_per_km = Decimal(str(round(rng.uniform(0.30, 0.80), 2)))
                 price_per_kg = Decimal(str(round(rng.uniform(0.20, 0.50), 2)))
-            else:  # mixed
+            else:
                 price_per_km = Decimal(str(round(rng.uniform(1.50, 3.00), 2)))
                 price_per_kg = Decimal(str(round(rng.uniform(0.90, 1.80), 2)))
             price_jitter = Decimal(str(rng.randint(-2000, 2000)))
             actual_price = max(Decimal("5000"), base_price + price_jitter)
-            # Bug 2 fix: stable title key so re-runs update rather than create new rows
+
             stable_title = f"rand-logist-{j + 1:02d}-primary"
             offer = await _ensure_logistic_offer(
                 prisma, l_profile.id, stable_title,
@@ -1088,7 +1030,7 @@ async def create_random_large_scale_request(
             await _ensure_coverage(prisma, offer.id, country.id, region.id, city.id)
             logistic_offers.append((offer, days_min, days_max, log_rel))
 
-        # ── Request ───────────────────────────────────────────────────────────
+        # Request 
         req_qty = Decimal("300")
         seed_label = str(random_seed) if random_seed is not None else "RandomRun"
         request_full_name = f"[LARGE_SCALE] {seed_label} - {item_name}"
@@ -1120,7 +1062,7 @@ async def create_random_large_scale_request(
                 data={"customer_profile_id": cust_profile.id, **req_payload}
             )
 
-        # ── Purge stale candidates then regenerate ────────────────────────────
+        # Purge stale candidates then regenerate
         await prisma.matchcandidate.delete_many(
             where={"request_id": ls_request.id, "deleted_at": None}
         )
@@ -1128,10 +1070,9 @@ async def create_random_large_scale_request(
         t0 = time.perf_counter()
         candidate_count = 0
 
-        # Shuffle all (factory, logistic) pairs so each run samples differently
         pairs = [(inv, lo) for inv in inventory_entries for lo in logistic_offers]
         rng.shuffle(pairs)
-        # Bug 3 fix: clamp target so the loop is never asked for more than available pairs
+
         target = min(target, len(pairs))
 
         for inv, (offer, days_min, days_max, log_rel) in pairs:
@@ -1140,7 +1081,7 @@ async def create_random_large_scale_request(
 
             rel_factor, days_off = factory_meta[inv.id]
 
-            # Delivery days = logistic days + factory handling offset, clamped 3–15
+            # delivery days: logistic base + factory offset
             base_days     = rng.randint(days_min, days_max)
             delivery_days = max(3, min(15, base_days + days_off))
 
@@ -1148,7 +1089,7 @@ async def create_random_large_scale_request(
             blended = 0.6 * log_rel + 0.4 * rel_factor + rng.uniform(-0.015, 0.015)
             cand_reliability = round(max(0.65, min(0.97, blended)), 3)
 
-            # Delivery price: offer base ± noise, floor at 5 000 EUR
+            # delivery price: base ± noise, floor 5 000 EUR
             delivery_price = Decimal(str(
                 max(5000, int(offer.base_price) + rng.randint(-2500, 2500))
             ))
@@ -1181,7 +1122,7 @@ async def create_random_large_scale_request(
         print(f"  MatchCandidates:   {candidate_count}  (target was {target})")
         print(f"  Seeding time:      {elapsed_seed:.2f}s")
 
-        # ── Auto-run compare_baselines ────────────────────────────────────────
+        # Auto-run compare_baselines 
         try:
             from services.optimization_engine import OptimizationEngine  # noqa: E402
             engine = OptimizationEngine()
@@ -1317,7 +1258,7 @@ async def seed(run_large: bool = False) -> None:
                 logistic_offer_id=offer.id,
             )
 
-        # Dedicated scenario for customer receiving proposals from several factories and logists.
+        # Multi-factory/multi-logist scenario.
         multi_request = await _upsert_request(
             prisma,
             ids["customer_profile_id"],
@@ -1357,7 +1298,7 @@ async def seed(run_large: bool = False) -> None:
             "Factory bid only (secondary factory)",
         )
 
-        # Complete proposals across both factories and both logist providers.
+        # Complete proposals (all factory+logist combos).
         await _upsert_candidate(
             prisma,
             multi_request.id,
@@ -1445,8 +1386,7 @@ async def seed(run_large: bool = False) -> None:
         print("Multi factory/logist scenario: [SCENARIO] MULTI_FACTORY_MULTI_LOGIST - Coal 99% pure")
         print(f"Random scenario bundles created: {max(0, random_bundles)}")
 
-        # Run OptimizationEngine on all PAIRING_IN_PROGRESS requests so that
-        # fitness_score, score_breakdown, and rank are populated from seed data.
+        # Score all PAIRING_IN_PROGRESS requests.
         print("Running OptimizationEngine on seeded requests...")
         try:
             from services.optimization_engine import OptimizationEngine
@@ -1468,7 +1408,7 @@ async def seed(run_large: bool = False) -> None:
         except Exception as opt_exc:  # noqa: BLE001
             print(f"OptimizationEngine post-seed run skipped: {opt_exc}")
 
-        # ── Optional large-scale scenario ─────────────────────────────────────
+        # Optional large-scale scenario
         if run_large or _bool_env("SEED_LARGE_SCALE", False):
             await create_large_scale_request_scenario(
                 prisma=prisma,
@@ -1512,7 +1452,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.large and (args.random or args.seed is not None):
-        # New random generator: --large --random  or  --large --seed 42
         actual_seed = None if args.random else args.seed
         asyncio.run(create_random_large_scale_request(random_seed=actual_seed))
     else:

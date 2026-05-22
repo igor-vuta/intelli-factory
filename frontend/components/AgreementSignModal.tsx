@@ -62,66 +62,66 @@ Date: ${contractDate}
 Currency: ${currencyCode}
 
 PARTIES
-1. THE FACTORY — ${factoryName}, hereinafter referred to as "Factory"
-2. THE CLIENT — ${clientName}, hereinafter referred to as "Client"
-3. THE LOGIST — ${logistName}, hereinafter referred to as "Logist"
+1. THE FACTORY - ${factoryName}, hereinafter referred to as "Factory"
+2. THE CLIENT - ${clientName}, hereinafter referred to as "Client"
+3. THE LOGIST - ${logistName}, hereinafter referred to as "Logist"
 
 Collectively referred to as "the Parties."
 
 RECITALS
 This Agreement governs the terms under which the Factory supplies goods to the Client and the Logist facilitates delivery, as matched through the platform under a specific Match Candidate record identified by a unique Request ID and Inventory Entry ID.
 
-ARTICLE 1 — MATCH & ORDER IDENTIFICATION
+ARTICLE 1 - MATCH & ORDER IDENTIFICATION
 1.1 Each transaction under this Agreement is uniquely identified by:
-- Match Candidate ID — ${transaction.match_candidate_id ?? '[MATCH_CANDIDATE_ID]'}
-- Request ID — ${transaction.request_id}
-- Inventory Entry ID — ${transaction.inventory_entry_id ?? '[INVENTORY_ENTRY_ID]'}
-- Logistic Offer ID — ${transaction.logistic_offer_id ?? '[LOGISTIC_OFFER_ID]'}
+- Match Candidate ID - ${transaction.match_candidate_id ?? '[MATCH_CANDIDATE_ID]'}
+- Request ID - ${transaction.request_id}
+- Inventory Entry ID - ${transaction.inventory_entry_id ?? '[INVENTORY_ENTRY_ID]'}
+- Logistic Offer ID - ${transaction.logistic_offer_id ?? '[LOGISTIC_OFFER_ID]'}
 
 1.2 Candidate Status progression:
 PENDING -> [ACCEPTED / REJECTED / CONFIRMED / COMPLETED / CANCELLED]
 
 1.3 No obligations under Articles 2, 3, or 4 become binding until Candidate Status moves from PENDING.
 
-ARTICLE 2 — FACTORY OBLIGATIONS
-2.1 Inventory Accuracy — Goods referenced by Inventory Entry ID must be available and accurately described.
-2.2 Quoted Quantity — Factory commits to supply no less than quoted_quantity (${quotedQty}).
-2.3 Pricing — Unit pricing included in total_cost is fixed at match creation.
-2.4 Factory Notes — Declared notes before confirmation carry contractual weight.
-2.5 Reliability — Reliability and fitness metrics must not be manipulated.
-2.6 Readiness — Goods must be ready within delivery_days (${transaction.delivery_days ?? '-'}) window.
-2.7 Soft Delete Compliance — If candidate is soft-deleted, fulfilment activity must cease.
+ARTICLE 2 - FACTORY OBLIGATIONS
+2.1 Inventory Accuracy - Goods referenced by Inventory Entry ID must be available and accurately described.
+2.2 Quoted Quantity - Factory commits to supply no less than quoted_quantity (${quotedQty}).
+2.3 Pricing - Unit pricing included in total_cost is fixed at match creation.
+2.4 Factory Notes - Declared notes before confirmation carry contractual weight.
+2.5 Reliability - Reliability and fitness metrics must not be manipulated.
+2.6 Readiness - Goods must be ready within delivery_days (${transaction.delivery_days ?? '-'}) window.
+2.7 Soft Delete Compliance - If candidate is soft-deleted, fulfilment activity must cease.
 
-ARTICLE 3 — CLIENT OBLIGATIONS
-3.1 Request Accuracy — Originating request details must be accurate and complete.
-3.2 Payment — Client agrees to total_cost (${transaction.total_cost ?? '-'}) in ${currencyCode}.
-3.3 Delivery Acceptance — Delivery must be accepted within agreed delivery window.
-3.4 Delivery Address — Client is responsible for accurate and accessible delivery address.
-3.5 Transaction Confirmation — Candidate selection constitutes formal acceptance.
-3.5.1 selected_by_tx — ${transaction.id}
-3.6 Dispute Window — Disputes must be raised within ${disputeWindowDays || '[X]'} business days.
+ARTICLE 3 - CLIENT OBLIGATIONS
+3.1 Request Accuracy - Originating request details must be accurate and complete.
+3.2 Payment - Client agrees to total_cost (${transaction.total_cost ?? '-'}) in ${currencyCode}.
+3.3 Delivery Acceptance - Delivery must be accepted within agreed delivery window.
+3.4 Delivery Address - Client is responsible for accurate and accessible delivery address.
+3.5 Transaction Confirmation - Candidate selection constitutes formal acceptance.
+3.5.1 selected_by_tx - ${transaction.id}
+3.6 Dispute Window - Disputes must be raised within ${disputeWindowDays || '[X]'} business days.
 
-ARTICLE 4 — LOGIST OBLIGATIONS
-4.1 Offer Validity — Logistic offer must be valid at match creation.
-4.2 Delivery Price — Delivery price is binding at ${transaction.delivery_price ?? '-'} ${currencyCode}.
-4.3 Delivery Timeline — Delivery must be completed in ${transaction.delivery_days ?? '-'} days.
-4.4 Liability in Transit — Logist assumes responsibility in transit.
-4.5 Proof of Delivery — Verifiable proof of delivery is required.
-4.6 No Logist Scenario — If logistic_offer_id is null, Factory and Client agree bilaterally.
+ARTICLE 4 - LOGIST OBLIGATIONS
+4.1 Offer Validity - Logistic offer must be valid at match creation.
+4.2 Delivery Price - Delivery price is binding at ${transaction.delivery_price ?? '-'} ${currencyCode}.
+4.3 Delivery Timeline - Delivery must be completed in ${transaction.delivery_days ?? '-'} days.
+4.4 Liability in Transit - Logist assumes responsibility in transit.
+4.5 Proof of Delivery - Verifiable proof of delivery is required.
+4.6 No Logist Scenario - If logistic_offer_id is null, Factory and Client agree bilaterally.
 
-ARTICLE 5 — PRICING & COST STRUCTURE
+ARTICLE 5 - PRICING & COST STRUCTURE
 5.1 total_cost is binding and includes goods cost + delivery price + disclosed fees/taxes.
 5.1.1 goods_cost: ${goodsCost} ${currencyCode}
 5.1.2 payment_terms: ${paymentTerms}
 5.2 All monetary values use ${currencyCode}.
 5.3 Currency discrepancies use exchange rate at candidate creation timestamp.
 
-ARTICLE 6 — SCORING & PERFORMANCE
+ARTICLE 6 - SCORING & PERFORMANCE
 6.1 reliability_score (${formatScore(transaction.reliability_score)}) and fitness_score (${formatScore(transaction.fitness_score)}) are indicative metrics.
 6.2 Parties consent to performance recording for future eligibility.
 6.3 Persistent underperformance may reduce match eligibility.
 
-ARTICLE 7 — STATUS MANAGEMENT & LIFECYCLE
+ARTICLE 7 - STATUS MANAGEMENT & LIFECYCLE
 7.1 Current statuses:
 - Candidate Status: ${transaction.candidate_status ?? '-'}
 - Request Status: ${requestStatus}
@@ -133,22 +133,22 @@ ARTICLE 7 — STATUS MANAGEMENT & LIFECYCLE
 - candidate.updated_at: ${candidateUpdatedAt}
 - candidate.deleted_at: ${candidateDeletedAt}
 
-ARTICLE 8 — CANCELLATION & TERMINATION
+ARTICLE 8 - CANCELLATION & TERMINATION
 8.1 Cancellation before CONFIRMED status may occur without penalty.
 8.2 Post-CONFIRMED cancellation without cause may require cost recovery.
 8.3 Logist cancellation after acceptance requires equivalent replacement or compensation.
 8.4 Soft-deleted candidates are administratively cancelled.
 
-ARTICLE 9 — GOVERNING LAW & DISPUTE RESOLUTION
+ARTICLE 9 - GOVERNING LAW & DISPUTE RESOLUTION
 9.1 Governing law: ${jurisdiction || '[JURISDICTION]'}.
 9.2 Good-faith negotiation period: ${negotiationDays || '[X]'} days.
 9.3 Platform-generated records are admissible evidence.
 
-ARTICLE 10 — GENERAL PROVISIONS
-10.1 Entire Agreement — This document and platform match record form entire agreement.
-10.2 Amendments — Valid only via platform-confirmed status change or signed writing.
-10.3 Severability — Remaining provisions remain enforceable.
-10.4 Notices — Delivered via platform messaging or registered contact details.
+ARTICLE 10 - GENERAL PROVISIONS
+10.1 Entire Agreement - This document and platform match record form entire agreement.
+10.2 Amendments - Valid only via platform-confirmed status change or signed writing.
+10.3 Severability - Remaining provisions remain enforceable.
+10.4 Notices - Delivered via platform messaging or registered contact details.
 
 SIGNATURES
 Factory: ${transaction.factory_legal_name ?? ''}

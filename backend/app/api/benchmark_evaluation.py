@@ -1,23 +1,3 @@
-"""
-Chapter 5 Benchmark Evaluation Script — Intelli-Factory
-========================================================
-Runs the three optimisation modes (Greedy, Fast Weighted,
-Deep GA / NSGA-II) across 120 synthetic scenarios (30 Monte-Carlo seeds each)
-and prints Table XII–style aggregate results plus hypervolume statistics.
-
-Synthetic data ranges mirror the paper:
-  • Cost:        KZT 5 000 – 250 000  (stored as floats for engine compat.)
-  • Delivery:    2 – 14 days
-  • Reliability: 0.70 – 0.98
-  • Candidates per scenario: 8 – 25 feasible pairs
-
-Usage (from the backend/app/api directory):
-    source .venv/bin/activate
-    python benchmark_evaluation.py
-
-No live DB connection required – all scenarios are generated in-memory.
-"""
-
 from __future__ import annotations
 
 import random
@@ -28,40 +8,28 @@ from pathlib import Path
 from statistics import mean, stdev
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Make sure the services package is importable even when run directly
-# ---------------------------------------------------------------------------
 _API_ROOT = Path(__file__).resolve().parent
 if str(_API_ROOT) not in sys.path:
     sys.path.insert(0, str(_API_ROOT))
 
-from services.optimization_engine import (  # noqa: E402
+from services.optimization_engine import (
     WEIGHT_PROFILES,
     OptimizationEngine,
     _normalise,
 )
 
-# ---------------------------------------------------------------------------
-# Synthetic scenario generation
-# ---------------------------------------------------------------------------
+RNG_MASTER = random.Random(2025)          
 
-RNG_MASTER = random.Random(2025)          # deterministic master seed
-
-COST_LO,  COST_HI  = 5_000.0,  250_000.0  # KZT total cost
-TIME_LO,  TIME_HI  = 2.0,      14.0       # delivery days
-REL_LO,   REL_HI   = 0.70,     0.98       # reliability
-CAND_LO,  CAND_HI  = 8,        25         # feasible pairs per scenario
+COST_LO,  COST_HI  = 5_000.0,  250_000.0  
+TIME_LO,  TIME_HI  = 2.0,      14.0       
+REL_LO,   REL_HI   = 0.70,     0.98       
+CAND_LO,  CAND_HI  = 8,        25         
 
 N_SCENARIOS = 120
-N_RUNS      = 30   # Monte-Carlo seeds per scenario
+N_RUNS      = 30   
 
 
 def _synthetic_scenario(master_rng: random.Random) -> list[dict]:
-    """
-    Return a list of plain-dict 'candidates' for one scenario.
-    Each candidate has total_cost, delivery_days, reliability.
-    IDs are random UUIDs so the engine never confuses scenarios.
-    """
     n = master_rng.randint(CAND_LO, CAND_HI)
     pool: list[dict] = []
     for _ in range(n):
@@ -86,21 +54,9 @@ def _generate_scenarios() -> list[list[dict]]:
     return scenarios
 
 
-# ---------------------------------------------------------------------------
-# Hypervolume (2-D sweepline: inverted-cost vs reliability, both ↑ better)
-# Reference point (0, 0) = worst-case corner in maximisation space.
-# ---------------------------------------------------------------------------
+# Hypervolume (2-D sweepline: inverted-cost vs reliability, both higher - better)
 
 def _hypervolume_2d(pareto_front: list[dict]) -> float:
-    """
-    Compute the exact 2-D hypervolume dominated by the Pareto front relative
-    to the nadir reference point (0, 0) in the maximisation space where:
-        x = 1 - cost_norm   (inverted so higher = better)
-        y = reliability_norm (already higher = better)
-
-    Uses the standard O(n log n) sweepline algorithm.
-    The result is normalised to [0, 1] by dividing by the ideal area (1.0 × 1.0).
-    """
     if not pareto_front:
         return 0.0
 
@@ -109,13 +65,13 @@ def _hypervolume_2d(pareto_front: list[dict]) -> float:
         sb = c.get("score_breakdown", {})
         cost_n = sb.get("cost_norm", 0.0)
         rel_n  = sb.get("reliability_norm", 0.0)
-        points.append((1.0 - cost_n, rel_n))   # maximisation space
+        points.append((1.0 - cost_n, rel_n))   
 
     if not points:
         return 0.0
 
-    # Keep only non-dominated points (Pareto filter)
-    points.sort(key=lambda p: p[0], reverse=True)   # descending x
+    # Keep only non-dominated points
+    points.sort(key=lambda p: p[0], reverse=True)   
     non_dom: list[tuple[float, float]] = []
     best_y = -1.0
     for p in points:
@@ -126,36 +82,28 @@ def _hypervolume_2d(pareto_front: list[dict]) -> float:
     if not non_dom:
         return 0.0
 
-    # Sweepline: sort by x ascending, accumulate rectangles above prev_y
+    # Sort by x ascending, accumulate rectangles above prev_y
     non_dom.sort(key=lambda p: p[0])
     hv = 0.0
     prev_x = 0.0
     prev_y = 0.0
     for x, y in non_dom:
-        # rectangle: width=(x - prev_x), height=(y - prev_y relative to 0)
-        # Standard: area += (x - prev_x) * y
         hv += (x - prev_x) * y
         prev_x = x
         prev_y = max(prev_y, y)
 
-    # Last strip from rightmost x to the ideal corner (1.0)
-    # Not needed if ref=(0,0); total area correctly accumulated above.
     return min(max(hv, 0.0), 1.0)
 
 
-# ---------------------------------------------------------------------------
-# Run the four modes on a single scenario pool
-# ---------------------------------------------------------------------------
+#  Running four modes on a single scenario pool
 
 engine = OptimizationEngine()
 DEFAULT_WEIGHTS = WEIGHT_PROFILES["balanced"]   # (0.4, 0.3, 0.3)
 
 
 def _fitness_score(c: dict, pool: list[dict], weights: tuple[float, float, float]) -> float:
-    """
-    Compute the engine's native fitness_score (higher = better) for candidate *c*
-    using min-max normalisation across *pool*.  Mirrors OptimizationEngine._score_pool.
-    """
+    # Compute the engine's native fitness_score for candidate c, using min-max normalisation across pool.
+
     costs  = [x["total_cost"]    for x in pool]
     times  = [x["delivery_days"] for x in pool]
     rels   = [x["reliability"]   for x in pool]
@@ -169,16 +117,12 @@ def _fitness_score(c: dict, pool: list[dict], weights: tuple[float, float, float
 
 
 def _run_scenario(pool: list[dict], seed: int) -> dict[str, Any]:
-    """
-    Run all four modes on *pool* with the given random seed for the deep GA.
-    Returns per-mode best-candidate metrics.
-    """
+
     import services.optimization_engine as _eng_module
-    _eng_module._GA_RANDOM_SEED = seed          # vary seed per run
+    _eng_module._GA_RANDOM_SEED = seed         
 
     results: dict[str, Any] = {}
 
-    # ── Greedy ────────────────────────────────────────────────────────────
     t0 = time.perf_counter()
     greedy = engine._run_greedy(list(pool))
     results["greedy"] = {
@@ -187,7 +131,6 @@ def _run_scenario(pool: list[dict], seed: int) -> dict[str, Any]:
         "front":  greedy,
     }
 
-    # ── Fast Weighted ─────────────────────────────────────────────────────
     t0 = time.perf_counter()
     fast = engine._run_fast_optimization(list(pool), DEFAULT_WEIGHTS)
     results["fast"] = {
@@ -196,7 +139,6 @@ def _run_scenario(pool: list[dict], seed: int) -> dict[str, Any]:
         "front":  fast,
     }
 
-    # ── Deep GA ───────────────────────────────────────────────────────────
     t0 = time.perf_counter()
     deep = engine.run_deep_optimization(list(pool), DEFAULT_WEIGHTS)
     elapsed_deep = time.perf_counter() - t0
@@ -211,10 +153,7 @@ def _run_scenario(pool: list[dict], seed: int) -> dict[str, Any]:
 
     return results
 
-
-# ---------------------------------------------------------------------------
 # Aggregate statistics
-# ---------------------------------------------------------------------------
 
 def run_benchmark() -> None:
     print("=" * 70)
@@ -225,7 +164,6 @@ def run_benchmark() -> None:
 
     scenarios = _generate_scenarios()
 
-    # Per-mode accumulators
     acc: dict[str, dict] = {
         m: {"fitness": [], "cost": [], "time": [], "rel": [], "latency": []}
         for m in ("greedy", "fast", "deep")
@@ -246,9 +184,6 @@ def run_benchmark() -> None:
                 best = res[mode].get("best")
                 acc[mode]["latency"].append(res[mode]["time_s"])
                 if best:
-                    # Use engine's own fitness_score when available,
-                    # otherwise compute it against the full pool
-                    fs = best.get("fitness_score")
                     if fs is None:
                         fs = _fitness_score(best, pool, DEFAULT_WEIGHTS)
                     acc[mode]["fitness"].append(fs)
@@ -263,7 +198,6 @@ def run_benchmark() -> None:
 
     print(f"\n  Done. {N_SCENARIOS} scenarios processed.\n")
 
-    # ── Baseline means ────────────────────────────────────────────────────
     g_fitness = mean(acc["greedy"]["fitness"])
     g_cost    = mean(acc["greedy"]["cost"])
     g_time    = mean(acc["greedy"]["time"])
@@ -281,8 +215,7 @@ def run_benchmark() -> None:
     def pct_rel(vals: list[float]) -> float:
         return (mean(vals) - g_rel) / g_rel * 100.0
 
-    # ── Table XII ─────────────────────────────────────────────────────────
-    print("TABLE XII — Average performance across 120 test scenarios (30 runs each)")
+    print("TABLE XII - Average performance across 120 test scenarios (30 runs each)")
     print("-" * 73)
     print(f"{'Metric':<38} {'Greedy':>10} {'Fast Wtd':>10} {'Deep GA':>10}")
     print("-" * 73)
@@ -297,49 +230,41 @@ def run_benchmark() -> None:
         sign = "+" if v >= 0 else ""
         return f"{sign}{v:.1f}"
 
-    # Fitness score (higher = better, matches engine convention)
-    row("Fitness Score (↑ better)",
+    row("Fitness Score (higher better)",
         fmt(g_fitness),
         fmt(mean(acc["fast"]["fitness"])),
         fmt(mean(acc["deep"]["fitness"])))
 
-    # Fitness score % improvement vs greedy
     row("Fitness Score improvement (%)",
         "–",
         fmtp(pct_fitness(acc["fast"]["fitness"])),
         fmtp(pct_fitness(acc["deep"]["fitness"])))
 
-    # Raw cost change (greedy = cheapest by design)
     row("Raw cost vs greedy (%, +ve = saving)",
         "–",
         fmtp(pct_cost(acc["fast"]["cost"])),
         fmtp(pct_cost(acc["deep"]["cost"])))
 
-    # Delivery time
     row("Delivery time reduction (%)",
         "–",
         fmtp(pct_time(acc["fast"]["time"])),
         fmtp(pct_time(acc["deep"]["time"])))
 
-    # Reliability
     row("Reliability improvement (%)",
         "–",
         fmtp(pct_rel(acc["fast"]["rel"])),
         fmtp(pct_rel(acc["deep"]["rel"])))
 
-    # Hypervolume (deep only)
-    row("Hypervolume (normalised, ↑ better)",
+    row("Hypervolume (normalised, higher better)",
         "–", "–",
         fmt(mean(hv_acc)))
 
-    # Feasibility
     feas_pct = feasibility["feasible"] / max(feasibility["total"], 1) * 100.0
     row("Feasibility rate (%)",
         fmt(feas_pct, 1),
         fmt(feas_pct, 1),
         fmt(feas_pct, 1))
 
-    # Avg response time
     row("Avg response time (s)",
         fmt(mean(acc["greedy"]["latency"]), 4),
         fmt(mean(acc["fast"]["latency"]),   4),
@@ -347,7 +272,7 @@ def run_benchmark() -> None:
 
     print("-" * 73)
 
-    # ── Extended stats ────────────────────────────────────────────────────
+    # Extended stats
     print("\nExtended statistics:")
     print(f"  Deep GA hypervolume    mean ± std : "
           f"{mean(hv_acc):.4f} ± {stdev(hv_acc):.4f}")
@@ -358,7 +283,7 @@ def run_benchmark() -> None:
     print(f"  Deep GA fitness score  mean ± std : "
           f"{mean(acc['deep']['fitness']):.4f} ± {stdev(acc['deep']['fitness']):.4f}")
 
-    # ── Raw objective means ───────────────────────────────────────────────
+    # Raw objective means
     print("\nRaw objective means (all runs):")
     print(f"  {'Mode':<20} {'Avg Cost (KZT)':>17} {'Avg Days':>10} {'Avg Reliability':>17}")
     for mode, label in [

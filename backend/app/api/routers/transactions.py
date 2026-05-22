@@ -173,8 +173,6 @@ def _serialize_transaction(tx, current_user_id: str) -> dict[str, Any]:
         "can_sign": tx.status in ("CONTRACT_DRAFTED", "CONTRACT_SIGNING")
         and signature_by_role[my_role] != "SIGNED",
         "can_pay": my_role == "CUSTOMER" and tx.status == "FULLY_SIGNED",
-        # Business sequence:
-        # customer pays -> factory hands over to logist -> logist marks delivered -> customer confirms receipt
         "can_start_fulfillment": my_role == "FACTORY" and tx.status == "PAYMENT_CONFIRMED",
         "can_mark_in_progress": my_role == "LOGIST" and tx.status == "FULFILLMENT_STARTED",
         "can_accept_completion": my_role == "CUSTOMER" and tx.status == "IN_PROGRESS",

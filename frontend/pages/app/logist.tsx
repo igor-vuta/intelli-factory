@@ -849,7 +849,7 @@ export default function LogistWorkspacePage() {
             )}
             </section>
 
-            {/* ── Add Logistic Offer ─────────────────────────────────────── */}
+            {/* Add Logistic Offer */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
               {logisticOffers.length === 0 && (
                 <div className="mb-6 rounded-2xl border-2 border-[rgb(var(--accent))] bg-[rgb(var(--panel))] p-5">
@@ -878,7 +878,7 @@ export default function LogistWorkspacePage() {
                   />
                 </div>
 
-                {/* Base price + Currency (always visible) */}
+                {/* Base price + Currency */}
                 <div>
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
                     {copy.basePrice} <span className="text-red-400">*</span>

@@ -1,11 +1,7 @@
 """
 Unit and integration tests for services/optimization_engine.py
-
-Unit tests mock the Prisma ORM objects and exercise the pure-Python scoring
-logic without requiring a live database.
-
-Integration tests (marked @pytest.mark.integration) use the live DB seeded
-with fixed deterministic scenarios and verify end-to-end behaviour.
+Unit tests mock the Prisma ORM objects and exercise the pure-Python scoring logic.
+Integration tests (marked @pytest.mark.integration) use the live DB.
 """
 
 from __future__ import annotations
@@ -32,7 +28,6 @@ from services.optimization_engine import (  # noqa: E402
 def anyio_backend():
     return "asyncio"
 
-# ── helpers ──────────────────────────────────────────────────────────────────
 
 def _make_address(country_id="c1", region_id="r1", city_id="ci1"):
     return SimpleNamespace(country_id=country_id, region_id=region_id, city_id=city_id)
@@ -116,8 +111,6 @@ def _make_request(opt_profile="balanced", dest_address=None):
     )
 
 
-# ── Unit: _normalise ─────────────────────────────────────────────────────────
-
 def test_normalise_normal_range():
     assert _normalise(5.0, 0.0, 10.0) == pytest.approx(0.5)
 
@@ -131,15 +124,11 @@ def test_normalise_at_boundaries():
     assert _normalise(10.0, 0.0, 10.0) == pytest.approx(1.0)
 
 
-# ── Unit: WEIGHT_PROFILES ────────────────────────────────────────────────────
-
 def test_weight_profiles_sum_to_one():
     for name, weights in WEIGHT_PROFILES.items():
         total = sum(weights)
         assert abs(total - 1.0) < 1e-9, f"Profile '{name}' weights do not sum to 1.0 (got {total})"
 
-
-# ── Unit: _resolve_weights ───────────────────────────────────────────────────
 
 def test_resolve_weights_balanced():
     engine = OptimizationEngine()
@@ -155,8 +144,6 @@ def test_resolve_weights_none_falls_back_to_balanced():
     engine = OptimizationEngine()
     assert engine._resolve_weights(None) == WEIGHT_PROFILES["balanced"]
 
-
-# ── Unit: _is_feasible ───────────────────────────────────────────────────────
 
 def test_is_feasible_pass():
     engine = OptimizationEngine()
@@ -208,8 +195,6 @@ def test_is_feasible_no_coverage_areas_allows_all():
     assert engine._is_feasible(cand, req) is True
 
 
-# ── Unit: _score_pool ────────────────────────────────────────────────────────
-
 def _pool_from_candidates(*candidates):
     engine = OptimizationEngine()
     req    = _make_request()
@@ -227,7 +212,7 @@ def test_score_pool_single_candidate():
 
 
 def test_score_pool_orders_by_fitness_desc():
-    # c_cheap: low cost, low reliability → should rank well for "cost" profile
+    # c_cheap: low cost, low reliability - should rank well for "cost" profile
     c_cheap = _make_candidate(cid="cheap", total_cost=50000,  delivery_days=5, reliability=0.7)
     c_rel   = _make_candidate(cid="rel",   total_cost=120000, delivery_days=3, reliability=0.98)
     pool    = _pool_from_candidates(c_cheap, c_rel)
@@ -264,8 +249,6 @@ def test_score_breakdown_keys_present():
     assert "final_score" in bd
     assert "weights" in bd
 
-
-# ── Unit: run_deep_optimization ──────────────────────────────────────────────
 
 def test_deep_optimization_empty_pool():
     engine = OptimizationEngine()
@@ -319,8 +302,6 @@ def test_deep_optimization_reproducible_with_seed():
     assert run1 == run2, "Deep optimization must be deterministic with fixed seed"
 
 
-# ── Unit: compare_baselines (mocked DB) ─────────────────────────────────────
-
 @pytest.mark.anyio
 async def test_compare_baselines_missing_request():
     engine = OptimizationEngine()
@@ -363,8 +344,6 @@ async def test_compare_baselines_returns_all_strategies():
     assert result["greedy"][0]["id"] == "c2"
 
 
-# ── Unit: generate_candidates_for_request (mocked DB) ───────────────────────
-
 @pytest.mark.anyio
 async def test_generate_candidates_unknown_request():
     engine = OptimizationEngine()
@@ -389,9 +368,7 @@ async def test_generate_candidates_fast_mode_persists_and_returns():
         result = await engine.generate_candidates_for_request("req-1", mode="fast")
 
     assert len(result) == 2
-    # First result should be ranked 1
     assert result[0]["rank"] == 1
-    # Persist was called for each candidate
     assert mock_prisma.matchcandidate.update.call_count == 2
 
 
@@ -423,27 +400,22 @@ async def test_generate_candidates_deep_mode():
         assert "fitness_score" in item
 
 
-# ── Large-scale unit tests (150 mock candidates) ─────────────────────────────
-
 import random as _random_mod  # noqa: E402
 
 _RNG = _random_mod.Random(99999)
 
 # Build 150 synthetic candidates: 15 factories × 10 logists
-# - 5 budget factories:  cheap but slow/unreliable
-# - 5 mid factories:     balanced
-# - 5 premium factories: expensive but fast/reliable
 _FACTORY_PARAMS = (
     # (price_per_unit, qty_available)
-    [(140 + i * 5,  6000) for i in range(5)]   # budget
-    + [(178 + i * 4, 10000) for i in range(5)] # mid
-    + [(208 + i * 6, 12000) for i in range(5)] # premium
+    [(140 + i * 5,  6000) for i in range(5)]  
+    + [(178 + i * 4, 10000) for i in range(5)] 
+    + [(208 + i * 6, 12000) for i in range(5)] 
 )
 _LOGIST_PARAMS = (
     # (days_min, days_max, reliability, delivery_price)
-    [(1, 2,  0.97, 52000) for _ in range(2)]   # express
-    + [(4, 7, 0.88, 28000) for _ in range(4)]  # standard
-    + [(9, 14, 0.71, 14000) for _ in range(4)] # economy
+    [(1, 2,  0.97, 52000) for _ in range(2)]   
+    + [(4, 7, 0.88, 28000) for _ in range(4)]  
+    + [(9, 14, 0.71, 14000) for _ in range(4)] 
 )
 
 
@@ -535,9 +507,8 @@ def test_large_scale_profiles_select_different_winners():
         name: engine._score_pool(pool, w)[0]["id"]
         for name, w in WEIGHT_PROFILES.items()
     }
-    # Not all profiles should pick the same candidate
     assert len(set(winners.values())) > 1, (
-        "All weight profiles picked the same top candidate — scoring likely broken"
+        "All weight profiles picked the same top candidate - scoring likely broken"
     )
 
 
@@ -578,9 +549,7 @@ async def test_large_scale_generate_candidates_mocked():
     assert len(result) == 150
     assert result[0]["rank"] == 1
     assert result[-1]["rank"] == 150
-    # All 150 candidates should have been persisted
     assert mock_prisma.matchcandidate.update.call_count == 150
-    # Every result should have score_breakdown
     for r in result:
         assert "score_breakdown" in r
         assert 0.0 <= r["fitness_score"] <= 1.0

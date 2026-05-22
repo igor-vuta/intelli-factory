@@ -1,26 +1,18 @@
-/**
- * Google-search-bar style combobox.
- * Type to filter, click (or press Enter) to select, click × to clear.
- */
 import { useMemo, useRef, useState } from 'react';
 
 export type ComboboxOption = {
   id: string;
-  /** Primary label shown in the list and the chip when selected */
   label: string;
-  /** Optional secondary info shown in smaller text */
   sublabel?: string;
 };
 
 type Props = {
   options: ComboboxOption[];
-  /** Currently selected option id, or '' for nothing selected */
   value: string;
   onChange: (id: string) => void;
   placeholder: string;
   label: string;
   disabled?: boolean;
-  /** Allow clearing back to empty (shows "— None" as first list item) */
   allowEmpty?: boolean;
   required?: boolean;
 };
@@ -70,7 +62,7 @@ export default function Combobox({
       </label>
 
       {selected ? (
-        /* ── selected chip ── */
+        /* selected chip */
         <div className={`${base} flex items-center justify-between`}>
           <div className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{selected.label}</span>
@@ -92,7 +84,7 @@ export default function Combobox({
           )}
         </div>
       ) : (
-        /* ── search input + dropdown ── */
+        /* search input + dropdown */
         <div className="relative">
           <input
             ref={inputRef}
@@ -127,7 +119,7 @@ export default function Combobox({
                   }
                   className="cursor-pointer px-3 py-2 text-sm text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/30"
                 >
-                  — None
+                  - None
                 </li>
               )}
               {filtered.map((opt) => (

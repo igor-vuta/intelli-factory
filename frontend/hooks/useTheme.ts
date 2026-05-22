@@ -9,7 +9,6 @@ const THEME_ACCENT_HEX: Record<Theme, string> = THEME_PRESETS.reduce(
   {} as Record<Theme, string>
 );
 
-/** Cached raw SVG source for the favicon (fetched once, recolored per theme). */
 let _faviconSvgRaw: string | null = null;
 
 function getFaviconSvg(): Promise<string | null> {
@@ -25,8 +24,6 @@ export function updateFavicon(accentHex: string): void {
     if (!svg) return;
     const recolored = svg.replace(/fill="#[0-9a-fA-F]{3,8}"/gi, `fill="${accentHex}"`);
     const dataUrl = `data:image/svg+xml,${encodeURIComponent(recolored)}`;
-    // Browsers only re-render the favicon when a *new* <link> is appended —
-    // mutating an existing element's href is silently ignored by most engines.
     document
       .querySelectorAll<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"]')
       .forEach((el) => el.remove());
@@ -38,7 +35,7 @@ export function updateFavicon(accentHex: string): void {
   });
 }
 
-/** Applies the theme class to <html> so CSS vars cascade everywhere (body, portals, scrollbars). */
+/* Applies the theme class to <html> so CSS vars cascade everywhere. */
 function applyThemeToRoot(theme: Theme) {
   const root = document.documentElement;
   root.classList.forEach((cls) => {
@@ -69,7 +66,6 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
     try {
       localStorage.setItem(STORAGE_KEY, newTheme);
     } catch {
-      /* ignore */
     }
   }
 
