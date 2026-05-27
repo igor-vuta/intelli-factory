@@ -4,7 +4,7 @@ from typing import Literal
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from db import prisma
 from services.auth_constants import (
@@ -45,7 +45,7 @@ UserRole = Literal["CUSTOMER", "FACTORY", "LOGIST", "ADMIN"]
 
 
 class RegisterRequest(BaseModel):
-    email: str = Field(..., min_length=5, max_length=320)
+    email: EmailStr = Field(..., max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
     role: UserRole
     display_name: str = Field(..., min_length=2, max_length=120)
@@ -76,11 +76,11 @@ class VerifyEmailRequest(BaseModel):
 
 
 class ResendVerificationRequest(BaseModel):
-    email: str = Field(..., min_length=5, max_length=320)
+    email: EmailStr = Field(..., max_length=320)
 
 
 class LoginRequest(BaseModel):
-    email: str = Field(..., min_length=5, max_length=320)
+    email: EmailStr = Field(..., max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
 
 
