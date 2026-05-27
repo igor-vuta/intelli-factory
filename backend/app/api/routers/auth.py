@@ -1,10 +1,12 @@
 import logging
+import re
 import secrets
 from typing import Literal
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, EmailStr, Field
+from email_validator import EmailNotValidError, validate_email
+from pydantic import BaseModel, Field, field_validator
 
 from db import prisma
 from services.auth_constants import (
@@ -44,8 +46,31 @@ router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 UserRole = Literal["CUSTOMER", "FACTORY", "LOGIST", "ADMIN"]
 
 
+def _validate_auth_email(value: str) -> str:
+    candidate = value.strip()
+    try:
+        normalized = validate_email(
+            candidate,
+            check_deliverability=False,
+            test_environment=True,
+        ).normalized
+    except EmailNotValidError as exc:
+        # email-validator disallows reserved domains (for example, .local);
+        # permit them for local demo/testing accounts with basic syntax checks.
+        if re.fullmatch(r"[^@\s]+@[^@\s]+\.local", candidate, flags=re.IGNORECASE):
+            local_part, domain_part = candidate.rsplit("@", 1)
+            normalized = f"{local_part}@{domain_part.lower()}"
+        else:
+            raise ValueError(f"value is not a valid email address: {exc}") from exc
+
+    if len(normalized) > 320:
+        raise ValueError("value must be at most 320 characters")
+
+    return normalized
+
+
 class RegisterRequest(BaseModel):
-    email: EmailStr = Field(..., max_length=320)
+    email: str = Field(..., min_length=5, max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
     role: UserRole
     display_name: str = Field(..., min_length=2, max_length=120)
@@ -65,6 +90,11 @@ class RegisterRequest(BaseModel):
     initial_offer_currency_code: str | None = Field(None, min_length=3, max_length=3)
     initial_offer_description: str | None = Field(None, max_length=500)
 
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return _validate_auth_email(value)
+
 
 class RegisterResponse(BaseModel):
     status: str
@@ -76,12 +106,22 @@ class VerifyEmailRequest(BaseModel):
 
 
 class ResendVerificationRequest(BaseModel):
-    email: EmailStr = Field(..., max_length=320)
+    email: str = Field(..., min_length=5, max_length=320)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return _validate_auth_email(value)
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr = Field(..., max_length=320)
+    email: str = Field(..., min_length=5, max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        return _validate_auth_email(value)
 
 
 class AuthUserResponse(BaseModel):
