@@ -184,6 +184,7 @@ def run_benchmark() -> None:
                 best = res[mode].get("best")
                 acc[mode]["latency"].append(res[mode]["time_s"])
                 if best:
+                    fs = best.get("fitness_score")
                     if fs is None:
                         fs = _fitness_score(best, pool, DEFAULT_WEIGHTS)
                     acc[mode]["fitness"].append(fs)
