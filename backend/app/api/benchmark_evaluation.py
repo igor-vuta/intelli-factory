@@ -12,7 +12,7 @@ _API_ROOT = Path(__file__).resolve().parent
 if str(_API_ROOT) not in sys.path:
     sys.path.insert(0, str(_API_ROOT))
 
-from services.optimization_engine import (
+from services.optimization_engine import (  # noqa: E402
     WEIGHT_PROFILES,
     OptimizationEngine,
     _normalise,

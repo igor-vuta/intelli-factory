@@ -107,10 +107,10 @@ async def seed(with_reference_geo: bool = False) -> None:
 
         customer_user = await _ensure_user(prisma, "customer.demo@intelli.local", "CUSTOMER")
         customer_user_2 = await _ensure_user(prisma, "buyer.2@intelli.local", "CUSTOMER")
-        factory_user_demo = await _ensure_user(prisma, "factory.demo@intelli.local", "FACTORY")
+        factory_user_demo = await _ensure_user(prisma, "factory.demo@intelli.local", "FACTORY")  # noqa: F841
         factory_user_1 = await _ensure_user(prisma, "factory.textile@intelli.local", "FACTORY")
         factory_user_2 = await _ensure_user(prisma, "factory.electro@intelli.local", "FACTORY")
-        logist_user_demo = await _ensure_user(prisma, "logist.demo@intelli.local", "LOGIST")
+        logist_user_demo = await _ensure_user(prisma, "logist.demo@intelli.local", "LOGIST")  # noqa: F841
         logist_user_1 = await _ensure_user(prisma, "logist.regional@intelli.local", "LOGIST")
         logist_user_2 = await _ensure_user(prisma, "logist.fast@intelli.local", "LOGIST")
         admin_user = await _ensure_user(prisma, "admin.demo@intelli.local", "ADMIN")
