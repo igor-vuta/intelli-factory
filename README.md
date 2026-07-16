@@ -320,7 +320,8 @@ poetry run python benchmark_evaluation.py
 | Backend | Render free tier | https://intelli-factory-api.onrender.com |
 | Database | Aiven PostgreSQL 15 | via `DATABASE_URL` env var |
 
-> **Note:** Render free tier cold-starts in ~50 s on the first request.
+> **Note:** free-tier Render & Aiven spin down idle instances. After opening the register page,
+> allow ~90 s for the backend to wake — the country list loads from the backend once it's up.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -328,7 +329,7 @@ poetry run python benchmark_evaluation.py
 
 ## Contact
 
-**Igor Vuta** - BSc Computer Science, De Montfort University - [igor_vuta@proton.me](mailto:igor_vuta@proton.me)
+**Igor Vuta** - BSc (Hons) Computer Science, First-Class Honours, De Montfort University - [igor_vuta@proton.me](mailto:igor_vuta@proton.me)
 **Supervisor:** Dr Shengxiang Yang, School of Computer Science and Informatics
 
 GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/igor-vuta-b88017390
