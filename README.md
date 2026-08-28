@@ -27,6 +27,7 @@ Multi-Objective Supply Chain Optimisation Platform - BSc Computer Science, De Mo
 <summary>Table of Contents</summary>
 <ol>
 <li><a href="#about">About</a></li>
+<li><a href="#screenshots">Screenshots</a></li>
 <li><a href="#benchmark-results">Benchmark Results</a></li>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#tech-stack">Tech Stack</a></li>
@@ -55,7 +56,9 @@ Multi-Objective Supply Chain Optimisation Platform - BSc Computer Science, De Mo
 Intelli-Factory is a B2B2C platform that automates supply chain matching between manufacturers, customers, and logistics providers.
 It solves the **Supply Chain Trilemma** - balancing cost, delivery speed, and reliability - using evolutionary computation (NSGA-II genetic algorithm via DEAP).
 
-**Research question:** does weighted algorithmic matching outperform manual (greedy, cheapest-first) coordination under defined criteria? *Answer: yes - measurably (see [Benchmark Results](#benchmark-results)).*
+**Research question:** does weighted multi-objective matching outperform a greedy, cheapest-first baseline under defined criteria? *Answer: yes - measurably (see [Benchmark Results](#benchmark-results)).*
+
+The real-world motivation is the manual phone-and-WhatsApp coordination still common in the Almaty trading sector. The **measured** comparison, though, is algorithm against algorithm: the Greedy baseline strategy against the Deep GA, both implemented in this codebase and run over identical scenarios.
 
 The platform covers the full workflow - request → bidding → optimisation → three-party contract signing → payment → fulfilment tracking - across four user roles (Customer, Factory, Logistics Provider, Administrator), with a nine-state request lifecycle enforced by explicit state machines and atomic database transactions.
 
@@ -66,6 +69,33 @@ Three optimisation strategies are available per admin request:
 | **Greedy** | Sort by lowest raw cost (baseline) | instant |
 | **Fast** | Min-max normalised weighted-sum scoring | < 0.001 s |
 | **Deep (GA)** | NSGA-II Pareto-front search via DEAP - population 100, 80 generations, tournament selection (k=3), Hall-of-Fame elitism, knee-point selection by customer weight profile | 0.069 s avg |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Screenshots
+
+Every screenshot below is the deployed system at https://intelli-factory-frontend.vercel.app/, not a mockup.
+
+<div align="center">
+<img src="docs/screenshots/01-landing-page.png" alt="Landing page - the supply-chain orchestration hero over a live flow monitor showing request, match, contract and payment stages, with an EN/RU/KK language switcher and a six-theme selector in the header" width="88%" />
+<br /><em>Landing page - trilingual (EN / RU / KK) with six selectable themes.</em>
+<br /><br />
+<img src="docs/screenshots/02-register-verify.png" alt="Registration and email verification screen" width="88%" />
+<br /><em>Registration with Brevo email verification. Argon2id hashing and server-side sessions behind it - see <a href="#security">Security</a>.</em>
+<br /><br />
+<img src="docs/screenshots/03-customer-workspace.png" alt="Customer workspace showing requests and their live status through the nine-state lifecycle" width="88%" />
+<br /><em>Customer workspace - raise a request and track it through the nine-state lifecycle.</em>
+<br /><br />
+<img src="docs/screenshots/04-factory-workspace.png" alt="Factory workspace showing published inventory and incoming candidate matches" width="88%" />
+<br /><em>Factory workspace - publish inventory once, get matched automatically.</em>
+<br /><br />
+<img src="docs/screenshots/05-logistics-workspace.png" alt="Logistics provider workspace showing route coverage, pricing constraints and execution tracking" width="88%" />
+<br /><em>Logistics workspace - coverage, pricing constraints, and execution tracking.</em>
+</div>
+
+> **Waking the demo:** the backend runs on a free Render tier and the database on a free Aiven tier, so both spin down when idle. Open the site, then allow roughly 90 seconds on first load - the country list populating on the register page is the signal that the API is up.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
