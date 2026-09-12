@@ -23,7 +23,7 @@
     "format:ts": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:py": "bash scripts/format-python.sh",
     "test": "echo \"Tests pending\"",
-    "prepare": "husky install || true"
+    "prepare": "node .husky/install.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
@@ -41,7 +41,7 @@
   "lint-staged": {
     "frontend/**/*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix --max-warnings=0"
+      "npm exec --workspace=frontend -- eslint --fix --max-warnings=0"
     ],
     "*.{json,md}": [
       "prettier --write"

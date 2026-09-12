@@ -138,7 +138,11 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!addressValue?.regionName?.trim() || !addressValue?.cityName?.trim() || !addressValue?.street?.trim()) {
+    if (
+      !addressValue?.regionName?.trim() ||
+      !addressValue?.cityName?.trim() ||
+      !addressValue?.street?.trim()
+    ) {
       setError(copy.addressHint);
       return;
     }
@@ -221,7 +225,12 @@ export default function RegisterPage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <PresetIcon src="/favicon/favicon.svg" alt="Intelli-Factory" size={32} className="rounded-md" />
+            <PresetIcon
+              src="/favicon/favicon.svg"
+              alt="Intelli-Factory"
+              size={32}
+              className="rounded-md"
+            />
             <span>{copy.brand}</span>
           </Link>
 
@@ -250,7 +259,6 @@ export default function RegisterPage() {
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.registerSubtitle}</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-
             <div>
               <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.email}
@@ -281,7 +289,10 @@ export default function RegisterPage() {
                 />
               </div>
               <div>
-                <label htmlFor="confirmPassword" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                <label
+                  htmlFor="confirmPassword"
+                  className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                >
                   {copy.confirmPassword}
                 </label>
                 <input
@@ -336,7 +347,10 @@ export default function RegisterPage() {
 
             {role !== 'CUSTOMER' && (
               <div>
-                <label htmlFor="contactName" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                <label
+                  htmlFor="contactName"
+                  className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                >
                   {copy.contactNameOptional}
                 </label>
                 <input
@@ -352,9 +366,7 @@ export default function RegisterPage() {
             )}
 
             <div>
-              <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.address}
-              </label>
+              <label className="mb-1 block text-sm text-[rgb(var(--muted))]">{copy.address}</label>
               <AddressPicker
                 value={addressValue}
                 onChange={setAddressValue}
@@ -407,62 +419,71 @@ export default function RegisterPage() {
                 onToggle={(e) => setShowLogistOffer((e.currentTarget as HTMLDetailsElement).open)}
                 className="rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-4 py-3"
               >
-                  <summary className="cursor-pointer select-none text-sm font-medium text-[rgb(var(--muted))]">
-                    {copy.setupDeliveryProfile}
-                  </summary>
+                <summary className="cursor-pointer select-none text-sm font-medium text-[rgb(var(--muted))]">
+                  {copy.setupDeliveryProfile}
+                </summary>
 
-                  <div className="mt-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="initialOfferBasePrice" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                          {copy.initialOfferBasePrice}
-                        </label>
-                        <input
-                          id="initialOfferBasePrice"
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={initialOfferBasePrice}
-                          onChange={(e) => setInitialOfferBasePrice(e.target.value)}
-                          className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="initialOfferCurrency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                          {copy.initialOfferCurrency}
-                        </label>
-                        <select
-                          id="initialOfferCurrency"
-                          value={initialOfferCurrency}
-                          onChange={(e) => setInitialOfferCurrency(e.target.value)}
-                          disabled={currenciesLoading || currencies.length === 0}
-                          className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
-                        >
-                          <option value="">-</option>
-                          {currencies.map((item) => (
-                            <option key={item.code} value={item.code}>
-                              {formatCurrencyOptionLabel(item.code, item.name)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label htmlFor="initialOfferDescription" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                        {copy.initialOfferDescription}
+                      <label
+                        htmlFor="initialOfferBasePrice"
+                        className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                      >
+                        {copy.initialOfferBasePrice}
                       </label>
-                      <textarea
-                        id="initialOfferDescription"
-                        rows={3}
-                        maxLength={500}
-                        value={initialOfferDescription}
-                        onChange={(e) => setInitialOfferDescription(e.target.value)}
-                        className="focus-theme w-full resize-none rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2 text-sm"
+                      <input
+                        id="initialOfferBasePrice"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={initialOfferBasePrice}
+                        onChange={(e) => setInitialOfferBasePrice(e.target.value)}
+                        className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
                       />
                     </div>
+                    <div>
+                      <label
+                        htmlFor="initialOfferCurrency"
+                        className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                      >
+                        {copy.initialOfferCurrency}
+                      </label>
+                      <select
+                        id="initialOfferCurrency"
+                        value={initialOfferCurrency}
+                        onChange={(e) => setInitialOfferCurrency(e.target.value)}
+                        disabled={currenciesLoading || currencies.length === 0}
+                        className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
+                      >
+                        <option value="">-</option>
+                        {currencies.map((item) => (
+                          <option key={item.code} value={item.code}>
+                            {formatCurrencyOptionLabel(item.code, item.name)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </details>
+
+                  <div>
+                    <label
+                      htmlFor="initialOfferDescription"
+                      className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                    >
+                      {copy.initialOfferDescription}
+                    </label>
+                    <textarea
+                      id="initialOfferDescription"
+                      rows={3}
+                      maxLength={500}
+                      value={initialOfferDescription}
+                      onChange={(e) => setInitialOfferDescription(e.target.value)}
+                      className="focus-theme w-full resize-none rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </details>
             )}
 
             {error && (
