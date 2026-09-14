@@ -40,6 +40,8 @@ elif name == 'sha256sum':
     sys.exit(0 if hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest() == expected else 1)
 elif name == 'gunzip': print('image data')
 elif name in ['sudo', 'docker']:
+    if 'load' in args:
+        sys.stdin.read()
     if 'pg_dump' in args:
         print('backup')
         sys.exit(int(os.environ.get('BACKUP_FAIL', '0')))

@@ -1,3 +1,4 @@
+import CategoryProposalPanel from '../../components/CategoryProposalPanel';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
 import { workspacePath } from '../../lib/navigation';
 import { useRouter } from 'next/router';
@@ -380,6 +381,7 @@ export default function AdminWorkspacePage() {
       onLogout={handleLogout}
     >
       <div className="workspace-panels">
+        <CategoryProposalPanel locale={locale} admin />
         <section data-section="operations" className="surface-1 rounded-2xl p-6 sm:p-8">
           <h1 id="overview" className="slide-up text-2xl font-semibold sm:text-3xl">
             {copy.adminTitle}
