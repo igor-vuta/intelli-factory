@@ -38,9 +38,12 @@ export type BootstrapCategory = {
   id: string;
   name: string;
   slug: string;
+  parent_id?: string | null;
+  attributes_schema?: import('../components/CategoryProposalPanel').AttributeSchema;
 };
 
 export type BootstrapItem = {
+  characteristics_schema?: import('../components/CategoryProposalPanel').AttributeSchema;
   id: string;
   name: string;
   category_id: string;
@@ -335,8 +338,8 @@ export function getCurrencies() {
   return request<CurrencyItem[]>('/auth/currencies');
 }
 
-export function getRequestsBootstrap() {
-  return request<RequestsBootstrap>('/requests/bootstrap');
+export function getRequestsBootstrap(locale: Locale = 'en') {
+  return request<RequestsBootstrap>(`/requests/bootstrap?locale=${locale}`);
 }
 
 export function createCustomerRequest(payload: CreateRequestPayload) {
@@ -704,5 +707,12 @@ export function saveAccountLocale(preferred_locale: Locale) {
   return request<AuthStatusResponse>('/auth/preferences', {
     method: 'PATCH',
     body: JSON.stringify({ preferred_locale }),
+  });
+}
+
+export function categoryApi<T>(path: string, method = 'GET', body?: unknown) {
+  return request<T>(`/categories${path}`, {
+    method,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }

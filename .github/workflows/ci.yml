@@ -29,6 +29,21 @@ jobs:
   backend:
     name: Ruff and pytest
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15-bookworm
+        env:
+          POSTGRES_USER: factory_test
+          POSTGRES_PASSWORD: category-ci-only
+          POSTGRES_DB: factory_categories_ci
+        ports:
+          - 55439:5432
+        options: >-
+          --health-cmd "pg_isready -U factory_test -d factory_categories_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://factory_test:category-ci-only@127.0.0.1:55439/factory_categories_ci
+      CATEGORY_TEST_DATABASE_URL: postgresql://factory_test:category-ci-only@127.0.0.1:55439/factory_categories_ci
     defaults:
       run:
         working-directory: backend/app/api
@@ -41,7 +56,10 @@ jobs:
       - run: uv venv
       - run: uv pip install --require-hashes -r requirements.txt
       - run: uv pip install pytest==7.4.4 ruff==0.1.15
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: uv run --no-project prisma generate
+      - run: uv run --no-project prisma migrate deploy
+      - run: uv run --no-project python verify_category_migration.py
       - run: uv run --no-project ruff check --config pyproject.toml .
       - run: uv run --no-project pytest tests/ -q
 

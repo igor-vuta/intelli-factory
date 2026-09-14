@@ -103,6 +103,8 @@ model User {
   signatures                 Signature[]
   audit_events               EventLog[]
   ratings_given              Rating[]
+  category_proposals CategoryProposal[] @relation("ProposalSubmitter")
+  category_decisions CategoryProposal[] @relation("ProposalReviewer")
 
   @@index([role])
   @@index([deleted_at])
@@ -195,6 +197,8 @@ model FactoryProfile {
   primary_address    Address?  @relation("FactoryPrimaryAddress", fields: [primary_address_id], references: [id])
   preferred_currency Currency? @relation("FactoryPreferredCurrency", fields: [preferred_currency_code], references: [code])
 
+  production_categories FactoryCategory[]
+  inventory_drafts InventoryDraft[]
   inventory_entries  InventoryEntry[]
 
   @@index([deleted_at])
@@ -356,6 +360,10 @@ model Category {
   updated_at       DateTime              @updatedAt
   deleted_at       DateTime?
 
+  capabilities FactoryCategory[]
+  proposals CategoryProposal[] @relation("ProposalCategory")
+  proposed_children CategoryProposal[] @relation("ProposalParent")
+  attributes_schema Json?
   parent           Category?             @relation("CategoryTree", fields: [parent_id], references: [id])
   children         Category[]            @relation("CategoryTree")
   items            Item[]
@@ -676,4 +684,49 @@ model Rating {
 
   @@unique([transaction_id, rated_by_user_id, target_type])
   @@index([target_type, target_profile_id])
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model FactoryCategory {
+  id String @id @default(uuid()) @db.Uuid
+  factory_profile_id String @db.Uuid
+  category_id String @db.Uuid
+  confirmed_at DateTime?
+  is_active Boolean @default(true)
+  factory_profile FactoryProfile @relation(fields: [factory_profile_id], references: [id])
+  category Category @relation(fields: [category_id], references: [id])
+  @@unique([factory_profile_id, category_id])
+}
+
+model CategoryProposal {
+  id String @id @default(uuid()) @db.Uuid
+  submitter_id String @db.Uuid
+  name String
+  description String
+  parent_id String? @db.Uuid
+  status ProposalStatus @default(PENDING)
+  category_id String? @db.Uuid
+  reviewer_id String? @db.Uuid
+  decision_note String?
+  decided_at DateTime?
+  created_at DateTime @default(now())
+  submitter User @relation("ProposalSubmitter", fields: [submitter_id], references: [id])
+  reviewer User? @relation("ProposalReviewer", fields: [reviewer_id], references: [id])
+  parent Category? @relation("ProposalParent", fields: [parent_id], references: [id])
+  category Category? @relation("ProposalCategory", fields: [category_id], references: [id])
+  @@index([submitter_id, status])
+}
+
+model InventoryDraft {
+  id String @id @default(uuid()) @db.Uuid
+  factory_profile_id String @db.Uuid
+  data Json
+  updated_at DateTime @updatedAt
+  factory_profile FactoryProfile @relation(fields: [factory_profile_id], references: [id])
+  @@index([factory_profile_id])
 }

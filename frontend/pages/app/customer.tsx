@@ -1,3 +1,6 @@
+import CategoryProposalPanel from '../../components/CategoryProposalPanel';
+import AttributeFields from '../../components/AttributeFields';
+import { categoryCopy } from '../../lib/categoryCopy';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import OrderProgress from '../../components/OrderProgress';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -427,6 +430,8 @@ function NewRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const categoryLocale = getLocaleFromQuery(useRouter().query.lang);
+  const [attributes, setAttributes] = useState<Record<string, unknown>>({});
   const [categoryText, setCategoryText] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [itemText, setItemText] = useState('');
@@ -444,10 +449,12 @@ function NewRequestModal({
 
   const categoryOptions = useMemo<ComboboxOption[]>(
     () =>
-      categories.map((c) => ({
-        id: c.id,
-        label: c.name,
-      })),
+      categories
+        .filter((c) => !categories.some((child) => child.parent_id === c.id))
+        .map((c) => ({
+          id: c.id,
+          label: c.name,
+        })),
     [categories]
   );
 
@@ -490,6 +497,7 @@ function NewRequestModal({
   function handleCategoryChange(text: string, id: string) {
     setCategoryText(text);
     setCategoryId(id);
+    setAttributes({});
     // clear item match only if the matched item doesn't belong to new category
     if (itemId) {
       const match = items.find((i) => i.id === itemId);
@@ -533,8 +541,8 @@ function NewRequestModal({
       setError('Please describe the item you need');
       return;
     }
-    if (!categoryText.trim()) {
-      setError('Please choose or type a category');
+    if (!categoryId) {
+      setError(categoryCopy(categoryLocale).select);
       return;
     }
     if (!quantityUnitText.trim()) {
@@ -546,7 +554,7 @@ function NewRequestModal({
     try {
       const result = await createCustomerRequest({
         category_id: categoryId || undefined,
-        category_name_text: categoryText.trim(),
+        requested_characteristics_json: attributes,
         item_id: itemId || undefined,
         requested_name_text: itemText.trim(),
         quantity: qty,
@@ -603,11 +611,21 @@ function NewRequestModal({
             text={categoryText}
             selectedId={categoryId}
             onChange={handleCategoryChange}
-            placeholder="Type category or choose existing (e.g. Textile, Electronics, Food)"
+            placeholder={categoryCopy(categoryLocale).select}
             label="Category"
             required
           />
 
+          <AttributeFields
+            schema={categories.find((c) => c.id === categoryId)?.attributes_schema}
+            value={attributes}
+            onChange={setAttributes}
+          />
+          <AttributeFields
+            schema={items.find((i) => i.id === itemId)?.characteristics_schema}
+            value={attributes}
+            onChange={setAttributes}
+          />
           {/* Step 2 \u2014 Item name: free text with catalogue suggestions */}
           <SearchableInput
             suggestions={itemSuggestions}
@@ -940,7 +958,7 @@ export default function CustomerWorkspacePage() {
         }
 
         const [bootstrap, rows, txRows] = await Promise.all([
-          getRequestsBootstrap(),
+          getRequestsBootstrap(locale),
           listRequests(),
           listMyTransactions(),
         ]);
@@ -1123,6 +1141,7 @@ export default function CustomerWorkspacePage() {
       onCreate={() => setShowModal(true)}
     >
       <div className="workspace-panels">
+        <CategoryProposalPanel locale={locale} />
         <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

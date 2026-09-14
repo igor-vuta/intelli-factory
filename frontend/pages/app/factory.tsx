@@ -1,21 +1,20 @@
+import FactorySetup from '../../components/FactorySetup';
+import { categoryCopy } from '../../lib/categoryCopy';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
 import { workspacePath } from '../../lib/navigation';
 import Modal from '../../components/Modal';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../../lib/authClient';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
 import Combobox, { type ComboboxOption } from '../../components/Combobox';
-import SearchableInput from '../../components/SearchableInput';
 import {
   advanceTransactionFulfillment,
   type ContractSigningPayload,
   createFactoryBid,
-  createInventoryEntry,
   getOpenRequests,
-  getRequestsBootstrap,
   listMyTransactions,
   listMyFactoryBids,
   listMyInventoryEntries,
@@ -23,17 +22,12 @@ import {
   me,
   signTransaction,
   updateInventoryEntryStatus,
-  type BootstrapAddress,
-  type BootstrapCategory,
-  type BootstrapCountry,
-  type BootstrapCurrency,
-  type BootstrapItem,
   type InventoryEntryItem,
   type MatchCandidate,
   type OpenRequest,
   type WorkflowTransaction,
 } from '../../lib/authClient';
-import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
+import { formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 
 const TABLE_PAGE_SIZE = 5;
@@ -52,7 +46,7 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [inventoryId, setInventoryId] = useState(inventory[0]?.id ?? '');
-  const [quotedQty, setQuotedQty] = useState(request.quantity);
+  const quotedQty = request.quantity;
   const [note, setNote] = useState('');
 
   const inventoryOptions = useMemo<ComboboxOption[]>(
@@ -141,7 +135,7 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
               min="0.01"
               step="any"
               value={quotedQty}
-              onChange={(e) => setQuotedQty(e.target.value)}
+              readOnly
               className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
               required
             />
@@ -191,16 +185,26 @@ export default function FactoryWorkspacePage() {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
+  const [eligibleInventory, setEligibleInventory] = useState<string[]>([]);
+  const [setupLoaded, setSetupLoaded] = useState(false);
+  const [setupRevision, setSetupRevision] = useState(0);
+  const handleReadiness = useCallback((ids: string[]) => {
+    setEligibleInventory(ids);
+    setSetupLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (setupLoaded && !eligibleInventory.length && router.isReady && !router.query.view) {
+      void router.replace(
+        { pathname: router.pathname, query: { ...router.query, view: 'inventory' } },
+        undefined,
+        { shallow: true }
+      );
+    }
+  }, [setupLoaded, eligibleInventory.length, router]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [addresses, setAddresses] = useState<BootstrapAddress[]>([]);
-  const [countries, setCountries] = useState<BootstrapCountry[]>([]);
-  const [currencies, setCurrencies] = useState<BootstrapCurrency[]>([]);
-  const [categories, setCategories] = useState<BootstrapCategory[]>([]);
-  const [items, setItems] = useState<BootstrapItem[]>([]);
   const [inventory, setInventory] = useState<InventoryEntryItem[]>([]);
   const [openRequests, setOpenRequests] = useState<OpenRequest[]>([]);
   const [myBids, setMyBids] = useState<MatchCandidate[]>([]);
@@ -366,21 +370,12 @@ export default function FactoryWorkspacePage() {
     if (inventoryPage > inventoryTotalPages) setInventoryPage(inventoryTotalPages);
   }, [inventoryPage, inventoryTotalPages]);
 
-  const [factoryCategoryText, setFactoryCategoryText] = useState('');
-  const [factoryCategoryId, setFactoryCategoryId] = useState('');
-  const [itemText, setItemText] = useState('');
-  const [itemId, setItemId] = useState('');
-  const [unitText, setUnitText] = useState('pcs');
-  const [unitId, setUnitId] = useState('pcs');
-  const [stockAddressId, setStockAddressId] = useState('');
-  const [useManualStockAddress, setUseManualStockAddress] = useState(false);
-  const [stockCountryCode, setStockCountryCode] = useState('');
-  const [stockRegionName, setStockRegionName] = useState('');
-  const [stockCityName, setStockCityName] = useState('');
-  const [stockStreet, setStockStreet] = useState('');
-  const [quantityAvailable, setQuantityAvailable] = useState('500');
-  const [pricePerUnit, setPricePerUnit] = useState('25');
-  const [currencyCode, setCurrencyCode] = useState('USD');
+  useEffect(() => {
+    if (eligibleInventory.length)
+      void listMyInventoryEntries()
+        .then(setInventory)
+        .catch(() => setError(categoryCopy(locale).error));
+  }, [eligibleInventory, locale]);
 
   async function refreshInventory() {
     const entries = await listMyInventoryEntries();
@@ -413,37 +408,17 @@ export default function FactoryWorkspacePage() {
           await router.replace(workspacePath(auth.user.role, locale));
           return;
         }
-        const [bootstrap, entries, open, bids, txRows] = await Promise.all([
-          getRequestsBootstrap(),
+        const [entries, open, bids, txRows] = await Promise.all([
           listMyInventoryEntries(),
           getOpenRequests(),
           listMyFactoryBids(),
           listMyTransactions(),
         ]);
         if (cancelled) return;
-        setCategories(bootstrap.categories);
-        setItems(bootstrap.items);
-        setAddresses(bootstrap.addresses);
-        setCountries(bootstrap.countries ?? []);
-        setCurrencies(bootstrap.currencies);
         setInventory(entries);
         setOpenRequests(open);
         setMyBids(bids);
         setTransactions(txRows);
-        if (bootstrap.user.primary_address_id) {
-          setStockAddressId(bootstrap.user.primary_address_id);
-        } else if (bootstrap.addresses[0]) {
-          setStockAddressId(bootstrap.addresses[0].id);
-        }
-        if (bootstrap.user.registration_country_code) {
-          setStockCountryCode(bootstrap.user.registration_country_code);
-        } else if (bootstrap.countries[0]) {
-          setStockCountryCode(bootstrap.countries[0].code);
-        }
-        if (bootstrap.user.registration_address) {
-          setStockStreet(bootstrap.user.registration_address);
-        }
-        if (bootstrap.currencies[0]) setCurrencyCode(bootstrap.currencies[0].code);
       } catch (loadError) {
         if (cancelled) return;
         if (loadError instanceof ApiError && loadError.status === 401) {
@@ -468,189 +443,6 @@ export default function FactoryWorkspacePage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not log out. Please try again.');
     }
-  }
-
-  async function handleCreateInventory(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setSuccess(null);
-    const quantity = Number(quantityAvailable);
-    const price = Number(pricePerUnit);
-    if (!itemId && !itemText.trim()) {
-      setError('Please enter item name');
-      return;
-    }
-    const safeItemText = itemText.startsWith('★ ') ? itemText.slice(2) : itemText;
-    if (!factoryCategoryText.trim()) {
-      setError('Please choose or type a category');
-      return;
-    }
-    if (!unitText.trim()) {
-      setError('Please choose or type a unit');
-      return;
-    }
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setError('Quantity must be > 0');
-      return;
-    }
-    if (!Number.isFinite(price) || price <= 0) {
-      setError('Price per unit must be > 0');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await createInventoryEntry({
-        item_id: itemId || undefined,
-        item_name: !itemId ? safeItemText.trim() : undefined,
-        category_id: !itemId ? factoryCategoryId : undefined,
-        category_name_text: !itemId ? factoryCategoryText.trim() : undefined,
-        unit: unitText.trim(),
-        stock_address_id: !useManualStockAddress ? stockAddressId : undefined,
-        stock_country_code: useManualStockAddress ? stockCountryCode : undefined,
-        stock_region_name: useManualStockAddress ? stockRegionName.trim() : undefined,
-        stock_city_name: useManualStockAddress ? stockCityName.trim() : undefined,
-        stock_street: useManualStockAddress ? stockStreet.trim() : undefined,
-        quantity_available: quantity,
-        price_per_unit: price,
-        currency_code: currencyCode,
-      });
-      setSuccess('Inventory entry created');
-      setItemText('');
-      setItemId('');
-      setFactoryCategoryText('');
-      setFactoryCategoryId('');
-      await refreshInventory();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create inventory entry');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const categoryNameById = useMemo(
-    () => new Map(categories.map((c) => [c.id, c.name])),
-    [categories]
-  );
-  const categoryOptions = useMemo<ComboboxOption[]>(
-    () =>
-      categories.map((c) => ({
-        id: c.id,
-        label: c.name,
-      })),
-    [categories]
-  );
-  const itemSuggestions = useMemo<ComboboxOption[]>(() => {
-    const pool = factoryCategoryId
-      ? items.filter((i) => i.category_id === factoryCategoryId)
-      : items;
-    return pool.map((i) => ({
-      id: i.id,
-      label: i.name,
-      sublabel: categoryNameById.get(i.category_id) ?? '',
-    }));
-  }, [items, factoryCategoryId, categoryNameById]);
-
-  // Suggestions derived from open customer requests
-  const requestItemSuggestions = useMemo<ComboboxOption[]>(() => {
-    const seen = new Set<string>();
-    const out: ComboboxOption[] = [];
-    for (const req of openRequests) {
-      const name = req.item_name ?? req.requested_name_text;
-      if (!name) continue;
-      const key = name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ id: `req:${req.id}`, label: `★ ${name}` });
-    }
-    return out;
-  }, [openRequests]);
-
-  // Merged item name options, request-derived first, then catalogue
-  const itemNameOptions = useMemo<ComboboxOption[]>(() => {
-    const seen = new Set<string>();
-    const merged: ComboboxOption[] = [];
-    for (const opt of requestItemSuggestions) {
-      const key = opt.label.replace(/^★\s*/, '').toLowerCase();
-      seen.add(key);
-      merged.push(opt);
-    }
-    for (const opt of itemSuggestions) {
-      if (!seen.has(opt.label.toLowerCase())) {
-        merged.push(opt);
-      }
-    }
-    return merged;
-  }, [requestItemSuggestions, itemSuggestions]);
-
-  const unitSuggestions = useMemo<ComboboxOption[]>(() => {
-    const fallbackUnits = ['pcs', 'kg', 'g', 'l', 'liters', 'tons', 'boxes', 'roll', 'm', 'cm'];
-    const uniqueUnits = new Map<string, string>();
-
-    for (const item of items) {
-      const raw = item.unit?.trim();
-      if (!raw) continue;
-      const key = raw.toLowerCase();
-      if (!uniqueUnits.has(key)) uniqueUnits.set(key, raw);
-    }
-
-    for (const unit of fallbackUnits) {
-      const key = unit.toLowerCase();
-      if (!uniqueUnits.has(key)) uniqueUnits.set(key, unit);
-    }
-
-    return Array.from(uniqueUnits.values())
-      .sort((a, b) => a.localeCompare(b))
-      .map((unit) => ({ id: unit, label: unit }));
-  }, [items]);
-
-  function handleCategoryChange(text: string, id: string) {
-    setFactoryCategoryText(text);
-    setFactoryCategoryId(id);
-    if (itemId) {
-      const sel = items.find((i) => i.id === itemId);
-      if (sel && id && sel.category_id !== id) setItemId('');
-    }
-  }
-
-  function handleItemChange(text: string, id: string) {
-    const cleanText = text.startsWith('★ ') ? text.slice(2) : text;
-    // Request-derived suggestion, id starts with 'req:'
-    if (id.startsWith('req:')) {
-      setItemText(cleanText);
-      setItemId('');
-      // Try to find a matching catalogue item by name
-      const match = items.find((i) => i.name.toLowerCase() === cleanText.toLowerCase());
-      if (match) {
-        setItemId(match.id);
-        if (match.category_id) {
-          setFactoryCategoryId(match.category_id);
-          setFactoryCategoryText(categoryNameById.get(match.category_id) ?? '');
-        }
-        if (match.unit) {
-          setUnitText(match.unit);
-          setUnitId(match.unit);
-        }
-      }
-      return;
-    }
-    setItemText(cleanText);
-    setItemId(id);
-    if (id) {
-      const sel = items.find((i) => i.id === id);
-      if (sel?.category_id) {
-        setFactoryCategoryId(sel.category_id);
-        setFactoryCategoryText(categoryNameById.get(sel.category_id) ?? '');
-      }
-      if (sel?.unit) {
-        setUnitText(sel.unit);
-        setUnitId(sel.unit);
-      }
-    }
-  }
-
-  function handleUnitChange(text: string, id: string) {
-    setUnitText(text);
-    setUnitId(id);
   }
 
   const BID_STATUS: Record<string, string> = {
@@ -707,6 +499,7 @@ export default function FactoryWorkspacePage() {
     setInventoryStatusBusyId(entryId);
     try {
       await updateInventoryEntryStatus(entryId, nextStatus);
+      setSetupRevision((v) => v + 1);
       await refreshInventory();
       setSuccess(`Inventory status updated to ${nextStatus}`);
     } catch (err) {
@@ -731,7 +524,8 @@ export default function FactoryWorkspacePage() {
         title: row.item_name ?? row.requested_name_text ?? 'Supply request',
         status: row.status,
         detail: `${row.quantity} ${row.quantity_unit} · ${row.preferred_currency_code}`,
-        action: () => setBidTarget(row),
+        action: () =>
+          eligibleInventory.length ? setBidTarget(row) : setError(categoryCopy(locale).blocked),
         actionLabel: 'Place a bid',
       }))}
       onLogout={handleLogout}
@@ -741,6 +535,7 @@ export default function FactoryWorkspacePage() {
 
         {!loading && (
           <>
+            <FactorySetup locale={locale} onReady={handleReadiness} revision={setupRevision} />
             {/* Open Requests (PENDING) */}
             <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
               <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
@@ -750,6 +545,8 @@ export default function FactoryWorkspacePage() {
                 {copy.factoryWorkspaceSubtitle}
               </p>
 
+              <p>{categoryCopy(locale).whole}</p>
+              {!eligibleInventory.length && <p>{categoryCopy(locale).blocked}</p>}
               <h2 id="requests" className="mt-6 text-lg font-semibold">
                 {copy.openRequestsTitle}
               </h2>
@@ -839,6 +636,7 @@ export default function FactoryWorkspacePage() {
                                 {inventory.length > 0 ? (
                                   <button
                                     type="button"
+                                    disabled={!eligibleInventory.length}
                                     onClick={() => setBidTarget(row)}
                                     className="rounded-md border border-sky-700/60 px-3 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
                                   >
@@ -1193,199 +991,8 @@ export default function FactoryWorkspacePage() {
               )}
             </section>
 
-            {/* Add Inventory */}
             <section data-section="inventory" className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 id="inventory" className="text-lg font-semibold">
-                {copy.addInventoryTitle}
-              </h2>
-              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.addInventorySubtitle}</p>
-              {success && (
-                <p className="mt-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
-                  {success}
-                </p>
-              )}
-
-              <form onSubmit={handleCreateInventory} className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <SearchableInput
-                    suggestions={categoryOptions}
-                    text={factoryCategoryText}
-                    selectedId={factoryCategoryId}
-                    onChange={handleCategoryChange}
-                    placeholder="Type category or choose existing"
-                    label="Category"
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <SearchableInput
-                    suggestions={itemNameOptions}
-                    text={itemText}
-                    selectedId={itemId}
-                    onChange={handleItemChange}
-                    placeholder={
-                      factoryCategoryId
-                        ? `Type item in ${categoryNameById.get(factoryCategoryId) ?? 'category'}…`
-                        : 'Type item name (existing or brand-new)'
-                    }
-                    label="Item name"
-                    required
-                  />
-                  {requestItemSuggestions.length > 0 && (
-                    <p className="mt-1 text-xs text-[rgb(var(--muted))]">
-                      ★ {requestItemSuggestions.length} item
-                      {requestItemSuggestions.length !== 1 ? 's' : ''} wanted by customers
-                    </p>
-                  )}
-                </div>
-
-                <div className="sm:col-span-2">
-                  <SearchableInput
-                    suggestions={unitSuggestions}
-                    text={unitText}
-                    selectedId={unitId}
-                    onChange={handleUnitChange}
-                    placeholder="Choose or type unit (kg, liters, pcs)"
-                    label="Unit"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    {copy.stockAddressLabel}
-                  </label>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setUseManualStockAddress(false)}
-                      className={`rounded-md border px-2 py-1 text-xs ${
-                        !useManualStockAddress
-                          ? 'border-sky-700/80 text-sky-300'
-                          : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                      }`}
-                    >
-                      Choose existing
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUseManualStockAddress(true)}
-                      className={`rounded-md border px-2 py-1 text-xs ${
-                        useManualStockAddress
-                          ? 'border-sky-700/80 text-sky-300'
-                          : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                      }`}
-                    >
-                      Provide yourself
-                    </button>
-                  </div>
-
-                  {!useManualStockAddress ? (
-                    <select
-                      value={stockAddressId}
-                      onChange={(e) => setStockAddressId(e.target.value)}
-                      className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                      required
-                    >
-                      {addresses.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <select
-                        value={stockCountryCode}
-                        onChange={(e) => setStockCountryCode(e.target.value)}
-                        className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                        required
-                      >
-                        {countries.map((country) => (
-                          <option key={country.code} value={country.code}>
-                            {country.code} - {country.name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={stockRegionName}
-                        onChange={(e) => setStockRegionName(e.target.value)}
-                        className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                        placeholder="Region"
-                        required
-                      />
-                      <input
-                        value={stockCityName}
-                        onChange={(e) => setStockCityName(e.target.value)}
-                        className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                        placeholder="City"
-                        required
-                      />
-                      <input
-                        value={stockStreet}
-                        onChange={(e) => setStockStreet(e.target.value)}
-                        className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm sm:col-span-2"
-                        placeholder="Address / Street"
-                        required
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    {copy.qtyAvailableLabel}
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantityAvailable}
-                    onChange={(e) => setQuantityAvailable(e.target.value)}
-                    className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    {copy.pricePerUnitLabel}
-                  </label>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={pricePerUnit}
-                    onChange={(e) => setPricePerUnit(e.target.value)}
-                    className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Currency</label>
-                  <select
-                    value={currencyCode}
-                    onChange={(e) => setCurrencyCode(e.target.value)}
-                    className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    required
-                  >
-                    {currencies.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {formatCurrencyOptionLabel(c.code, c.name)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn btn-primary sm:col-span-2 text-sm"
-                >
-                  {submitting ? 'Creating\u2026' : copy.addInventoryAction}
-                </button>
-              </form>
-
+              {success && <p role="status">{success}</p>}
               {/* My inventory list */}
               {inventory.length > 0 && (
                 <>
@@ -1522,7 +1129,7 @@ export default function FactoryWorkspacePage() {
       {bidTarget && (
         <BidModal
           request={bidTarget}
-          inventory={inventory}
+          inventory={inventory.filter((i) => eligibleInventory.includes(i.id))}
           copy={copy}
           onClose={() => setBidTarget(null)}
           onBidPlaced={async () => {
