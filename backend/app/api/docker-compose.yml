@@ -9,11 +9,11 @@ services:
       POSTGRES_PASSWORD: intelli_pass
       POSTGRES_DB: intelli_factory
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U intelli_user -d intelli_factory"]
+      test: ['CMD-SHELL', 'pg_isready -U intelli_user -d intelli_factory']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@intelli-factory.local
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5050:80"
+      - '5050:80'
     depends_on:
       - postgres
 

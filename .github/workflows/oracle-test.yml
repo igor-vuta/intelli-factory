@@ -1,0 +1,55 @@
+name: Oracle stack test
+
+on:
+  pull_request:
+    branches: [main, testing/oracle]
+  push:
+    branches: [testing/oracle]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  stack:
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      APP_DOMAIN: testing.example.com
+      POSTGRES_PASSWORD: ci-only-password
+      COMPOSE_PROJECT_NAME: intelli-factory-testing
+      IMAGE_TAG: ${{ github.sha }}
+      FRONTEND_PORT: '4200'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start all three tiers
+        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml up -d --build --wait --wait-timeout 180
+      - name: Seed reference data
+        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml exec -T backend python seed_reference_geo.py
+      - name: Check frontend and proxied API
+        run: |
+          curl --fail --silent http://127.0.0.1:4200/ > /dev/null
+          curl --fail --silent http://127.0.0.1:4200/api/auth/countries | python3 -c 'import json,sys; data=json.load(sys.stdin); assert isinstance(data,list) and len(data)>0, data'
+      - name: Export tested AMD64 images
+        if: matrix.runner == 'ubuntu-24.04' && github.event_name != 'pull_request'
+        run: docker save "intelli-factory-testing-backend:$IMAGE_TAG" "intelli-factory-testing-frontend:$IMAGE_TAG" | gzip > oracle-images.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: matrix.runner == 'ubuntu-24.04' && github.event_name != 'pull_request'
+        with:
+          name: oracle-amd64-${{ github.sha }}
+          path: oracle-images.tar.gz
+          retention-days: 7
+      - name: Service logs
+        if: failure()
+        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml logs --tail 100
+      - name: Remove test stack
+        if: always()
+        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml down -v

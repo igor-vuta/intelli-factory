@@ -37,10 +37,14 @@ export default function Home() {
       {
         title: copy.logisticsTitle,
         subtitle: copy.logisticsSubtitle,
-        bullets: ['Area and route coverage', 'Pricing constraints', 'Signature and execution tracking'],
+        bullets: [
+          'Area and route coverage',
+          'Pricing constraints',
+          'Signature and execution tracking',
+        ],
       },
     ],
-    [copy],
+    [copy]
   );
 
   const marqueeEvents = useMemo(() => liveEvents.concat(liveEvents), []);
@@ -153,12 +157,8 @@ export default function Home() {
       </section>
 
       <section className="relative z-10 mt-5 rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--card))] p-4">
-        <h2 className="text-xl font-semibold sm:text-2xl">
-          {copy.oneTransactionTitle}
-        </h2>
-        <p className="mt-2 max-w-4xl text-[rgb(var(--muted))]">
-          {copy.oneTransactionSubtitle}
-        </p>
+        <h2 className="text-xl font-semibold sm:text-2xl">{copy.oneTransactionTitle}</h2>
+        <p className="mt-2 max-w-4xl text-[rgb(var(--muted))]">{copy.oneTransactionSubtitle}</p>
       </section>
     </main>
   );

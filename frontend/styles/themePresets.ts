@@ -1,4 +1,10 @@
-export type Theme = 'midnightCore' | 'telegramBlue' | 'whatsappEmerald' | 'cyberNeon' | 'modernLight' | 'modernDark';
+export type Theme =
+  | 'midnightCore'
+  | 'telegramBlue'
+  | 'whatsappEmerald'
+  | 'cyberNeon'
+  | 'modernLight'
+  | 'modernDark';
 
 export type ThemePreset = {
   id: Theme;

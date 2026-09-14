@@ -88,9 +88,7 @@ export default function AdminWorkspacePage() {
           await router.replace(`/login?lang=${locale}`);
           return;
         }
-        setError(
-          loadError instanceof Error ? loadError.message : 'Failed to load admin workspace'
-        );
+        setError(loadError instanceof Error ? loadError.message : 'Failed to load admin workspace');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -136,11 +134,23 @@ export default function AdminWorkspacePage() {
     setComparing(true);
     setCompareError(null);
     optimizeCompare(selectedRequestId.trim(), profile)
-      .then((data) => { if (!cancelled) { setCompareData(data); setActiveTab('deep'); } })
-      .catch((err) => { if (!cancelled) setCompareError(err instanceof Error ? err.message : 'Comparison request failed'); })
-      .finally(() => { if (!cancelled) setComparing(false); });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .then((data) => {
+        if (!cancelled) {
+          setCompareData(data);
+          setActiveTab('deep');
+        }
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setCompareError(err instanceof Error ? err.message : 'Comparison request failed');
+      })
+      .finally(() => {
+        if (!cancelled) setComparing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   async function handleSeedLargeScale() {
@@ -148,7 +158,9 @@ export default function AdminWorkspacePage() {
     setSeedMessage(null);
     try {
       const result = await seedLargeScale();
-      setSeedMessage(`✓ ${result.message} - ${result.candidates_created} candidates created. Reload the page to see the new request.`);
+      setSeedMessage(
+        `✓ ${result.message} - ${result.candidates_created} candidates created. Reload the page to see the new request.`
+      );
       const rows = await listRequests();
       setRequests(rows);
     } catch (err) {
@@ -187,7 +199,14 @@ export default function AdminWorkspacePage() {
       fast: '#34d399',
       deep: '#a78bfa',
     };
-    const entries: { x: number; y: number; z: number; strategy: string; fill: string; id: string }[] = [];
+    const entries: {
+      x: number;
+      y: number;
+      z: number;
+      strategy: string;
+      fill: string;
+      id: string;
+    }[] = [];
     for (const strategy of ['greedy', 'fast', 'deep'] as const) {
       for (const sol of compareData[strategy]) {
         entries.push({
@@ -217,16 +236,25 @@ export default function AdminWorkspacePage() {
     const seen = new Set<string>();
     const all: { id: string; x: number; y: number }[] = [];
     for (const p of compareData.pool) {
-      if (!seen.has(p.id)) { seen.add(p.id); all.push({ id: p.id, x: p.total_cost, y: p.delivery_days }); }
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        all.push({ id: p.id, x: p.total_cost, y: p.delivery_days });
+      }
     }
     for (const strategy of ['greedy', 'fast', 'deep'] as const) {
       for (const s of compareData[strategy]) {
-        if (!seen.has(s.id)) { seen.add(s.id); all.push({ id: s.id, x: s.total_cost, y: s.delivery_days }); }
+        if (!seen.has(s.id)) {
+          seen.add(s.id);
+          all.push({ id: s.id, x: s.total_cost, y: s.delivery_days });
+        }
       }
     }
     // Non-dominated
     const pareto = all
-      .filter((p) => !all.some((o) => o.id !== p.id && o.x <= p.x && o.y <= p.y && (o.x < p.x || o.y < p.y)))
+      .filter(
+        (p) =>
+          !all.some((o) => o.id !== p.id && o.x <= p.x && o.y <= p.y && (o.x < p.x || o.y < p.y))
+      )
       .sort((a, b) => a.x - b.x);
     return pareto.map(({ x, y }) => ({ x, y }));
   }, [compareData]);
@@ -260,20 +288,23 @@ export default function AdminWorkspacePage() {
     const getList = (key: StrategyKey) => compareData[key];
     // Collect all values for normalisation
     const allCosts = strategies.flatMap(({ key }) => getList(key).map((s) => s.total_cost));
-    const allDays  = strategies.flatMap(({ key }) => getList(key).map((s) => s.delivery_days));
-    const allRel   = strategies.flatMap(({ key }) => getList(key).map((s) => s.reliability));
-    const minC = Math.min(...allCosts), maxC = Math.max(...allCosts);
-    const minD = Math.min(...allDays),  maxD = Math.max(...allDays);
-    const minR = Math.min(...allRel),   maxR = Math.max(...allRel);
-    const norm = (v: number, lo: number, hi: number) => hi === lo ? 0.5 : (v - lo) / (hi - lo);
+    const allDays = strategies.flatMap(({ key }) => getList(key).map((s) => s.delivery_days));
+    const allRel = strategies.flatMap(({ key }) => getList(key).map((s) => s.reliability));
+    const minC = Math.min(...allCosts),
+      maxC = Math.max(...allCosts);
+    const minD = Math.min(...allDays),
+      maxD = Math.max(...allDays);
+    const minR = Math.min(...allRel),
+      maxR = Math.max(...allRel);
+    const norm = (v: number, lo: number, hi: number) => (hi === lo ? 0.5 : (v - lo) / (hi - lo));
     return strategies
       .filter(({ key }) => getList(key).length > 0)
       .map(({ name, key }) => {
         const s = top(getList(key));
         return {
           strategy: name,
-          cost:        parseFloat(((1 - norm(s.total_cost, minC, maxC)) * 100).toFixed(1)),
-          speed:       parseFloat(((1 - norm(s.delivery_days, minD, maxD)) * 100).toFixed(1)),
+          cost: parseFloat(((1 - norm(s.total_cost, minC, maxC)) * 100).toFixed(1)),
+          speed: parseFloat(((1 - norm(s.delivery_days, minD, maxD)) * 100).toFixed(1)),
           reliability: parseFloat((norm(s.reliability, minR, maxR) * 100).toFixed(1)),
         };
       });
@@ -345,7 +376,12 @@ export default function AdminWorkspacePage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <PresetIcon src="/presets/admin.svg" alt="Admin workspace" size={32} className="rounded-md" />
+            <PresetIcon
+              src="/presets/admin.svg"
+              alt="Admin workspace"
+              size={32}
+              className="rounded-md"
+            />
             <span>{copy.brand}</span>
           </Link>
 
@@ -372,27 +408,45 @@ export default function AdminWorkspacePage() {
           {!loading && !error && (
             <>
               <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': 'var(--accent)' } as React.CSSProperties}>
+                <div
+                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
+                  style={{ '--gc': 'var(--accent)' } as React.CSSProperties}
+                >
                   <p className="text-xs text-[rgb(var(--muted))]">Total</p>
                   <p className="text-xl font-semibold">{statusStats.total}</p>
                 </div>
-                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '245 158 11' } as React.CSSProperties}>
+                <div
+                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
+                  style={{ '--gc': '245 158 11' } as React.CSSProperties}
+                >
                   <p className="text-xs text-[rgb(var(--muted))]">Pending</p>
                   <p className="text-xl font-semibold text-amber-300">{statusStats.pending}</p>
                 </div>
-                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '56 189 248' } as React.CSSProperties}>
+                <div
+                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
+                  style={{ '--gc': '56 189 248' } as React.CSSProperties}
+                >
                   <p className="text-xs text-[rgb(var(--muted))]">Pairing</p>
                   <p className="text-xl font-semibold text-sky-300">{statusStats.pairing}</p>
                 </div>
-                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '52 211 153' } as React.CSSProperties}>
+                <div
+                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
+                  style={{ '--gc': '52 211 153' } as React.CSSProperties}
+                >
                   <p className="text-xs text-[rgb(var(--muted))]">Matched</p>
                   <p className="text-xl font-semibold text-emerald-300">{statusStats.matched}</p>
                 </div>
-                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '248 113 113' } as React.CSSProperties}>
+                <div
+                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
+                  style={{ '--gc': '248 113 113' } as React.CSSProperties}
+                >
                   <p className="text-xs text-[rgb(var(--muted))]">Cancelled</p>
                   <p className="text-xl font-semibold text-red-300">{statusStats.cancelled}</p>
                 </div>
-                <div className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3" style={{ '--gc': '52 211 153' } as React.CSSProperties}>
+                <div
+                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
+                  style={{ '--gc': '52 211 153' } as React.CSSProperties}
+                >
                   <p className="text-xs text-[rgb(var(--muted))]">Completed</p>
                   <p className="text-xl font-semibold text-emerald-300">{statusStats.completed}</p>
                 </div>
@@ -453,69 +507,77 @@ export default function AdminWorkspacePage() {
                   </p>
                 ) : (
                   <>
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                      <th className="py-2 pr-3">Request ID</th>
-                      <th className="py-2 pr-3">Customer Profile</th>
-                      <th className="py-2 pr-3">Item</th>
-                      <th className="py-2 pr-3">Qty</th>
-                      <th className="py-2 pr-3">Currency</th>
-                      <th className="py-2 pr-3">Status</th>
-                      <th className="py-2">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedRequests.map((row) => (
-                      <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
-                        <td className="py-2 pr-3 font-mono text-xs">{row.id.slice(0, 8)}...</td>
-                        <td className="py-2 pr-3 font-mono text-xs">
-                          {row.customer_profile_id.slice(0, 8)}
-                          ...
-                        </td>
-                        <td className="py-2 pr-3">
-                          {row.requested_name_text || row.item_id || 'N/A'}
-                        </td>
-                        <td className="py-2 pr-3">
-                          {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
-                        </td>
-                        <td className="py-2 pr-3">{row.preferred_currency_code}</td>
-                        <td className="py-2 pr-3">{row.status}</td>
-                        <td className="py-2">{new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                  <span>
-                    Showing {(requestsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                    {' - '}
-                    {Math.min(requestsPage * REQUESTS_PAGE_SIZE, filteredRequests.length)} of{' '}
-                    {filteredRequests.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={requestsPage <= 1}
-                      onClick={() => setRequestsPage((prev) => Math.max(1, prev - 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {requestsPage} / {requestsTotalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={requestsPage >= requestsTotalPages}
-                      onClick={() => setRequestsPage((prev) => Math.min(requestsTotalPages, prev + 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-                </>
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-3">Request ID</th>
+                          <th className="py-2 pr-3">Customer Profile</th>
+                          <th className="py-2 pr-3">Item</th>
+                          <th className="py-2 pr-3">Qty</th>
+                          <th className="py-2 pr-3">Currency</th>
+                          <th className="py-2 pr-3">Status</th>
+                          <th className="py-2">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedRequests.map((row) => (
+                          <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
+                            <td className="py-2 pr-3 font-mono text-xs">{row.id.slice(0, 8)}...</td>
+                            <td className="py-2 pr-3 font-mono text-xs">
+                              {row.customer_profile_id.slice(0, 8)}
+                              ...
+                            </td>
+                            <td className="py-2 pr-3">
+                              {row.requested_name_text || row.item_id || 'N/A'}
+                            </td>
+                            <td className="py-2 pr-3">
+                              {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                            </td>
+                            <td className="py-2 pr-3">{row.preferred_currency_code}</td>
+                            <td className="py-2 pr-3">{row.status}</td>
+                            <td className="py-2">
+                              {new Date(row.created_at).toLocaleString('en-GB', {
+                                timeZone: 'UTC',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                      <span>
+                        Showing {(requestsPage - 1) * REQUESTS_PAGE_SIZE + 1}
+                        {' - '}
+                        {Math.min(
+                          requestsPage * REQUESTS_PAGE_SIZE,
+                          filteredRequests.length
+                        )} of {filteredRequests.length}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={requestsPage <= 1}
+                          onClick={() => setRequestsPage((prev) => Math.max(1, prev - 1))}
+                          className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                        >
+                          Prev
+                        </button>
+                        <span>
+                          Page {requestsPage} / {requestsTotalPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={requestsPage >= requestsTotalPages}
+                          onClick={() =>
+                            setRequestsPage((prev) => Math.min(requestsTotalPages, prev + 1))
+                          }
+                          className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -570,7 +632,8 @@ export default function AdminWorkspacePage() {
                         .filter((r) => r.status === 'PAIRING_IN_PROGRESS')
                         .map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.id.slice(0, 8)}… - {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
+                            {r.id.slice(0, 8)}… -{' '}
+                            {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
                           </option>
                         ))}
                     </select>
@@ -626,7 +689,9 @@ export default function AdminWorkspacePage() {
                         </p>
                       </div>
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
-                        <p className="text-xs text-[rgb(var(--muted))]">Weights (cost / time / rel)</p>
+                        <p className="text-xs text-[rgb(var(--muted))]">
+                          Weights (cost / time / rel)
+                        </p>
                         <p className="font-mono text-sm">
                           {compareData.weights.cost.toFixed(2)} /{' '}
                           {compareData.weights.time.toFixed(2)} /{' '}
@@ -636,7 +701,8 @@ export default function AdminWorkspacePage() {
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
                         <p className="text-xs text-[rgb(var(--muted))]">Solutions per strategy</p>
                         <p className="font-mono text-sm">
-                          G:{compareData.greedy.length} F:{compareData.fast.length} D:{compareData.deep.length}
+                          G:{compareData.greedy.length} F:{compareData.fast.length} D:
+                          {compareData.deep.length}
                         </p>
                       </div>
                     </div>
@@ -698,7 +764,6 @@ export default function AdminWorkspacePage() {
 
                     {/* Charts*/}
                     <div className="mt-6 grid gap-5 lg:grid-cols-2">
-
                       {/* Pareto scatter: Cost vs Delivery Days */}
                       <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
                         <p className="mb-2 text-sm font-semibold">
@@ -709,28 +774,50 @@ export default function AdminWorkspacePage() {
                         </p>
                         <ResponsiveContainer width="100%" height={280}>
                           <ScatterChart>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--stroke) / 0.1)" />
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="rgb(var(--stroke) / 0.1)"
+                            />
                             <XAxis
                               dataKey="x"
                               name="Cost"
                               type="number"
                               tick={{ fontSize: 10 }}
-                              label={{ value: 'Cost', position: 'insideBottom', offset: -4, fontSize: 11 }}
+                              label={{
+                                value: 'Cost',
+                                position: 'insideBottom',
+                                offset: -4,
+                                fontSize: 11,
+                              }}
                             />
                             <YAxis
                               dataKey="y"
                               name="Days"
                               type="number"
                               tick={{ fontSize: 10 }}
-                              label={{ value: 'Delivery Days', angle: -90, position: 'insideLeft', fontSize: 11 }}
+                              label={{
+                                value: 'Delivery Days',
+                                angle: -90,
+                                position: 'insideLeft',
+                                fontSize: 11,
+                              }}
                             />
                             <Tooltip
                               content={({ payload }) => {
                                 if (!payload?.length) return null;
-                                const d = payload[0]?.payload as { x: number; y: number; z: number; strategy?: string; fill?: string; id: string };
+                                const d = payload[0]?.payload as {
+                                  x: number;
+                                  y: number;
+                                  z: number;
+                                  strategy?: string;
+                                  fill?: string;
+                                  id: string;
+                                };
                                 return (
                                   <div className="rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-2 text-xs">
-                                    <p style={{ color: d.fill ?? '#9ca3af' }}>{d.strategy ? d.strategy.toUpperCase() : 'POOL'}</p>
+                                    <p style={{ color: d.fill ?? '#9ca3af' }}>
+                                      {d.strategy ? d.strategy.toUpperCase() : 'POOL'}
+                                    </p>
                                     <p>Cost: {d.x.toFixed(2)}</p>
                                     <p>Days: {d.y.toFixed(1)}</p>
                                     <p>Reliability: {d.z.toFixed(3)}</p>
@@ -784,7 +871,10 @@ export default function AdminWorkspacePage() {
                         </p>
                         <ResponsiveContainer width="100%" height={280}>
                           <BarChart data={barData} barCategoryGap="20%">
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--stroke) / 0.1)" />
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="rgb(var(--stroke) / 0.1)"
+                            />
                             <XAxis dataKey="strategy" tick={{ fontSize: 11 }} />
                             <YAxis tick={{ fontSize: 10 }} />
                             <Tooltip
@@ -796,9 +886,24 @@ export default function AdminWorkspacePage() {
                               }}
                             />
                             <Legend />
-                            <Bar dataKey="cost" name="Best Cost" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="days" name="Best Days" fill="#60a5fa" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="rel" name="Best Reliability" fill="#34d399" radius={[4, 4, 0, 0]} />
+                            <Bar
+                              dataKey="cost"
+                              name="Best Cost"
+                              fill="#f59e0b"
+                              radius={[4, 4, 0, 0]}
+                            />
+                            <Bar
+                              dataKey="days"
+                              name="Best Days"
+                              fill="#60a5fa"
+                              radius={[4, 4, 0, 0]}
+                            />
+                            <Bar
+                              dataKey="rel"
+                              name="Best Reliability"
+                              fill="#34d399"
+                              radius={[4, 4, 0, 0]}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -812,11 +917,24 @@ export default function AdminWorkspacePage() {
                           Scores normalised 0–100. Larger area = better balanced performance.
                         </p>
                         <ResponsiveContainer width="100%" height={300}>
-                          <RadarChart data={[
-                            { axis: 'Cost Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.cost])) },
-                            { axis: 'Speed Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.speed])) },
-                            { axis: 'Reliability Score', ...Object.fromEntries(radarData.map(r => [r.strategy, r.reliability])) },
-                          ]}>
+                          <RadarChart
+                            data={[
+                              {
+                                axis: 'Cost Score',
+                                ...Object.fromEntries(radarData.map((r) => [r.strategy, r.cost])),
+                              },
+                              {
+                                axis: 'Speed Score',
+                                ...Object.fromEntries(radarData.map((r) => [r.strategy, r.speed])),
+                              },
+                              {
+                                axis: 'Reliability Score',
+                                ...Object.fromEntries(
+                                  radarData.map((r) => [r.strategy, r.reliability])
+                                ),
+                              },
+                            ]}
+                          >
                             <PolarGrid stroke="rgb(var(--stroke) / 0.15)" />
                             <PolarAngleAxis dataKey="axis" tick={{ fontSize: 12 }} />
                             <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
@@ -825,8 +943,16 @@ export default function AdminWorkspacePage() {
                                 key={r.strategy}
                                 name={r.strategy}
                                 dataKey={r.strategy}
-                                stroke={STRATEGY_COLORS[r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')]}
-                                fill={STRATEGY_COLORS[r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')]}
+                                stroke={
+                                  STRATEGY_COLORS[
+                                    r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')
+                                  ]
+                                }
+                                fill={
+                                  STRATEGY_COLORS[
+                                    r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')
+                                  ]
+                                }
                                 fillOpacity={0.15}
                               />
                             ))}
@@ -850,11 +976,7 @@ export default function AdminWorkspacePage() {
                                 ? 'border-b-2 text-[rgb(var(--text))]'
                                 : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
                             }`}
-                            style={
-                              activeTab === tab
-                                ? { borderColor: STRATEGY_COLORS[tab] }
-                                : {}
-                            }
+                            style={activeTab === tab ? { borderColor: STRATEGY_COLORS[tab] } : {}}
                           >
                             {tab === 'greedy'
                               ? 'Greedy'
@@ -909,10 +1031,18 @@ export default function AdminWorkspacePage() {
                                   <td className="py-2 pr-4 font-mono text-xs">
                                     {sol.id.slice(0, 8)}…
                                   </td>
-                                  <td className="py-2 pr-4 font-mono">{sol.total_cost.toFixed(2)}</td>
-                                  <td className="py-2 pr-4 font-mono">{sol.delivery_days.toFixed(1)}</td>
-                                  <td className="py-2 pr-4 font-mono">{sol.reliability.toFixed(3)}</td>
-                                  <td className="py-2 pr-4 font-mono">{(sol.fitness_score ?? 0).toFixed(4)}</td>
+                                  <td className="py-2 pr-4 font-mono">
+                                    {sol.total_cost.toFixed(2)}
+                                  </td>
+                                  <td className="py-2 pr-4 font-mono">
+                                    {sol.delivery_days.toFixed(1)}
+                                  </td>
+                                  <td className="py-2 pr-4 font-mono">
+                                    {sol.reliability.toFixed(3)}
+                                  </td>
+                                  <td className="py-2 pr-4 font-mono">
+                                    {(sol.fitness_score ?? 0).toFixed(4)}
+                                  </td>
                                   <td className="py-2 text-xs text-[rgb(var(--muted))]">
                                     {sol.currency_code}
                                   </td>

@@ -1,0 +1,19 @@
+# Resource limits for a dedicated 1 GB E2.1.Micro VM; validate under demo load.
+services:
+  db:
+    mem_limit: 192m
+    memswap_limit: 384m
+    command: [postgres, -c, shared_buffers=32MB, -c, max_connections=20, -c, work_mem=2MB]
+  migrate:
+    mem_limit: 256m
+    memswap_limit: 512m
+  backend:
+    mem_limit: 320m
+    memswap_limit: 640m
+    environment:
+      DATABASE_URL: postgresql://intelli:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/intelli_factory?connection_limit=5
+  frontend:
+    mem_limit: 192m
+    memswap_limit: 384m
+    environment:
+      NODE_OPTIONS: --max-old-space-size=128

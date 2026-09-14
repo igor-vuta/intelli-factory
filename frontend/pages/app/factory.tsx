@@ -295,7 +295,8 @@ export default function FactoryWorkspacePage() {
   const filteredTransactions = useMemo(() => {
     const q = transactionsQuery.trim().toLowerCase();
     return transactions.filter((tx) => {
-      const matchesQuery = !q || tx.id.toLowerCase().includes(q) || (tx.item_name ?? '').toLowerCase().includes(q);
+      const matchesQuery =
+        !q || tx.id.toLowerCase().includes(q) || (tx.item_name ?? '').toLowerCase().includes(q);
       const matchesStatus =
         transactionsStatusFilter === 'ALL' || tx.status === transactionsStatusFilter;
       const matchesPayment =
@@ -308,16 +309,23 @@ export default function FactoryWorkspacePage() {
     const q = inventoryQuery.trim().toLowerCase();
     return inventory.filter((entry) => {
       const matchesQuery = !q || entry.item_name.toLowerCase().includes(q);
-      const matchesStatus = inventoryStatusFilter === 'ALL' || entry.status === inventoryStatusFilter;
+      const matchesStatus =
+        inventoryStatusFilter === 'ALL' || entry.status === inventoryStatusFilter;
       const matchesCurrency =
         inventoryCurrencyFilter === 'ALL' || entry.currency_code === inventoryCurrencyFilter;
       return matchesQuery && matchesStatus && matchesCurrency;
     });
   }, [inventory, inventoryQuery, inventoryStatusFilter, inventoryCurrencyFilter]);
 
-  const openRequestsTotalPages = Math.max(1, Math.ceil(filteredOpenRequests.length / TABLE_PAGE_SIZE));
+  const openRequestsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredOpenRequests.length / TABLE_PAGE_SIZE)
+  );
   const myBidsTotalPages = Math.max(1, Math.ceil(filteredMyBids.length / TABLE_PAGE_SIZE));
-  const transactionsTotalPages = Math.max(1, Math.ceil(filteredTransactions.length / TABLE_PAGE_SIZE));
+  const transactionsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredTransactions.length / TABLE_PAGE_SIZE)
+  );
   const inventoryTotalPages = Math.max(1, Math.ceil(filteredInventory.length / TABLE_PAGE_SIZE));
 
   const paginatedOpenRequests = useMemo(() => {
@@ -712,7 +720,12 @@ export default function FactoryWorkspacePage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <PresetIcon src="/presets/factory.svg" alt="Factory workspace" size={32} className="rounded-md" />
+            <PresetIcon
+              src="/presets/factory.svg"
+              alt="Factory workspace"
+              size={32}
+              className="rounded-md"
+            />
             <span>{copy.brand}</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -733,15 +746,15 @@ export default function FactoryWorkspacePage() {
           <>
             {/* Open Requests (PENDING) */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.factoryWorkspaceTitle}</h1>
+              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
+                {copy.factoryWorkspaceTitle}
+              </h1>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
                 {copy.factoryWorkspaceSubtitle}
               </p>
 
               <h2 className="mt-6 text-lg font-semibold">{copy.openRequestsTitle}</h2>
-              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                {copy.openRequestsSubtitle}
-              </p>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.openRequestsSubtitle}</p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <input
@@ -785,91 +798,98 @@ export default function FactoryWorkspacePage() {
                 </p>
               ) : (
                 <>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">{copy.colItemDescription}</th>
-                        <th className="py-2 pr-4">{copy.colCategory}</th>
-                        <th className="py-2 pr-4">{copy.colQty}</th>
-                        <th className="py-2 pr-4">{copy.colCurrency}</th>
-                        <th className="py-2 pr-4">{copy.colStatus}</th>
-                        <th className="py-2 pr-4">{copy.colPlaced}</th>
-                        <th className="py-2">{copy.colAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedOpenRequests.map((row) => {
-                        const hasBid = hasFactoryBidForRequest.has(row.id);
-                        return (
-                        <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-medium">
-                            {row.item_name ?? row.requested_name_text ?? '\u2014'}
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {row.category_name ?? '\u2014'}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
-                          </td>
-                          <td className="py-2 pr-4">{row.preferred_currency_code}</td>
-                          <td className={`py-2 pr-4 ${row.status === 'PAIRING_IN_PROGRESS' ? 'text-sky-300' : ''}`}>
-                            {row.status}
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'UTC' })}
-                          </td>
-                          <td className="py-2">
-                            {inventory.length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => setBidTarget(row)}
-                                className="rounded-md border border-sky-700/60 px-3 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
-                              >
-                                {hasBid ? copy.actionBid : copy.actionBid}
-                              </button>
-                            ) : (
-                              <span className="text-xs text-[rgb(var(--muted))]">
-                                Add inventory first
-                              </span>
-                            )}
-                          </td>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-4">{copy.colItemDescription}</th>
+                          <th className="py-2 pr-4">{copy.colCategory}</th>
+                          <th className="py-2 pr-4">{copy.colQty}</th>
+                          <th className="py-2 pr-4">{copy.colCurrency}</th>
+                          <th className="py-2 pr-4">{copy.colStatus}</th>
+                          <th className="py-2 pr-4">{copy.colPlaced}</th>
+                          <th className="py-2">{copy.colAction}</th>
                         </tr>
-                      );})}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                  <span>
-                    Showing {(openRequestsPage - 1) * TABLE_PAGE_SIZE + 1}
-                    {' - '}
-                    {Math.min(openRequestsPage * TABLE_PAGE_SIZE, filteredOpenRequests.length)} of{' '}
-                    {filteredOpenRequests.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={openRequestsPage <= 1}
-                      onClick={() => setOpenRequestsPage((prev) => Math.max(1, prev - 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {openRequestsPage} / {openRequestsTotalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={openRequestsPage >= openRequestsTotalPages}
-                      onClick={() =>
-                        setOpenRequestsPage((prev) => Math.min(openRequestsTotalPages, prev + 1))
-                      }
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
+                      </thead>
+                      <tbody>
+                        {paginatedOpenRequests.map((row) => {
+                          const hasBid = hasFactoryBidForRequest.has(row.id);
+                          return (
+                            <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
+                              <td className="py-2 pr-4 font-medium">
+                                {row.item_name ?? row.requested_name_text ?? '\u2014'}
+                              </td>
+                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                                {row.category_name ?? '\u2014'}
+                              </td>
+                              <td className="py-2 pr-4">
+                                {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                              </td>
+                              <td className="py-2 pr-4">{row.preferred_currency_code}</td>
+                              <td
+                                className={`py-2 pr-4 ${row.status === 'PAIRING_IN_PROGRESS' ? 'text-sky-300' : ''}`}
+                              >
+                                {row.status}
+                              </td>
+                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                                {new Date(row.created_at).toLocaleString('en-GB', {
+                                  timeZone: 'UTC',
+                                })}
+                              </td>
+                              <td className="py-2">
+                                {inventory.length > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setBidTarget(row)}
+                                    className="rounded-md border border-sky-700/60 px-3 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
+                                  >
+                                    {hasBid ? copy.actionBid : copy.actionBid}
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-[rgb(var(--muted))]">
+                                    Add inventory first
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                    <span>
+                      Showing {(openRequestsPage - 1) * TABLE_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(
+                        openRequestsPage * TABLE_PAGE_SIZE,
+                        filteredOpenRequests.length
+                      )} of {filteredOpenRequests.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={openRequestsPage <= 1}
+                        onClick={() => setOpenRequestsPage((prev) => Math.max(1, prev - 1))}
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {openRequestsPage} / {openRequestsTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={openRequestsPage >= openRequestsTotalPages}
+                        onClick={() =>
+                          setOpenRequestsPage((prev) => Math.min(openRequestsTotalPages, prev + 1))
+                        }
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
             </section>
@@ -877,9 +897,7 @@ export default function FactoryWorkspacePage() {
             {/* My Bids  */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
               <h2 className="text-lg font-semibold">{copy.myBidsTitle}</h2>
-              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                {copy.myBidsSubtitle}
-              </p>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.myBidsSubtitle}</p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-4">
                 <input
@@ -930,79 +948,83 @@ export default function FactoryWorkspacePage() {
                 </p>
               ) : (
                 <>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">{copy.colItem}</th>
-                        <th className="py-2 pr-4">{copy.colQtyOffered}</th>
-                        <th className="py-2 pr-4">{copy.colPriceUnit}</th>
-                        <th className="py-2 pr-4">{copy.colCurrency}</th>
-                        <th className="py-2 pr-4">{copy.colDelivery}</th>
-                        <th className="py-2 pr-4">{copy.colTotalCost}</th>
-                        <th className="py-2 pr-4">{copy.colStatus}</th>
-                        <th className="py-2">{copy.colStage}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedMyBids.map((bid) => (
-                        <tr key={bid.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4">{bid.item_name ?? '\u2014'}</td>
-                          <td className="py-2 pr-4">
-                            {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
-                          </td>
-                          <td className="py-2 pr-4">{bid.inventory_price_per_unit ?? '\u2014'}</td>
-                          <td className="py-2 pr-4">{bid.currency_code}</td>
-                          <td className="py-2 pr-4">
-                            {bid.logistic_offer_id ? (
-                              `${bid.delivery_days}d \u2022 ${bid.delivery_price} ${bid.currency_code}`
-                            ) : (
-                              <span className="text-xs text-amber-300">awaiting logistics</span>
-                            )}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {bid.total_cost ? `${bid.total_cost} ${bid.currency_code}` : '\u2014'}
-                          </td>
-                          <td className={`py-2 pr-4 ${BID_STATUS[bid.status] ?? ''}`}>
-                            {bid.status}
-                          </td>
-                          <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                            {bid.logistic_offer_id ? 'Complete proposal' : 'Factory bid only'}
-                          </td>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-4">{copy.colItem}</th>
+                          <th className="py-2 pr-4">{copy.colQtyOffered}</th>
+                          <th className="py-2 pr-4">{copy.colPriceUnit}</th>
+                          <th className="py-2 pr-4">{copy.colCurrency}</th>
+                          <th className="py-2 pr-4">{copy.colDelivery}</th>
+                          <th className="py-2 pr-4">{copy.colTotalCost}</th>
+                          <th className="py-2 pr-4">{copy.colStatus}</th>
+                          <th className="py-2">{copy.colStage}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                  <span>
-                    Showing {(myBidsPage - 1) * TABLE_PAGE_SIZE + 1}
-                    {' - '}
-                    {Math.min(myBidsPage * TABLE_PAGE_SIZE, filteredMyBids.length)} of{' '}
-                    {filteredMyBids.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={myBidsPage <= 1}
-                      onClick={() => setMyBidsPage((prev) => Math.max(1, prev - 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {myBidsPage} / {myBidsTotalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={myBidsPage >= myBidsTotalPages}
-                      onClick={() => setMyBidsPage((prev) => Math.min(myBidsTotalPages, prev + 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
+                      </thead>
+                      <tbody>
+                        {paginatedMyBids.map((bid) => (
+                          <tr key={bid.id} className="border-b border-[rgb(var(--stroke))]/40">
+                            <td className="py-2 pr-4">{bid.item_name ?? '\u2014'}</td>
+                            <td className="py-2 pr-4">
+                              {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {bid.inventory_price_per_unit ?? '\u2014'}
+                            </td>
+                            <td className="py-2 pr-4">{bid.currency_code}</td>
+                            <td className="py-2 pr-4">
+                              {bid.logistic_offer_id ? (
+                                `${bid.delivery_days}d \u2022 ${bid.delivery_price} ${bid.currency_code}`
+                              ) : (
+                                <span className="text-xs text-amber-300">awaiting logistics</span>
+                              )}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {bid.total_cost ? `${bid.total_cost} ${bid.currency_code}` : '\u2014'}
+                            </td>
+                            <td className={`py-2 pr-4 ${BID_STATUS[bid.status] ?? ''}`}>
+                              {bid.status}
+                            </td>
+                            <td className="py-2 text-xs text-[rgb(var(--muted))]">
+                              {bid.logistic_offer_id ? 'Complete proposal' : 'Factory bid only'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                    <span>
+                      Showing {(myBidsPage - 1) * TABLE_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(myBidsPage * TABLE_PAGE_SIZE, filteredMyBids.length)} of{' '}
+                      {filteredMyBids.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={myBidsPage <= 1}
+                        onClick={() => setMyBidsPage((prev) => Math.max(1, prev - 1))}
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {myBidsPage} / {myBidsTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={myBidsPage >= myBidsTotalPages}
+                        onClick={() =>
+                          setMyBidsPage((prev) => Math.min(myBidsTotalPages, prev + 1))
+                        }
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
             </section>
@@ -1056,108 +1078,114 @@ export default function FactoryWorkspacePage() {
                 </p>
               ) : (
                 <>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">Transaction</th>
-                        <th className="py-2 pr-4">Item</th>
-                        <th className="py-2 pr-4">Status</th>
-                        <th className="py-2 pr-4">Payment</th>
-                        <th className="py-2 pr-4">Signatures</th>
-                        <th className="py-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedTransactions.map((tx) => (
-                        <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
-                          <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
-                          <td className="py-2 pr-4">{tx.status}</td>
-                          <td className="py-2 pr-4 text-xs">{tx.payment_status}</td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
-                            {tx.signature_status.LOGIST}
-                          </td>
-                          <td className="py-2">
-                            <div className="flex flex-wrap gap-1">
-                              {tx.can_sign && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                  disabled={workflowBusyId === tx.id + 'SIGN'}
-                                  className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
-                                </button>
-                              )}
-                              {tx.can_start_fulfillment && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'START')}
-                                  disabled={workflowBusyId === tx.id + 'START'}
-                                  className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'START'
-                                    ? 'Submitting...'
-                                    : 'Given to logist'}
-                                </button>
-                              )}
-                              {tx.can_mark_in_progress && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')}
-                                  disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                  className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
-                                    ? 'Updating...'
-                                    : 'In Progress'}
-                                </button>
-                              )}
-                              {!tx.can_sign && !tx.can_start_fulfillment && !tx.can_mark_in_progress && (
-                                <span className="text-xs text-[rgb(var(--muted))]">Awaiting others</span>
-                              )}
-                            </div>
-                          </td>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-4">Transaction</th>
+                          <th className="py-2 pr-4">Item</th>
+                          <th className="py-2 pr-4">Status</th>
+                          <th className="py-2 pr-4">Payment</th>
+                          <th className="py-2 pr-4">Signatures</th>
+                          <th className="py-2">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                  <span>
-                    Showing {(transactionsPage - 1) * TABLE_PAGE_SIZE + 1}
-                    {' - '}
-                    {Math.min(transactionsPage * TABLE_PAGE_SIZE, filteredTransactions.length)} of{' '}
-                    {filteredTransactions.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={transactionsPage <= 1}
-                      onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {transactionsPage} / {transactionsTotalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={transactionsPage >= transactionsTotalPages}
-                      onClick={() =>
-                        setTransactionsPage((prev) =>
-                          Math.min(transactionsTotalPages, prev + 1)
-                        )
-                      }
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
+                      </thead>
+                      <tbody>
+                        {paginatedTransactions.map((tx) => (
+                          <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
+                            <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
+                            <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
+                            <td className="py-2 pr-4">{tx.status}</td>
+                            <td className="py-2 pr-4 text-xs">{tx.payment_status}</td>
+                            <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                              C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
+                              {tx.signature_status.LOGIST}
+                            </td>
+                            <td className="py-2">
+                              <div className="flex flex-wrap gap-1">
+                                {tx.can_sign && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                    disabled={workflowBusyId === tx.id + 'SIGN'}
+                                    className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
+                                  >
+                                    {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
+                                  </button>
+                                )}
+                                {tx.can_start_fulfillment && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleWorkflowAction(tx.id, 'START')}
+                                    disabled={workflowBusyId === tx.id + 'START'}
+                                    className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
+                                  >
+                                    {workflowBusyId === tx.id + 'START'
+                                      ? 'Submitting...'
+                                      : 'Given to logist'}
+                                  </button>
+                                )}
+                                {tx.can_mark_in_progress && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
+                                    }
+                                    disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
+                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
+                                  >
+                                    {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
+                                      ? 'Updating...'
+                                      : 'In Progress'}
+                                  </button>
+                                )}
+                                {!tx.can_sign &&
+                                  !tx.can_start_fulfillment &&
+                                  !tx.can_mark_in_progress && (
+                                    <span className="text-xs text-[rgb(var(--muted))]">
+                                      Awaiting others
+                                    </span>
+                                  )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                    <span>
+                      Showing {(transactionsPage - 1) * TABLE_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(
+                        transactionsPage * TABLE_PAGE_SIZE,
+                        filteredTransactions.length
+                      )} of {filteredTransactions.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={transactionsPage <= 1}
+                        onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {transactionsPage} / {transactionsTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={transactionsPage >= transactionsTotalPages}
+                        onClick={() =>
+                          setTransactionsPage((prev) => Math.min(transactionsTotalPages, prev + 1))
+                        }
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
             </section>
@@ -1165,9 +1193,7 @@ export default function FactoryWorkspacePage() {
             {/* Add Inventory */}
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
               <h2 className="text-lg font-semibold">{copy.addInventoryTitle}</h2>
-              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                {copy.addInventorySubtitle}
-              </p>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.addInventorySubtitle}</p>
               {success && (
                 <p className="mt-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
                   {success}
@@ -1202,7 +1228,8 @@ export default function FactoryWorkspacePage() {
                   />
                   {requestItemSuggestions.length > 0 && (
                     <p className="mt-1 text-xs text-[rgb(var(--muted))]">
-                      ★ {requestItemSuggestions.length} item{requestItemSuggestions.length !== 1 ? 's' : ''} wanted by customers
+                      ★ {requestItemSuggestions.length} item
+                      {requestItemSuggestions.length !== 1 ? 's' : ''} wanted by customers
                     </p>
                   )}
                 </div>
@@ -1357,125 +1384,129 @@ export default function FactoryWorkspacePage() {
               {/* My inventory list */}
               {inventory.length > 0 && (
                 <>
-                <div className="mt-6 grid gap-2 sm:grid-cols-3">
-                  <input
-                    type="text"
-                    value={inventoryQuery}
-                    onChange={(e) => setInventoryQuery(e.target.value)}
-                    placeholder="Search item"
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  />
-                  <select
-                    value={inventoryStatusFilter}
-                    onChange={(e) => setInventoryStatusFilter(e.target.value)}
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  >
-                    <option value="ALL">All statuses</option>
-                    {inventoryStatusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={inventoryCurrencyFilter}
-                    onChange={(e) => setInventoryCurrencyFilter(e.target.value)}
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  >
-                    <option value="ALL">All currencies</option>
-                    {inventoryCurrencyOptions.map((currency) => (
-                      <option key={currency} value={currency}>
-                        {currency}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="mt-6 grid gap-2 sm:grid-cols-3">
+                    <input
+                      type="text"
+                      value={inventoryQuery}
+                      onChange={(e) => setInventoryQuery(e.target.value)}
+                      placeholder="Search item"
+                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                    />
+                    <select
+                      value={inventoryStatusFilter}
+                      onChange={(e) => setInventoryStatusFilter(e.target.value)}
+                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                    >
+                      <option value="ALL">All statuses</option>
+                      {inventoryStatusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={inventoryCurrencyFilter}
+                      onChange={(e) => setInventoryCurrencyFilter(e.target.value)}
+                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                    >
+                      <option value="ALL">All currencies</option>
+                      {inventoryCurrencyOptions.map((currency) => (
+                        <option key={currency} value={currency}>
+                          {currency}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {filteredInventory.length === 0 ? (
-                  <p className="mt-3 text-sm text-[rgb(var(--muted))]">No inventory matches current filters.</p>
-                ) : (
-                  <>
-                  <div className="mt-6 overflow-x-auto">
-                    <h3 className="mb-2 text-sm font-medium text-[rgb(var(--muted))]">
-                      Current inventory
-                    </h3>
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-3">{copy.colItem}</th>
-                          <th className="py-2 pr-3">{copy.colQty}</th>
-                          <th className="py-2 pr-3">{copy.pricePerUnitLabel}</th>
-                          <th className="py-2 pr-3">{copy.colCurrency}</th>
-                          <th className="py-2 pr-3">{copy.colStatus}</th>
-                          <th className="py-2">{copy.colAction}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedInventory.map((e) => (
-                          <tr key={e.id} className="border-b border-[rgb(var(--stroke))]/40">
-                            <td className="py-2 pr-3">{e.item_name}</td>
-                            <td className="py-2 pr-3">
-                              {formatQuantityWithUnit(e.quantity_available, e.unit)}
-                            </td>
-                            <td className="py-2 pr-3">{e.price_per_unit}</td>
-                            <td className="py-2 pr-3">{e.currency_code}</td>
-                            <td className="py-2 pr-3">{e.status}</td>
-                            <td className="py-2">
-                              <button
-                                type="button"
-                                disabled={inventoryStatusBusyId === e.id}
-                                onClick={() => void handleToggleInventoryStatus(e.id, e.status)}
-                                className={`rounded-md border px-2 py-1 text-xs disabled:opacity-50 ${
-                                  e.status === 'ACTIVE'
-                                    ? 'border-amber-700/60 text-amber-300 hover:bg-amber-950/30'
-                                    : 'border-emerald-700/60 text-emerald-300 hover:bg-emerald-950/30'
-                                }`}
-                              >
-                                {inventoryStatusBusyId === e.id
-                                  ? 'Updating...'
-                                  : e.status === 'ACTIVE'
-                                    ? copy.actionPause
-                                    : copy.actionActivate}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <span>
-                      Showing {(inventoryPage - 1) * TABLE_PAGE_SIZE + 1}
-                      {' - '}
-                      {Math.min(inventoryPage * TABLE_PAGE_SIZE, filteredInventory.length)} of{' '}
-                      {filteredInventory.length}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={inventoryPage <= 1}
-                        onClick={() => setInventoryPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <span>
-                        Page {inventoryPage} / {inventoryTotalPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={inventoryPage >= inventoryTotalPages}
-                        onClick={() =>
-                          setInventoryPage((prev) => Math.min(inventoryTotalPages, prev + 1))
-                        }
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                  </>
-                )}
+                  {filteredInventory.length === 0 ? (
+                    <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                      No inventory matches current filters.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="mt-6 overflow-x-auto">
+                        <h3 className="mb-2 text-sm font-medium text-[rgb(var(--muted))]">
+                          Current inventory
+                        </h3>
+                        <table className="w-full text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                              <th className="py-2 pr-3">{copy.colItem}</th>
+                              <th className="py-2 pr-3">{copy.colQty}</th>
+                              <th className="py-2 pr-3">{copy.pricePerUnitLabel}</th>
+                              <th className="py-2 pr-3">{copy.colCurrency}</th>
+                              <th className="py-2 pr-3">{copy.colStatus}</th>
+                              <th className="py-2">{copy.colAction}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedInventory.map((e) => (
+                              <tr key={e.id} className="border-b border-[rgb(var(--stroke))]/40">
+                                <td className="py-2 pr-3">{e.item_name}</td>
+                                <td className="py-2 pr-3">
+                                  {formatQuantityWithUnit(e.quantity_available, e.unit)}
+                                </td>
+                                <td className="py-2 pr-3">{e.price_per_unit}</td>
+                                <td className="py-2 pr-3">{e.currency_code}</td>
+                                <td className="py-2 pr-3">{e.status}</td>
+                                <td className="py-2">
+                                  <button
+                                    type="button"
+                                    disabled={inventoryStatusBusyId === e.id}
+                                    onClick={() => void handleToggleInventoryStatus(e.id, e.status)}
+                                    className={`rounded-md border px-2 py-1 text-xs disabled:opacity-50 ${
+                                      e.status === 'ACTIVE'
+                                        ? 'border-amber-700/60 text-amber-300 hover:bg-amber-950/30'
+                                        : 'border-emerald-700/60 text-emerald-300 hover:bg-emerald-950/30'
+                                    }`}
+                                  >
+                                    {inventoryStatusBusyId === e.id
+                                      ? 'Updating...'
+                                      : e.status === 'ACTIVE'
+                                        ? copy.actionPause
+                                        : copy.actionActivate}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                        <span>
+                          Showing {(inventoryPage - 1) * TABLE_PAGE_SIZE + 1}
+                          {' - '}
+                          {Math.min(
+                            inventoryPage * TABLE_PAGE_SIZE,
+                            filteredInventory.length
+                          )} of {filteredInventory.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={inventoryPage <= 1}
+                            onClick={() => setInventoryPage((prev) => Math.max(1, prev - 1))}
+                            className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                          >
+                            Prev
+                          </button>
+                          <span>
+                            Page {inventoryPage} / {inventoryTotalPages}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={inventoryPage >= inventoryTotalPages}
+                            onClick={() =>
+                              setInventoryPage((prev) => Math.min(inventoryTotalPages, prev + 1))
+                            }
+                            className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </section>

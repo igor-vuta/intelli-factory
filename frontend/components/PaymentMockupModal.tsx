@@ -123,7 +123,9 @@ export default function PaymentMockupModal({
           </div>
           <div>
             <p className="text-xs text-[rgb(var(--muted))]">Requested amount</p>
-            <p className="text-sm">{formatAmount(transaction.total_cost, transaction.currency_code)}</p>
+            <p className="text-sm">
+              {formatAmount(transaction.total_cost, transaction.currency_code)}
+            </p>
           </div>
           <div>
             <p className="text-xs text-[rgb(var(--muted))]">Payment status</p>
@@ -157,7 +159,9 @@ export default function PaymentMockupModal({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-xs text-[rgb(var(--muted))]">Amount ({transaction.currency_code ?? 'currency'})</span>
+            <span className="text-xs text-[rgb(var(--muted))]">
+              Amount ({transaction.currency_code ?? 'currency'})
+            </span>
             <input
               type="number"
               min="0.01"
@@ -243,7 +247,11 @@ export default function PaymentMockupModal({
         </div>
 
         <label className="mt-4 flex items-center gap-2 rounded-xl border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-          <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={accepted}
+            onChange={(e) => setAccepted(e.target.checked)}
+          />
           I understand this is a mock payment flow and no real charge is processed.
         </label>
 

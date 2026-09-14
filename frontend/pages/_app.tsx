@@ -6,7 +6,10 @@ import { updateFavicon } from '../hooks/useTheme';
 import '../styles/globals.css';
 
 const ACCENT_HEX: Record<Theme, string> = THEME_PRESETS.reduce(
-  (acc, p) => { acc[p.id] = p.palette.accent; return acc; },
+  (acc, p) => {
+    acc[p.id] = p.palette.accent;
+    return acc;
+  },
   {} as Record<Theme, string>
 );
 

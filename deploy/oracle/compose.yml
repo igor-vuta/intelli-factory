@@ -1,0 +1,115 @@
+name: ${COMPOSE_PROJECT_NAME:-intelli-factory-testing}
+
+x-backend: &backend
+  build:
+    context: ../../backend/app/api
+  image: ${COMPOSE_PROJECT_NAME:-intelli-factory-testing}-backend:${IMAGE_TAG:-local}
+  environment:
+    DATABASE_URL: postgresql://intelli:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/intelli_factory
+    API_ENV: production
+    FRONTEND_URL: https://${APP_DOMAIN:?Set APP_DOMAIN}
+    CORS_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN}
+    VERIFY_EMAIL_BASE_URL: https://${APP_DOMAIN:?Set APP_DOMAIN}/verify-email
+    SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+    SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_USERNAME: ${SMTP_USERNAME:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    SMTP_USE_TLS: 'true'
+  networks:
+    - application
+    - database
+
+services:
+  db:
+    image: postgres:15-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: intelli
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: intelli_factory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U intelli -d intelli_factory']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  migrate:
+    <<: *backend
+    command: [python, -m, prisma, migrate, deploy]
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+
+  backend:
+    <<: *backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 12
+    logging: *logging
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-intelli-factory-testing}-frontend:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      BACKEND_API_URL: http://backend:8000/api
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: '3000'
+    ports:
+      - '127.0.0.1:${FRONTEND_PORT:-4200}:3000'
+    networks:
+      - application
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+    logging: *logging
+
+networks:
+  application:
+  database:
+    internal: true
+
+volumes:
+  postgres_data:

@@ -40,6 +40,7 @@ backend/app/api/.env
 frontend/.env.local
 
 # IDE
+.worktrees/
 .vscode/
 .idea/
 *.swp
@@ -86,3 +87,6 @@ docker-compose.override.yml
 
 # Deployment
 .vercel
+
+# Oracle database backups
+deploy/oracle/backups/

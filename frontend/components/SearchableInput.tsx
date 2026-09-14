@@ -1,4 +1,4 @@
-// Free-text input with autocomplete suggestion dropdown. 
+// Free-text input with autocomplete suggestion dropdown.
 import { useMemo, useRef, useState } from 'react';
 
 import { type ComboboxOption } from './Combobox';

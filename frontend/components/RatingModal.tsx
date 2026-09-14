@@ -9,13 +9,7 @@ type RatingModalProps = {
   onRated: () => void;
 };
 
-function StarSelector({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function StarSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex gap-1">
       {[1, 2, 3, 4, 5].map((star) => (

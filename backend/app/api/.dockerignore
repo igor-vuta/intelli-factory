@@ -1,0 +1,10 @@
+.env
+.env.*
+.venv
+__pycache__
+**/__pycache__
+.pytest_cache
+*.log
+cookies*.txt
+prisma-query-engine-*
+query-engine-*

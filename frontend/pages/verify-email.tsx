@@ -75,7 +75,12 @@ export default function VerifyEmailPage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <PresetIcon src="/favicon/favicon.svg" alt="Intelli-Factory" size={32} className="rounded-md" />
+            <PresetIcon
+              src="/favicon/favicon.svg"
+              alt="Intelli-Factory"
+              size={32}
+              className="rounded-md"
+            />
             <span>{copy.brand}</span>
           </Link>
           <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />

@@ -48,12 +48,15 @@ export default function AgreementSignModal({
     const requestStatus = transaction.request_status ?? transaction.status;
     const goodsCost = transaction.goods_cost ?? '-';
     const paymentTerms = transaction.payment_terms ?? 'Full payment before fulfillment start';
-    const candidateCreatedAt =
-      transaction.candidate_created_at ? formatDate(transaction.candidate_created_at) : '-';
-    const candidateUpdatedAt =
-      transaction.candidate_updated_at ? formatDate(transaction.candidate_updated_at) : '-';
-    const candidateDeletedAt =
-      transaction.candidate_deleted_at ? formatDate(transaction.candidate_deleted_at) : '-';
+    const candidateCreatedAt = transaction.candidate_created_at
+      ? formatDate(transaction.candidate_created_at)
+      : '-';
+    const candidateUpdatedAt = transaction.candidate_updated_at
+      ? formatDate(transaction.candidate_updated_at)
+      : '-';
+    const candidateDeletedAt = transaction.candidate_deleted_at
+      ? formatDate(transaction.candidate_deleted_at)
+      : '-';
 
     return `THREE-PARTY SUPPLY & LOGISTICS AGREEMENT
 
@@ -209,7 +212,9 @@ Date: ${contractDate}
               <span className="text-[11px] text-[rgb(var(--muted))]">Used in Article 9.2</span>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-[rgb(var(--muted))]">Dispute window (business days)</span>
+              <span className="text-xs text-[rgb(var(--muted))]">
+                Dispute window (business days)
+              </span>
               <input
                 type="number"
                 min="1"
@@ -235,11 +240,7 @@ Date: ${contractDate}
             className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
           />
           <label className="flex items-center gap-2 rounded-xl border border-[rgb(var(--stroke))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-            />
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
             I agree to this contract
           </label>
         </div>

@@ -103,10 +103,18 @@ function ProposalsModal({
       .sort((a, b) => (_toNum(b.reliability_score) ?? -1) - (_toNum(a.reliability_score) ?? -1));
     const byCost = available
       .filter((c) => _toNum(c.total_cost) != null)
-      .sort((a, b) => (_toNum(a.total_cost) ?? Number.MAX_SAFE_INTEGER) - (_toNum(b.total_cost) ?? Number.MAX_SAFE_INTEGER));
+      .sort(
+        (a, b) =>
+          (_toNum(a.total_cost) ?? Number.MAX_SAFE_INTEGER) -
+          (_toNum(b.total_cost) ?? Number.MAX_SAFE_INTEGER)
+      );
     const byTime = available
       .filter((c) => _toNum(c.delivery_days) != null)
-      .sort((a, b) => (_toNum(a.delivery_days) ?? Number.MAX_SAFE_INTEGER) - (_toNum(b.delivery_days) ?? Number.MAX_SAFE_INTEGER));
+      .sort(
+        (a, b) =>
+          (_toNum(a.delivery_days) ?? Number.MAX_SAFE_INTEGER) -
+          (_toNum(b.delivery_days) ?? Number.MAX_SAFE_INTEGER)
+      );
 
     if (recommendationGoal === 'RELIABILITY') return byReliability[0] ?? null;
     if (recommendationGoal === 'COST') return byCost[0] ?? null;
@@ -167,221 +175,220 @@ function ProposalsModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+          {error && (
+            <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+          )}
 
-        {error && (
-          <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
-        )}
+          {loadError && (
+            <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              {loadError}
+            </p>
+          )}
 
-        {loadError && (
-          <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
-            {loadError}
-          </p>
-        )}
+          {acceptedCandidate && (
+            <p className="mb-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+              A proposal is already selected for this request.
+            </p>
+          )}
 
-        {acceptedCandidate && (
-          <p className="mb-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
-            A proposal is already selected for this request.
-          </p>
-        )}
-
-        {!loadingCandidates && candidates.length > 0 && (
-          <div className="mb-4 rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-3">
-            <p className="mb-2 text-xs text-[rgb(var(--muted))]">Recommendation engine</p>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setRecommendationGoal('RELIABILITY')}
-                className={`rounded-lg border px-3 py-1.5 text-xs ${
-                  recommendationGoal === 'RELIABILITY'
-                    ? 'border-emerald-700/80 text-emerald-300'
-                    : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                }`}
-              >
-                [R] Reliability
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecommendationGoal('COST')}
-                className={`rounded-lg border px-3 py-1.5 text-xs ${
-                  recommendationGoal === 'COST'
-                    ? 'border-amber-700/80 text-amber-300'
-                    : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                }`}
-              >
-                [$] Cost
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecommendationGoal('TIME')}
-                className={`rounded-lg border px-3 py-1.5 text-xs ${
-                  recommendationGoal === 'TIME'
-                    ? 'border-sky-700/80 text-sky-300'
-                    : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                }`}
-              >
-                [T] Time
-              </button>
-            </div>
-
-            {recommendedCandidate ? (
-              <div className="rounded-lg border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-sm">
-                <div className="font-medium text-sky-200">Recommended proposal</div>
-                <div className="mt-1 text-xs text-[rgb(var(--muted))]">
-                  Factory: {recommendedCandidate.factory_legal_name ?? '-'} | Total:{' '}
-                  {recommendedCandidate.total_cost ?? '-'} {recommendedCandidate.currency_code} | Days:{' '}
-                  {recommendedCandidate.delivery_days ?? '-'} | Reliability:{' '}
-                  {recommendedCandidate.reliability_score != null
-                    ? `${Math.round(recommendedCandidate.reliability_score * 100)}%`
-                    : '-'}
-                </div>
+          {!loadingCandidates && candidates.length > 0 && (
+            <div className="mb-4 rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-3">
+              <p className="mb-2 text-xs text-[rgb(var(--muted))]">Recommendation engine</p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRecommendationGoal('RELIABILITY')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs ${
+                    recommendationGoal === 'RELIABILITY'
+                      ? 'border-emerald-700/80 text-emerald-300'
+                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
+                  }`}
+                >
+                  [R] Reliability
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecommendationGoal('COST')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs ${
+                    recommendationGoal === 'COST'
+                      ? 'border-amber-700/80 text-amber-300'
+                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
+                  }`}
+                >
+                  [$] Cost
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecommendationGoal('TIME')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs ${
+                    recommendationGoal === 'TIME'
+                      ? 'border-sky-700/80 text-sky-300'
+                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
+                  }`}
+                >
+                  [T] Time
+                </button>
               </div>
-            ) : (
-              <p className="text-xs text-[rgb(var(--muted))]">
-                No recommendation can be computed because required fields are missing.
-              </p>
-            )}
-          </div>
-        )}
 
-        {loadingCandidates ? (
-          <p className="text-sm text-[rgb(var(--muted))]">Loading proposals…</p>
-        ) : candidates.length === 0 ? (
-          <p className="text-sm text-[rgb(var(--muted))]">
-            {requestStatus === 'MATCHED'
-              ? 'Request is matched, but no proposal rows were returned. Try refresh.'
-              : 'No complete proposals yet. Factories have bid but logistics quotes are pending.'}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                  <th className="py-2 pr-3">Factory</th>
-                  <th className="py-2 pr-3">From</th>
-                  <th className="py-2 pr-3">Item</th>
-                  <th className="py-2 pr-3">Qty</th>
-                  <th className="py-2 pr-3">Logist</th>
-                  <th className="py-2 pr-3">Goods cost</th>
-                  <th className="py-2 pr-3">Delivery</th>
-                  <th className="py-2 pr-3">Total</th>
-                  <th className="py-2 pr-3">Days</th>
-                  <th className="py-2 pr-3">Score</th>
-                  <th className="py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCandidates.map((c) => {
-                  const goodsCost =
-                    c.quoted_quantity && c.inventory_price_per_unit
-                      ? (
-                          parseFloat(c.quoted_quantity) * parseFloat(c.inventory_price_per_unit)
-                        ).toFixed(2)
-                      : '-';
-                  return (
-                    <tr
-                      key={c.id}
-                      className={`border-b border-[rgb(var(--stroke))]/40 ${
-                        recommendedCandidate?.id === c.id ? 'bg-sky-950/20' : ''
-                      }`}
-                    >
-                      <td className="py-2 pr-3 text-xs">
-                        <div className="flex flex-col gap-0.5">
-                          <span>{c.factory_legal_name ?? '-'}</span>
-                          {c.factory_avg_rating != null && (
-                            <span
-                              className={`text-[10px] font-medium ${
-                                c.factory_avg_rating >= 4.25
-                                  ? 'text-emerald-400'
-                                  : c.factory_avg_rating >= 3.25
-                                    ? 'text-amber-400'
-                                    : 'text-red-400'
-                              }`}
-                            >
-                              ★ {c.factory_avg_rating.toFixed(1)}/5
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td
-                        className="py-2 pr-3 text-xs text-[rgb(var(--muted))]"
-                        title={c.source_address_label ?? undefined}
+              {recommendedCandidate ? (
+                <div className="rounded-lg border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-sm">
+                  <div className="font-medium text-sky-200">Recommended proposal</div>
+                  <div className="mt-1 text-xs text-[rgb(var(--muted))]">
+                    Factory: {recommendedCandidate.factory_legal_name ?? '-'} | Total:{' '}
+                    {recommendedCandidate.total_cost ?? '-'} {recommendedCandidate.currency_code} |
+                    Days: {recommendedCandidate.delivery_days ?? '-'} | Reliability:{' '}
+                    {recommendedCandidate.reliability_score != null
+                      ? `${Math.round(recommendedCandidate.reliability_score * 100)}%`
+                      : '-'}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[rgb(var(--muted))]">
+                  No recommendation can be computed because required fields are missing.
+                </p>
+              )}
+            </div>
+          )}
+
+          {loadingCandidates ? (
+            <p className="text-sm text-[rgb(var(--muted))]">Loading proposals…</p>
+          ) : candidates.length === 0 ? (
+            <p className="text-sm text-[rgb(var(--muted))]">
+              {requestStatus === 'MATCHED'
+                ? 'Request is matched, but no proposal rows were returned. Try refresh.'
+                : 'No complete proposals yet. Factories have bid but logistics quotes are pending.'}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                    <th className="py-2 pr-3">Factory</th>
+                    <th className="py-2 pr-3">From</th>
+                    <th className="py-2 pr-3">Item</th>
+                    <th className="py-2 pr-3">Qty</th>
+                    <th className="py-2 pr-3">Logist</th>
+                    <th className="py-2 pr-3">Goods cost</th>
+                    <th className="py-2 pr-3">Delivery</th>
+                    <th className="py-2 pr-3">Total</th>
+                    <th className="py-2 pr-3">Days</th>
+                    <th className="py-2 pr-3">Score</th>
+                    <th className="py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedCandidates.map((c) => {
+                    const goodsCost =
+                      c.quoted_quantity && c.inventory_price_per_unit
+                        ? (
+                            parseFloat(c.quoted_quantity) * parseFloat(c.inventory_price_per_unit)
+                          ).toFixed(2)
+                        : '-';
+                    return (
+                      <tr
+                        key={c.id}
+                        className={`border-b border-[rgb(var(--stroke))]/40 ${
+                          recommendedCandidate?.id === c.id ? 'bg-sky-950/20' : ''
+                        }`}
                       >
-                        {c.source_address_label
-                          ? c.source_address_label.split(',').slice(1, 3).join(',').trim() ||
-                            c.source_address_label
-                          : '-'}
-                      </td>
-                      <td className="py-2 pr-3">{c.item_name ?? '-'}</td>
-                      <td className="py-2 pr-3">
-                        {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
-                      </td>
-                      <td className="py-2 pr-3 text-xs">
-                        <div className="flex flex-col gap-0.5">
-                          <span>{c.logist_legal_name ?? '-'}</span>
-                          {c.logistic_title && c.logistic_title !== c.logist_legal_name && (
-                            <span className="text-[10px] text-[rgb(var(--muted))]">
-                              {c.logistic_title}
-                            </span>
-                          )}
-                          {c.logist_avg_rating != null && (
-                            <span
-                              className={`text-[10px] font-medium ${
-                                c.logist_avg_rating >= 4.25
-                                  ? 'text-emerald-400'
-                                  : c.logist_avg_rating >= 3.25
-                                    ? 'text-amber-400'
-                                    : 'text-red-400'
-                              }`}
+                        <td className="py-2 pr-3 text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{c.factory_legal_name ?? '-'}</span>
+                            {c.factory_avg_rating != null && (
+                              <span
+                                className={`text-[10px] font-medium ${
+                                  c.factory_avg_rating >= 4.25
+                                    ? 'text-emerald-400'
+                                    : c.factory_avg_rating >= 3.25
+                                      ? 'text-amber-400'
+                                      : 'text-red-400'
+                                }`}
+                              >
+                                ★ {c.factory_avg_rating.toFixed(1)}/5
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td
+                          className="py-2 pr-3 text-xs text-[rgb(var(--muted))]"
+                          title={c.source_address_label ?? undefined}
+                        >
+                          {c.source_address_label
+                            ? c.source_address_label.split(',').slice(1, 3).join(',').trim() ||
+                              c.source_address_label
+                            : '-'}
+                        </td>
+                        <td className="py-2 pr-3">{c.item_name ?? '-'}</td>
+                        <td className="py-2 pr-3">
+                          {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
+                        </td>
+                        <td className="py-2 pr-3 text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{c.logist_legal_name ?? '-'}</span>
+                            {c.logistic_title && c.logistic_title !== c.logist_legal_name && (
+                              <span className="text-[10px] text-[rgb(var(--muted))]">
+                                {c.logistic_title}
+                              </span>
+                            )}
+                            {c.logist_avg_rating != null && (
+                              <span
+                                className={`text-[10px] font-medium ${
+                                  c.logist_avg_rating >= 4.25
+                                    ? 'text-emerald-400'
+                                    : c.logist_avg_rating >= 3.25
+                                      ? 'text-amber-400'
+                                      : 'text-red-400'
+                                }`}
+                              >
+                                ★ {c.logist_avg_rating.toFixed(1)}/5
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-3">
+                          {goodsCost} {c.currency_code}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {c.delivery_price ?? '-'} {c.currency_code}
+                        </td>
+                        <td className="py-2 pr-3 font-medium">
+                          {c.total_cost ?? '-'} {c.currency_code}
+                        </td>
+                        <td className="py-2 pr-3">{c.delivery_days ?? '-'}d</td>
+                        <td className="py-2 pr-3 text-xs text-sky-300">
+                          {c.fitness_score != null ? c.fitness_score.toFixed(4) : '-'}
+                        </td>
+                        <td className="py-2">
+                          <div className="flex items-center gap-2">
+                            {recommendedCandidate?.id === c.id && (
+                              <span className="rounded-md border border-sky-700/60 px-2 py-1 text-[10px] text-sky-300">
+                                Recommended
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              disabled={
+                                selecting === c.id ||
+                                (acceptedCandidate != null && acceptedCandidate.id !== c.id)
+                              }
+                              onClick={() => void handleSelect(c.id)}
+                              className="rounded-md border border-emerald-700/60 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-50"
                             >
-                              ★ {c.logist_avg_rating.toFixed(1)}/5
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        {goodsCost} {c.currency_code}
-                      </td>
-                      <td className="py-2 pr-3">
-                        {c.delivery_price ?? '-'} {c.currency_code}
-                      </td>
-                      <td className="py-2 pr-3 font-medium">
-                        {c.total_cost ?? '-'} {c.currency_code}
-                      </td>
-                      <td className="py-2 pr-3">{c.delivery_days ?? '-'}d</td>
-                      <td className="py-2 pr-3 text-xs text-sky-300">
-                        {c.fitness_score != null ? c.fitness_score.toFixed(4) : '-'}
-                      </td>
-                      <td className="py-2">
-                        <div className="flex items-center gap-2">
-                          {recommendedCandidate?.id === c.id && (
-                            <span className="rounded-md border border-sky-700/60 px-2 py-1 text-[10px] text-sky-300">
-                              Recommended
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            disabled={
-                              selecting === c.id ||
-                              (acceptedCandidate != null && acceptedCandidate.id !== c.id)
-                            }
-                            onClick={() => void handleSelect(c.id)}
-                            className="rounded-md border border-emerald-700/60 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-50"
-                          >
-                            {c.status === 'ACCEPTED'
-                              ? 'Selected'
-                              : selecting === c.id
-                                ? 'Selecting…'
-                                : 'Select'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                              {c.status === 'ACCEPTED'
+                                ? 'Selected'
+                                : selecting === c.id
+                                  ? 'Selecting…'
+                                  : 'Select'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -827,12 +834,7 @@ export default function CustomerWorkspacePage() {
         return false;
 
       if (search) {
-        const haystack = [
-          row.item_name,
-          row.requested_name_text,
-          row.category_name,
-          row.id,
-        ]
+        const haystack = [row.item_name, row.requested_name_text, row.category_name, row.id]
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
@@ -843,20 +845,14 @@ export default function CustomerWorkspacePage() {
     });
   }, [requests, requestSearch, requestStatusFilter, requestCurrencyFilter]);
 
-  const totalRequestPages = Math.max(
-    1,
-    Math.ceil(filteredRequests.length / REQUESTS_PAGE_SIZE)
-  );
+  const totalRequestPages = Math.max(1, Math.ceil(filteredRequests.length / REQUESTS_PAGE_SIZE));
 
   const paginatedRequests = useMemo(() => {
     const start = (requestsPage - 1) * REQUESTS_PAGE_SIZE;
     return filteredRequests.slice(start, start + REQUESTS_PAGE_SIZE);
   }, [filteredRequests, requestsPage]);
 
-  const totalTransactionPages = Math.max(
-    1,
-    Math.ceil(transactions.length / REQUESTS_PAGE_SIZE)
-  );
+  const totalTransactionPages = Math.max(1, Math.ceil(transactions.length / REQUESTS_PAGE_SIZE));
 
   const paginatedTransactions = useMemo(() => {
     const start = (transactionsPage - 1) * REQUESTS_PAGE_SIZE;
@@ -1085,7 +1081,12 @@ export default function CustomerWorkspacePage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <PresetIcon src="/presets/customer.svg" alt="Customer workspace" size={32} className="rounded-md" />
+            <PresetIcon
+              src="/presets/customer.svg"
+              alt="Customer workspace"
+              size={32}
+              className="rounded-md"
+            />
             <span>{copy.brand}</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -1100,10 +1101,10 @@ export default function CustomerWorkspacePage() {
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.myRequestsTitle}</h1>
-              <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                {copy.myRequestsSubtitle}
-              </p>
+              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
+                {copy.myRequestsTitle}
+              </h1>
+              <p className="mt-1 text-sm text-[rgb(var(--muted))]">{copy.myRequestsSubtitle}</p>
             </div>
             {!loading && (
               <button
@@ -1193,72 +1194,74 @@ export default function CustomerWorkspacePage() {
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">{copy.colId}</th>
-                        <th className="py-2 pr-4">{copy.colCategory}</th>
-                        <th className="py-2 pr-4">{copy.colItemDescription}</th>
-                        <th className="py-2 pr-4">{copy.colQty}</th>
-                        <th className="py-2 pr-4">{copy.colCurrency}</th>
-                        <th className="py-2 pr-4">{copy.colStatus}</th>
-                        <th className="py-2 pr-4">{copy.colAction}</th>
-                        <th className="py-2">{copy.colCreated}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedRequests.map((row) => (
-                        <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-mono text-xs">
-                            {row.id.slice(0, 8)}
-                            \u2026
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {row.category_name ?? '\u2014'}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {row.item_name ?? row.requested_name_text ?? '\u2014'}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
-                          </td>
-                          <td className="py-2 pr-4">{row.preferred_currency_code}</td>
-                          <td className={`py-2 pr-4 ${STATUS_COLOR[row.status] ?? ''}`}>
-                            {row.status}
-                          </td>
-                          <td className="py-2 pr-4">
-                            <div className="flex flex-wrap gap-1">
-                              {row.status === 'PENDING' && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleCancelRequest(row.id)}
-                                  className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30"
-                                >
-                                  {copy.cancelRequest}
-                                </button>
-                              )}
-                              {(row.status === 'PAIRING_IN_PROGRESS' ||
-                                row.status === 'MATCHED') && (
-                                <button
-                                  type="button"
-                                  onClick={() => void openProposals(row.id)}
-                                  className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
-                                >
-                                  {copy.viewProposals}
-                                </button>
-                              )}
-                              {row.status !== 'PENDING' &&
-                                row.status !== 'PAIRING_IN_PROGRESS' &&
-                                row.status !== 'MATCHED' && (
-                                  <span className="text-xs text-[rgb(var(--muted))]">-</span>
-                                )}
-                            </div>
-                          </td>
-                          <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                            {new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'UTC' })}
-                          </td>
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-4">{copy.colId}</th>
+                          <th className="py-2 pr-4">{copy.colCategory}</th>
+                          <th className="py-2 pr-4">{copy.colItemDescription}</th>
+                          <th className="py-2 pr-4">{copy.colQty}</th>
+                          <th className="py-2 pr-4">{copy.colCurrency}</th>
+                          <th className="py-2 pr-4">{copy.colStatus}</th>
+                          <th className="py-2 pr-4">{copy.colAction}</th>
+                          <th className="py-2">{copy.colCreated}</th>
                         </tr>
-                      ))}
-                    </tbody>
+                      </thead>
+                      <tbody>
+                        {paginatedRequests.map((row) => (
+                          <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
+                            <td className="py-2 pr-4 font-mono text-xs">
+                              {row.id.slice(0, 8)}
+                              \u2026
+                            </td>
+                            <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                              {row.category_name ?? '\u2014'}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {row.item_name ?? row.requested_name_text ?? '\u2014'}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                            </td>
+                            <td className="py-2 pr-4">{row.preferred_currency_code}</td>
+                            <td className={`py-2 pr-4 ${STATUS_COLOR[row.status] ?? ''}`}>
+                              {row.status}
+                            </td>
+                            <td className="py-2 pr-4">
+                              <div className="flex flex-wrap gap-1">
+                                {row.status === 'PENDING' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCancelRequest(row.id)}
+                                    className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30"
+                                  >
+                                    {copy.cancelRequest}
+                                  </button>
+                                )}
+                                {(row.status === 'PAIRING_IN_PROGRESS' ||
+                                  row.status === 'MATCHED') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void openProposals(row.id)}
+                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
+                                  >
+                                    {copy.viewProposals}
+                                  </button>
+                                )}
+                                {row.status !== 'PENDING' &&
+                                  row.status !== 'PAIRING_IN_PROGRESS' &&
+                                  row.status !== 'MATCHED' && (
+                                    <span className="text-xs text-[rgb(var(--muted))]">-</span>
+                                  )}
+                              </div>
+                            </td>
+                            <td className="py-2 text-xs text-[rgb(var(--muted))]">
+                              {new Date(row.created_at).toLocaleString('en-GB', {
+                                timeZone: 'UTC',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
                     </table>
                   </div>
 
@@ -1311,116 +1314,125 @@ export default function CustomerWorkspacePage() {
               <p className="mt-3 text-sm text-[rgb(var(--muted))]">No active transactions yet.</p>
             ) : (
               <>
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                      <th className="py-2 pr-4">Transaction</th>
-                      <th className="py-2 pr-4">Item</th>
-                      <th className="py-2 pr-4">Status</th>
-                      <th className="py-2 pr-4">Signatures</th>
-                      <th className="py-2 pr-4">Payment</th>
-                      <th className="py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedTransactions.map((tx) => (
-                      <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                        <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
-                        <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
-                        <td className={`py-2 pr-4 ${STATUS_COLOR[tx.status] ?? ''}`}>{tx.status}</td>
-                        <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                          C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
-                          {tx.signature_status.LOGIST}
-                        </td>
-                        <td className="py-2 pr-4 text-xs">
-                          {tx.total_cost ? `${tx.total_cost} ${tx.currency_code ?? ''}` : '-'}{' '}
-                          ({tx.payment_status})
-                        </td>
-                        <td className="py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {tx.can_sign && (
-                              <button
-                                type="button"
-                                onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                disabled={workflowBusyId === tx.id + 'SIGN'}
-                                className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
-                              >
-                                {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
-                              </button>
-                            )}
-                            {tx.can_pay && (
-                              <button
-                                type="button"
-                                onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
-                                disabled={workflowBusyId === tx.id + 'PAY'}
-                                className="rounded-md border border-emerald-700/60 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-60"
-                              >
-                                {workflowBusyId === tx.id + 'PAY' ? 'Paying...' : 'Pay'}
-                              </button>
-                            )}
-                            {tx.can_accept_completion && (
-                              <button
-                                type="button"
-                                onClick={() => void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')}
-                                disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
-                                className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
-                              >
-                                {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
-                                  ? 'Accepting...'
-                                  : 'Accept'}
-                              </button>
-                            )}
-                            {tx.status === 'COMPLETED' && (
-                              <button
-                                type="button"
-                                onClick={() => setRatingTransaction(tx)}
-                                className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30"
-                              >
-                                Rate
-                              </button>
-                            )}
-                            {!tx.can_sign && !tx.can_pay && !tx.can_accept_completion && tx.status !== 'COMPLETED' && (
-                              <span className="text-xs text-[rgb(var(--muted))]">Awaiting others</span>
-                            )}
-                          </div>
-                        </td>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                        <th className="py-2 pr-4">Transaction</th>
+                        <th className="py-2 pr-4">Item</th>
+                        <th className="py-2 pr-4">Status</th>
+                        <th className="py-2 pr-4">Signatures</th>
+                        <th className="py-2 pr-4">Payment</th>
+                        <th className="py-2">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                <span>
-                  Showing {(transactionsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                  {' - '}
-                  {Math.min(transactionsPage * REQUESTS_PAGE_SIZE, transactions.length)} of{' '}
-                  {transactions.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={transactionsPage <= 1}
-                    onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
-                    className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                  >
-                    Prev
-                  </button>
-                  <span>
-                    Page {transactionsPage} / {totalTransactionPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={transactionsPage >= totalTransactionPages}
-                    onClick={() =>
-                      setTransactionsPage((prev) => Math.min(totalTransactionPages, prev + 1))
-                    }
-                    className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
+                    </thead>
+                    <tbody>
+                      {paginatedTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
+                          <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
+                          <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
+                          <td className={`py-2 pr-4 ${STATUS_COLOR[tx.status] ?? ''}`}>
+                            {tx.status}
+                          </td>
+                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                            C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
+                            {tx.signature_status.LOGIST}
+                          </td>
+                          <td className="py-2 pr-4 text-xs">
+                            {tx.total_cost ? `${tx.total_cost} ${tx.currency_code ?? ''}` : '-'} (
+                            {tx.payment_status})
+                          </td>
+                          <td className="py-2">
+                            <div className="flex flex-wrap gap-1">
+                              {tx.can_sign && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                  disabled={workflowBusyId === tx.id + 'SIGN'}
+                                  className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
+                                >
+                                  {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
+                                </button>
+                              )}
+                              {tx.can_pay && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
+                                  disabled={workflowBusyId === tx.id + 'PAY'}
+                                  className="rounded-md border border-emerald-700/60 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-60"
+                                >
+                                  {workflowBusyId === tx.id + 'PAY' ? 'Paying...' : 'Pay'}
+                                </button>
+                              )}
+                              {tx.can_accept_completion && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')
+                                  }
+                                  disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
+                                  className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
+                                >
+                                  {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
+                                    ? 'Accepting...'
+                                    : 'Accept'}
+                                </button>
+                              )}
+                              {tx.status === 'COMPLETED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRatingTransaction(tx)}
+                                  className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30"
+                                >
+                                  Rate
+                                </button>
+                              )}
+                              {!tx.can_sign &&
+                                !tx.can_pay &&
+                                !tx.can_accept_completion &&
+                                tx.status !== 'COMPLETED' && (
+                                  <span className="text-xs text-[rgb(var(--muted))]">
+                                    Awaiting others
+                                  </span>
+                                )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                  <span>
+                    Showing {(transactionsPage - 1) * REQUESTS_PAGE_SIZE + 1}
+                    {' - '}
+                    {Math.min(transactionsPage * REQUESTS_PAGE_SIZE, transactions.length)} of{' '}
+                    {transactions.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={transactionsPage <= 1}
+                      onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
+                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <span>
+                      Page {transactionsPage} / {totalTransactionPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={transactionsPage >= totalTransactionPages}
+                      onClick={() =>
+                        setTransactionsPage((prev) => Math.min(totalTransactionPages, prev + 1))
+                      }
+                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </>
             )}
           </section>

@@ -50,7 +50,9 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
   const [pricePerKg, setPricePerKg] = useState('');
   const [estimatedDaysMin, setEstimatedDaysMin] = useState('');
   const [estimatedDaysMax, setEstimatedDaysMax] = useState('');
-  const [currencyCode, setCurrencyCode] = useState(currencies[0]?.code ?? bid.currency_code ?? 'USD');
+  const [currencyCode, setCurrencyCode] = useState(
+    currencies[0]?.code ?? bid.currency_code ?? 'USD'
+  );
   const [deliveryPrice, setDeliveryPrice] = useState('40');
   const [deliveryDays, setDeliveryDays] = useState('3');
   const [showOptionalTerms, setShowOptionalTerms] = useState(false);
@@ -155,8 +157,7 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
           <div>
             <h2 className="text-lg font-semibold">Quote Delivery</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Factory: {bid.factory_legal_name ?? 'N/A'} - Item: {bid.item_name ?? 'N/A'} -
-              {' '}
+              Factory: {bid.factory_legal_name ?? 'N/A'} - Item: {bid.item_name ?? 'N/A'} -{' '}
               {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)} @{' '}
               {bid.inventory_price_per_unit} {bid.currency_code}
             </p>
@@ -186,14 +187,16 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
           </div>
           <div>
             <p className="text-xs text-[rgb(var(--muted))]">Quantity</p>
-            <p className="text-sm">{formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}</p>
+            <p className="text-sm">
+              {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
+            </p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
           <p className="sm:col-span-2 rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-xs text-[rgb(var(--muted))]">
-            Required: Title, Base price, Currency. Required for quote: Delivery price and Delivery days.
-            Optional: Description, Price per km, Price per kg, Est. min/max days.
+            Required: Title, Base price, Currency. Required for quote: Delivery price and Delivery
+            days. Optional: Description, Price per km, Price per kg, Est. min/max days.
           </p>
 
           <div className="sm:col-span-2">
@@ -232,7 +235,9 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
           {showOptionalTerms && (
             <>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Description (optional)</label>
+                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  Description (optional)
+                </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -242,7 +247,9 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Price per km (optional)</label>
+                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  Price per km (optional)
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -254,7 +261,9 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Price per kg (optional)</label>
+                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  Price per kg (optional)
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -266,7 +275,9 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Est. min days (optional)</label>
+                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  Est. min days (optional)
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -277,7 +288,9 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Est. max days (optional)</label>
+                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  Est. max days (optional)
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -336,7 +349,11 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
             </p>
           )}
 
-          {error && <p className="sm:col-span-2 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>}
+          {error && (
+            <p className="sm:col-span-2 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              {error}
+            </p>
+          )}
           {success && (
             <p className="sm:col-span-2 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
               {success}
@@ -427,10 +444,12 @@ export default function LogistWorkspacePage() {
         (bid.factory_legal_name ?? '').toLowerCase().includes(q) ||
         (bid.factory_note ?? '').toLowerCase().includes(q);
       const matchesStatus =
-        factoryBidsRequestStatusFilter === 'ALL' || requestStatus === factoryBidsRequestStatusFilter;
+        factoryBidsRequestStatusFilter === 'ALL' ||
+        requestStatus === factoryBidsRequestStatusFilter;
       const matchesCurrency =
         factoryBidsCurrencyFilter === 'ALL' || bid.currency_code === factoryBidsCurrencyFilter;
-      const matchesQuote = factoryBidsQuoteFilter === 'ALL' || quoteStage === factoryBidsQuoteFilter;
+      const matchesQuote =
+        factoryBidsQuoteFilter === 'ALL' || quoteStage === factoryBidsQuoteFilter;
       return matchesQuery && matchesStatus && matchesCurrency && matchesQuote;
     });
   }, [
@@ -454,8 +473,14 @@ export default function LogistWorkspacePage() {
     });
   }, [transactions, transactionsQuery, transactionsStatusFilter, transactionsPaymentFilter]);
 
-  const factoryBidsTotalPages = Math.max(1, Math.ceil(filteredFactoryBids.length / TABLE_PAGE_SIZE));
-  const transactionsTotalPages = Math.max(1, Math.ceil(filteredTransactions.length / TABLE_PAGE_SIZE));
+  const factoryBidsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredFactoryBids.length / TABLE_PAGE_SIZE)
+  );
+  const transactionsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredTransactions.length / TABLE_PAGE_SIZE)
+  );
 
   const paginatedFactoryBids = useMemo(() => {
     const start = (factoryBidsPage - 1) * TABLE_PAGE_SIZE;
@@ -607,23 +632,39 @@ export default function LogistWorkspacePage() {
       setOfferError('Select a currency');
       return;
     }
-    if (parsedPricePerKm !== undefined && (!Number.isFinite(parsedPricePerKm) || parsedPricePerKm < 0)) {
+    if (
+      parsedPricePerKm !== undefined &&
+      (!Number.isFinite(parsedPricePerKm) || parsedPricePerKm < 0)
+    ) {
       setOfferError('Price per km must be ≥ 0');
       return;
     }
-    if (parsedPricePerKg !== undefined && (!Number.isFinite(parsedPricePerKg) || parsedPricePerKg < 0)) {
+    if (
+      parsedPricePerKg !== undefined &&
+      (!Number.isFinite(parsedPricePerKg) || parsedPricePerKg < 0)
+    ) {
       setOfferError('Price per kg must be ≥ 0');
       return;
     }
-    if (parsedDaysMin !== undefined && (!Number.isFinite(parsedDaysMin) || parsedDaysMin < 0 || !Number.isInteger(parsedDaysMin))) {
+    if (
+      parsedDaysMin !== undefined &&
+      (!Number.isFinite(parsedDaysMin) || parsedDaysMin < 0 || !Number.isInteger(parsedDaysMin))
+    ) {
       setOfferError('Est. min days must be a whole number ≥ 0');
       return;
     }
-    if (parsedDaysMax !== undefined && (!Number.isFinite(parsedDaysMax) || parsedDaysMax < 0 || !Number.isInteger(parsedDaysMax))) {
+    if (
+      parsedDaysMax !== undefined &&
+      (!Number.isFinite(parsedDaysMax) || parsedDaysMax < 0 || !Number.isInteger(parsedDaysMax))
+    ) {
       setOfferError('Est. max days must be a whole number ≥ 0');
       return;
     }
-    if (parsedDaysMin !== undefined && parsedDaysMax !== undefined && parsedDaysMin > parsedDaysMax) {
+    if (
+      parsedDaysMin !== undefined &&
+      parsedDaysMax !== undefined &&
+      parsedDaysMin > parsedDaysMax
+    ) {
       setOfferError('Est. min days cannot exceed est. max days');
       return;
     }
@@ -676,7 +717,12 @@ export default function LogistWorkspacePage() {
             href="/"
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
-            <PresetIcon src="/presets/logist.svg" alt="Logist workspace" size={32} className="rounded-md" />
+            <PresetIcon
+              src="/presets/logist.svg"
+              alt="Logist workspace"
+              size={32}
+              className="rounded-md"
+            />
             <span>{copy.brand}</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -689,164 +735,170 @@ export default function LogistWorkspacePage() {
         </header>
 
         {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
-        {error && <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>}
+        {error && (
+          <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+        )}
 
         {!loading && (
           <>
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-            <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.logistWorkspaceTitle}</h1>
-            <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-              {copy.logistWorkspaceSubtitle}
-            </p>
-
-            <h2 className="mt-6 text-lg font-semibold">{copy.bidsNeedingQuoteTitle}</h2>
-            <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              {copy.bidsNeedingQuoteSubtitle}
-            </p>
-
-            <div className="mt-3 grid gap-2 sm:grid-cols-4">
-              <input
-                type="text"
-                value={factoryBidsQuery}
-                onChange={(e) => setFactoryBidsQuery(e.target.value)}
-                placeholder="Search item/factory/note"
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              />
-              <select
-                value={factoryBidsRequestStatusFilter}
-                onChange={(e) => setFactoryBidsRequestStatusFilter(e.target.value)}
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              >
-                <option value="ALL">All request statuses</option>
-                {factoryBidsRequestStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={factoryBidsCurrencyFilter}
-                onChange={(e) => setFactoryBidsCurrencyFilter(e.target.value)}
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              >
-                <option value="ALL">All currencies</option>
-                {factoryBidsCurrencyOptions.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={factoryBidsQuoteFilter}
-                onChange={(e) => setFactoryBidsQuoteFilter(e.target.value)}
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              >
-                <option value="ALL">All quote states</option>
-                <option value="NOT_QUOTED">Need quote</option>
-                <option value="QUOTED">Already quoted</option>
-              </select>
-            </div>
-
-            {filteredFactoryBids.length === 0 ? (
-              <p className="mt-3 text-sm text-[rgb(var(--muted))]">
-                {factoryBids.length === 0
-                  ? copy.noBidsWaiting
-                  : 'No factory bids match current filters.'}
+              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
+                {copy.logistWorkspaceTitle}
+              </h1>
+              <p className="mt-1 text-sm text-[rgb(var(--muted))]">
+                {copy.logistWorkspaceSubtitle}
               </p>
-            ) : (
-              <>
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                      <th className="py-2 pr-4">{copy.colGoods}</th>
-                      <th className="py-2 pr-4">{copy.colFactory}</th>
-                      <th className="py-2 pr-4">{copy.colQtyOffered}</th>
-                      <th className="py-2 pr-4">{copy.colTotalCost}</th>
-                      <th className="py-2 pr-4">{copy.colStatus}</th>
-                      <th className="py-2 pr-4">Factory note</th>
-                      <th className="py-2">{copy.colAction}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedFactoryBids.map((bid) => {
-                      const goodsCost =
-                        bid.quoted_quantity && bid.inventory_price_per_unit
-                          ? (
-                              parseFloat(bid.quoted_quantity) *
-                              parseFloat(bid.inventory_price_per_unit)
-                            ).toFixed(2)
-                          : '-';
-                      return (
-                        <tr key={bid.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-medium">{bid.item_name ?? '-'}</td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {bid.factory_legal_name ?? '-'}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {goodsCost} {bid.currency_code}
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {bid.request_status ?? 'PAIRING_IN_PROGRESS'}
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            {bid.factory_note ?? '-'}
-                          </td>
-                          <td className="py-2">
-                            <button
-                              type="button"
-                              onClick={() => setQuoteTarget(bid)}
-                              className={`rounded-md border px-3 py-1 text-xs hover:bg-emerald-950/30 ${
-                                bid.has_my_quote
-                                  ? 'border-amber-700/60 text-amber-300'
-                                  : 'border-emerald-700/60 text-emerald-300'
-                              }`}
-                            >
-                              {bid.has_my_quote ? 'Update Quote' : copy.quoteDelivery}
-                            </button>
-                          </td>
+
+              <h2 className="mt-6 text-lg font-semibold">{copy.bidsNeedingQuoteTitle}</h2>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
+                {copy.bidsNeedingQuoteSubtitle}
+              </p>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                <input
+                  type="text"
+                  value={factoryBidsQuery}
+                  onChange={(e) => setFactoryBidsQuery(e.target.value)}
+                  placeholder="Search item/factory/note"
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                />
+                <select
+                  value={factoryBidsRequestStatusFilter}
+                  onChange={(e) => setFactoryBidsRequestStatusFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All request statuses</option>
+                  {factoryBidsRequestStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={factoryBidsCurrencyFilter}
+                  onChange={(e) => setFactoryBidsCurrencyFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All currencies</option>
+                  {factoryBidsCurrencyOptions.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={factoryBidsQuoteFilter}
+                  onChange={(e) => setFactoryBidsQuoteFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All quote states</option>
+                  <option value="NOT_QUOTED">Need quote</option>
+                  <option value="QUOTED">Already quoted</option>
+                </select>
+              </div>
+
+              {filteredFactoryBids.length === 0 ? (
+                <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                  {factoryBids.length === 0
+                    ? copy.noBidsWaiting
+                    : 'No factory bids match current filters.'}
+                </p>
+              ) : (
+                <>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-4">{copy.colGoods}</th>
+                          <th className="py-2 pr-4">{copy.colFactory}</th>
+                          <th className="py-2 pr-4">{copy.colQtyOffered}</th>
+                          <th className="py-2 pr-4">{copy.colTotalCost}</th>
+                          <th className="py-2 pr-4">{copy.colStatus}</th>
+                          <th className="py-2 pr-4">Factory note</th>
+                          <th className="py-2">{copy.colAction}</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                <span>
-                  Showing {(factoryBidsPage - 1) * TABLE_PAGE_SIZE + 1}
-                  {' - '}
-                  {Math.min(factoryBidsPage * TABLE_PAGE_SIZE, filteredFactoryBids.length)} of{' '}
-                  {filteredFactoryBids.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={factoryBidsPage <= 1}
-                    onClick={() => setFactoryBidsPage((prev) => Math.max(1, prev - 1))}
-                    className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                  >
-                    Prev
-                  </button>
-                  <span>
-                    Page {factoryBidsPage} / {factoryBidsTotalPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={factoryBidsPage >= factoryBidsTotalPages}
-                    onClick={() =>
-                      setFactoryBidsPage((prev) => Math.min(factoryBidsTotalPages, prev + 1))
-                    }
-                    className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-              </>
-            )}
+                      </thead>
+                      <tbody>
+                        {paginatedFactoryBids.map((bid) => {
+                          const goodsCost =
+                            bid.quoted_quantity && bid.inventory_price_per_unit
+                              ? (
+                                  parseFloat(bid.quoted_quantity) *
+                                  parseFloat(bid.inventory_price_per_unit)
+                                ).toFixed(2)
+                              : '-';
+                          return (
+                            <tr key={bid.id} className="border-b border-[rgb(var(--stroke))]/40">
+                              <td className="py-2 pr-4 font-medium">{bid.item_name ?? '-'}</td>
+                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                                {bid.factory_legal_name ?? '-'}
+                              </td>
+                              <td className="py-2 pr-4">
+                                {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
+                              </td>
+                              <td className="py-2 pr-4">
+                                {goodsCost} {bid.currency_code}
+                              </td>
+                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                                {bid.request_status ?? 'PAIRING_IN_PROGRESS'}
+                              </td>
+                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                                {bid.factory_note ?? '-'}
+                              </td>
+                              <td className="py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setQuoteTarget(bid)}
+                                  className={`rounded-md border px-3 py-1 text-xs hover:bg-emerald-950/30 ${
+                                    bid.has_my_quote
+                                      ? 'border-amber-700/60 text-amber-300'
+                                      : 'border-emerald-700/60 text-emerald-300'
+                                  }`}
+                                >
+                                  {bid.has_my_quote ? 'Update Quote' : copy.quoteDelivery}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                    <span>
+                      Showing {(factoryBidsPage - 1) * TABLE_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(
+                        factoryBidsPage * TABLE_PAGE_SIZE,
+                        filteredFactoryBids.length
+                      )} of {filteredFactoryBids.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={factoryBidsPage <= 1}
+                        onClick={() => setFactoryBidsPage((prev) => Math.max(1, prev - 1))}
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {factoryBidsPage} / {factoryBidsTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={factoryBidsPage >= factoryBidsTotalPages}
+                        onClick={() =>
+                          setFactoryBidsPage((prev) => Math.min(factoryBidsTotalPages, prev + 1))
+                        }
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </section>
 
             {/* Add Logistic Offer */}
@@ -854,16 +906,19 @@ export default function LogistWorkspacePage() {
               {logisticOffers.length === 0 && (
                 <div className="mb-6 rounded-2xl border-2 border-[rgb(var(--accent))] bg-[rgb(var(--panel))] p-5">
                   <h2 className="text-lg font-semibold">{copy.logistSetupTitle}</h2>
-                  <p className="mt-1 text-sm text-[rgb(var(--muted))]">{copy.logistSetupSubtitle}</p>
+                  <p className="mt-1 text-sm text-[rgb(var(--muted))]">
+                    {copy.logistSetupSubtitle}
+                  </p>
                 </div>
               )}
 
               <h2 className="text-lg font-semibold">{copy.addOfferTitle}</h2>
-              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                {copy.addOfferSubtitle}
-              </p>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.addOfferSubtitle}</p>
 
-              <form onSubmit={(e) => void handleAddOffer(e)} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <form
+                onSubmit={(e) => void handleAddOffer(e)}
+                className="mt-4 grid gap-4 sm:grid-cols-2"
+              >
                 {/* Title */}
                 <div className="sm:col-span-2">
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
@@ -1066,153 +1121,161 @@ export default function LogistWorkspacePage() {
             </section>
 
             <section className="surface-1 rounded-2xl p-6 sm:p-8">
-            <h2 className="text-lg font-semibold">Contract & Fulfillment Workflow</h2>
-            <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Sign contract packets and progress fulfillment after customer payment confirmation.
-            </p>
-
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <input
-                type="text"
-                value={transactionsQuery}
-                onChange={(e) => setTransactionsQuery(e.target.value)}
-                placeholder="Search tx or item"
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              />
-              <select
-                value={transactionsStatusFilter}
-                onChange={(e) => setTransactionsStatusFilter(e.target.value)}
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              >
-                <option value="ALL">All statuses</option>
-                {transactionsStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={transactionsPaymentFilter}
-                onChange={(e) => setTransactionsPaymentFilter(e.target.value)}
-                className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-              >
-                <option value="ALL">All payment states</option>
-                {transactionsPaymentOptions.map((payment) => (
-                  <option key={payment} value={payment}>
-                    {payment}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {filteredTransactions.length === 0 ? (
-              <p className="mt-3 text-sm text-[rgb(var(--muted))]">
-                {transactions.length === 0
-                  ? 'No active transactions yet.'
-                  : 'No transactions match current filters.'}
+              <h2 className="text-lg font-semibold">Contract & Fulfillment Workflow</h2>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
+                Sign contract packets and progress fulfillment after customer payment confirmation.
               </p>
-            ) : (
-              <>
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                      <th className="py-2 pr-4">Transaction</th>
-                      <th className="py-2 pr-4">Item</th>
-                      <th className="py-2 pr-4">Status</th>
-                      <th className="py-2 pr-4">Payment</th>
-                      <th className="py-2 pr-4">Signatures</th>
-                      <th className="py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedTransactions.map((tx) => (
-                      <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                        <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
-                        <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
-                        <td className="py-2 pr-4">{tx.status}</td>
-                        <td className="py-2 pr-4 text-xs">{tx.payment_status}</td>
-                        <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                          C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
-                          {tx.signature_status.LOGIST}
-                        </td>
-                        <td className="py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {tx.can_sign && (
-                              <button
-                                type="button"
-                                onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                disabled={workflowBusyId === tx.id + 'SIGN'}
-                                className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
-                              >
-                                {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
-                              </button>
-                            )}
-                            {tx.can_start_fulfillment && (
-                              <button
-                                type="button"
-                                onClick={() => void handleWorkflowAction(tx.id, 'START')}
-                                disabled={workflowBusyId === tx.id + 'START'}
-                                className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
-                              >
-                                {workflowBusyId === tx.id + 'START' ? 'Starting...' : 'Start'}
-                              </button>
-                            )}
-                            {tx.can_mark_in_progress && (
-                              <button
-                                type="button"
-                                onClick={() => void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')}
-                                disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
-                              >
-                                {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
-                                  ? 'Submitting...'
-                                  : 'Delivered'}
-                              </button>
-                            )}
-                            {!tx.can_sign && !tx.can_start_fulfillment && !tx.can_mark_in_progress && (
-                              <span className="text-xs text-[rgb(var(--muted))]">Awaiting others</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <input
+                  type="text"
+                  value={transactionsQuery}
+                  onChange={(e) => setTransactionsQuery(e.target.value)}
+                  placeholder="Search tx or item"
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                />
+                <select
+                  value={transactionsStatusFilter}
+                  onChange={(e) => setTransactionsStatusFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All statuses</option>
+                  {transactionsStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={transactionsPaymentFilter}
+                  onChange={(e) => setTransactionsPaymentFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All payment states</option>
+                  {transactionsPaymentOptions.map((payment) => (
+                    <option key={payment} value={payment}>
+                      {payment}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                <span>
-                  Showing {(transactionsPage - 1) * TABLE_PAGE_SIZE + 1}
-                  {' - '}
-                  {Math.min(transactionsPage * TABLE_PAGE_SIZE, filteredTransactions.length)} of{' '}
-                  {filteredTransactions.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={transactionsPage <= 1}
-                    onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
-                    className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                  >
-                    Prev
-                  </button>
-                  <span>
-                    Page {transactionsPage} / {transactionsTotalPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={transactionsPage >= transactionsTotalPages}
-                    onClick={() =>
-                      setTransactionsPage((prev) => Math.min(transactionsTotalPages, prev + 1))
-                    }
-                    className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-              </>
-            )}
+
+              {filteredTransactions.length === 0 ? (
+                <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                  {transactions.length === 0
+                    ? 'No active transactions yet.'
+                    : 'No transactions match current filters.'}
+                </p>
+              ) : (
+                <>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
+                          <th className="py-2 pr-4">Transaction</th>
+                          <th className="py-2 pr-4">Item</th>
+                          <th className="py-2 pr-4">Status</th>
+                          <th className="py-2 pr-4">Payment</th>
+                          <th className="py-2 pr-4">Signatures</th>
+                          <th className="py-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedTransactions.map((tx) => (
+                          <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
+                            <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
+                            <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
+                            <td className="py-2 pr-4">{tx.status}</td>
+                            <td className="py-2 pr-4 text-xs">{tx.payment_status}</td>
+                            <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                              C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
+                              {tx.signature_status.LOGIST}
+                            </td>
+                            <td className="py-2">
+                              <div className="flex flex-wrap gap-1">
+                                {tx.can_sign && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                    disabled={workflowBusyId === tx.id + 'SIGN'}
+                                    className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
+                                  >
+                                    {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
+                                  </button>
+                                )}
+                                {tx.can_start_fulfillment && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleWorkflowAction(tx.id, 'START')}
+                                    disabled={workflowBusyId === tx.id + 'START'}
+                                    className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
+                                  >
+                                    {workflowBusyId === tx.id + 'START' ? 'Starting...' : 'Start'}
+                                  </button>
+                                )}
+                                {tx.can_mark_in_progress && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
+                                    }
+                                    disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
+                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
+                                  >
+                                    {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
+                                      ? 'Submitting...'
+                                      : 'Delivered'}
+                                  </button>
+                                )}
+                                {!tx.can_sign &&
+                                  !tx.can_start_fulfillment &&
+                                  !tx.can_mark_in_progress && (
+                                    <span className="text-xs text-[rgb(var(--muted))]">
+                                      Awaiting others
+                                    </span>
+                                  )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                    <span>
+                      Showing {(transactionsPage - 1) * TABLE_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(
+                        transactionsPage * TABLE_PAGE_SIZE,
+                        filteredTransactions.length
+                      )} of {filteredTransactions.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={transactionsPage <= 1}
+                        onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {transactionsPage} / {transactionsTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={transactionsPage >= transactionsTotalPages}
+                        onClick={() =>
+                          setTransactionsPage((prev) => Math.min(transactionsTotalPages, prev + 1))
+                        }
+                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </section>
           </>
         )}

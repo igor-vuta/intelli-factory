@@ -75,15 +75,19 @@ const dictionary = {
     initialOfferDescription: 'Delivery description (optional)',
     // Factory workspace
     factoryWorkspaceTitle: 'Factory Workspace',
-    factoryWorkspaceSubtitle: 'Bid on open customer requests, manage inventory, and track your active proposals.',
+    factoryWorkspaceSubtitle:
+      'Bid on open customer requests, manage inventory, and track your active proposals.',
     openRequestsTitle: 'Open Customer Requests',
-    openRequestsSubtitle: 'These requests are waiting for factory bids. Click "Bid" to respond with your inventory.',
+    openRequestsSubtitle:
+      'These requests are waiting for factory bids. Click "Bid" to respond with your inventory.',
     myBidsTitle: 'My Bids',
-    myBidsSubtitle: 'Factory bids you have placed. Status changes once a logist quotes delivery and a customer selects a solution.',
+    myBidsSubtitle:
+      'Factory bids you have placed. Status changes once a logist quotes delivery and a customer selects a solution.',
     myTransactionsTitle: 'My Transactions',
     myInventoryTitle: 'My Inventory',
     addInventoryTitle: 'Add Inventory Entry',
-    addInventorySubtitle: "Register stock you can supply. You'll use these entries when placing bids.",
+    addInventorySubtitle:
+      "Register stock you can supply. You'll use these entries when placing bids.",
     colItem: 'Item',
     colCategory: 'Category',
     colQty: 'Qty',
@@ -129,9 +133,11 @@ const dictionary = {
     acceptProposal: 'Accept',
     // Logist workspace
     logistWorkspaceTitle: 'Logistics Workspace',
-    logistWorkspaceSubtitle: 'Quote delivery for factory bids. Each quote you add becomes a complete proposal visible to the customer.',
+    logistWorkspaceSubtitle:
+      'Quote delivery for factory bids. Each quote you add becomes a complete proposal visible to the customer.',
     bidsNeedingQuoteTitle: 'Factory Bids Needing Your Quote',
-    bidsNeedingQuoteSubtitle: 'Factories have responded to requests below. Add a delivery quote to create a complete proposal.',
+    bidsNeedingQuoteSubtitle:
+      'Factories have responded to requests below. Add a delivery quote to create a complete proposal.',
     noBidsWaiting: 'No factory bids waiting for logistics quotes at this time.',
     addOfferTitle: 'Add Logistic Offer',
     addOfferSubtitle: 'Define delivery capability that can be reused across quotes.',
@@ -152,7 +158,8 @@ const dictionary = {
     itemsSection: 'Items',
     // Landing page
     landingHeroTitle: 'Every request finds its best path-fast, accurate, and live.',
-    landingHeroSubtitle: 'Intelli-Factory connects customers, manufacturers, and logistics in one real-time execution loop with contract and payment gates built in.',
+    landingHeroSubtitle:
+      'Intelli-Factory connects customers, manufacturers, and logistics in one real-time execution loop with contract and payment gates built in.',
     createAccount: 'Create account',
     openDashboard: 'Open dashboard',
     liveFlowMonitor: 'Live Flow Monitor',
@@ -166,7 +173,8 @@ const dictionary = {
     logisticsTitle: 'Logistics',
     logisticsSubtitle: 'Set coverage and pricing. Join feasible deals.',
     oneTransactionTitle: 'One transaction, one synchronized timeline.',
-    oneTransactionSubtitle: 'Requests and listings enter as pending entities, then become active as soon as category, item details, and region coverage align.',
+    oneTransactionSubtitle:
+      'Requests and listings enter as pending entities, then become active as soon as category, item details, and region coverage align.',
   },
   ru: {
     brand: 'Intelli-Factory',
@@ -239,15 +247,19 @@ const dictionary = {
     initialOfferDescription: 'Описание доставки (необязательно)',
     // Factory workspace
     factoryWorkspaceTitle: 'Рабочее пространство фабрики',
-    factoryWorkspaceSubtitle: 'Участвуйте в тендерах, управляйте складом и отслеживайте свои предложения.',
+    factoryWorkspaceSubtitle:
+      'Участвуйте в тендерах, управляйте складом и отслеживайте свои предложения.',
     openRequestsTitle: 'Открытые заявки клиентов',
-    openRequestsSubtitle: 'Эти заявки ожидают ваших предложений. Нажмите «Тендер» для ответа со своего склада.',
+    openRequestsSubtitle:
+      'Эти заявки ожидают ваших предложений. Нажмите «Тендер» для ответа со своего склада.',
     myBidsTitle: 'Мои предложения',
-    myBidsSubtitle: 'Предложения, которые вы отправили. Статус обновляется, когда логист добавит цену доставки и клиент выберет решение.',
+    myBidsSubtitle:
+      'Предложения, которые вы отправили. Статус обновляется, когда логист добавит цену доставки и клиент выберет решение.',
     myTransactionsTitle: 'Мои транзакции',
     myInventoryTitle: 'Мой склад',
     addInventoryTitle: 'Добавить товар',
-    addInventorySubtitle: 'Зарегистрируйте товар, который вы можете поставить. Эти записи используются при подаче тендеров.',
+    addInventorySubtitle:
+      'Зарегистрируйте товар, который вы можете поставить. Эти записи используются при подаче тендеров.',
     colItem: 'Товар',
     colCategory: 'Категория',
     colQty: 'Кол-во',
@@ -293,12 +305,15 @@ const dictionary = {
     acceptProposal: 'Принять',
     // Logist workspace
     logistWorkspaceTitle: 'Рабочее пространство логиста',
-    logistWorkspaceSubtitle: 'Котируйте доставку для тендеров фабрик. Каждая котировка становится полным предложением для клиента.',
+    logistWorkspaceSubtitle:
+      'Котируйте доставку для тендеров фабрик. Каждая котировка становится полным предложением для клиента.',
     bidsNeedingQuoteTitle: 'Тендеры, требующие котировки',
-    bidsNeedingQuoteSubtitle: 'Фабрики ответили на заявки. Добавьте котировку доставки, чтобы создать полное предложение.',
+    bidsNeedingQuoteSubtitle:
+      'Фабрики ответили на заявки. Добавьте котировку доставки, чтобы создать полное предложение.',
     noBidsWaiting: 'Тендеров, ожидающих котировки, пока нет.',
     addOfferTitle: 'Добавить предложение логиста',
-    addOfferSubtitle: 'Определите возможности доставки, которые можно использовать в разных котировках.',
+    addOfferSubtitle:
+      'Определите возможности доставки, которые можно использовать в разных котировках.',
     myOffersTitle: 'Мои предложения',
     colTitle: 'Название',
     colBase: 'База',
@@ -316,7 +331,8 @@ const dictionary = {
     itemsSection: 'Товары',
     // Landing worksapce
     landingHeroTitle: 'Каждая заявка находит лучший путь - быстро, точно и в реальном времени.',
-    landingHeroSubtitle: 'Intelli-Factory связывает клиентов, производителей и логистику в едином цикле реального времени со встроенными контрактными и платёжными шлюзами.',
+    landingHeroSubtitle:
+      'Intelli-Factory связывает клиентов, производителей и логистику в едином цикле реального времени со встроенными контрактными и платёжными шлюзами.',
     createAccount: 'Создать аккаунт',
     openDashboard: 'Открыть дашборд',
     liveFlowMonitor: 'Монитор потока',
@@ -330,7 +346,8 @@ const dictionary = {
     logisticsTitle: 'Логистика',
     logisticsSubtitle: 'Установите зону охвата и цены. Участвуйте в выгодных сделках.',
     oneTransactionTitle: 'Одна транзакция, одна синхронизированная хронология.',
-    oneTransactionSubtitle: 'Заявки и позиции входят как ожидающие объекты, затем становятся активными, как только категория, товар и регион совпадают.',
+    oneTransactionSubtitle:
+      'Заявки и позиции входят как ожидающие объекты, затем становятся активными, как только категория, товар и регион совпадают.',
   },
   kk: {
     brand: 'Intelli-Factory',
@@ -403,15 +420,19 @@ const dictionary = {
     initialOfferDescription: 'Жеткізу сипаттамасы (міндетті емес)',
     // Factory workspace
     factoryWorkspaceTitle: 'Фабрика жұмыс кеңістігі',
-    factoryWorkspaceSubtitle: 'Тендерлерге қатысыңыз, қоймаңды басқарыңыз және ұсыныстарыңызды бақылаңыз.',
+    factoryWorkspaceSubtitle:
+      'Тендерлерге қатысыңыз, қоймаңды басқарыңыз және ұсыныстарыңызды бақылаңыз.',
     openRequestsTitle: 'Ашық тұтынушылар өтініштері',
-    openRequestsSubtitle: 'Бұл өтініштер фабрика ұсыныстарын күтіп отыр. Қоймаңыздан жауап беру үшін «Тендер» басыңыз.',
+    openRequestsSubtitle:
+      'Бұл өтініштер фабрика ұсыныстарын күтіп отыр. Қоймаңыздан жауап беру үшін «Тендер» басыңыз.',
     myBidsTitle: 'Менің ұсыныстарым',
-    myBidsSubtitle: 'Сіз жіберген ұсыныстар. Логист жеткізу бағасын белгілегенде және атыгой шешімді қабылдағанда мәртебе жаңартылады.',
+    myBidsSubtitle:
+      'Сіз жіберген ұсыныстар. Логист жеткізу бағасын белгілегенде және атыгой шешімді қабылдағанда мәртебе жаңартылады.',
     myTransactionsTitle: 'Менің транзакцияларым',
     myInventoryTitle: 'Менің қоймам',
     addInventoryTitle: 'Тауар қосу',
-    addInventorySubtitle: 'Жеткізе алатын тауарды тіркеңіз. Бұл жазбалар тендер беруде қолданылады.',
+    addInventorySubtitle:
+      'Жеткізе алатын тауарды тіркеңіз. Бұл жазбалар тендер беруде қолданылады.',
     colItem: 'Тауар',
     colCategory: 'Санат',
     colQty: 'Сан',
@@ -457,9 +478,11 @@ const dictionary = {
     acceptProposal: 'Қабылдау',
     // Logist workspace
     logistWorkspaceTitle: 'Логист жұмыс кеңістігі',
-    logistWorkspaceSubtitle: 'Фабрика тендерлеріне жеткізу бағасын ұсыныңыз. Әр котировка атыгойға толық ұсынысқа айналады.',
+    logistWorkspaceSubtitle:
+      'Фабрика тендерлеріне жеткізу бағасын ұсыныңыз. Әр котировка атыгойға толық ұсынысқа айналады.',
     bidsNeedingQuoteTitle: 'Котировка күтіп отырған тендерлер',
-    bidsNeedingQuoteSubtitle: 'Фабрикалар өтініштерге жауап берді. Толық ұсыныс жасау үшін жеткізу бағасын белгілеңіз.',
+    bidsNeedingQuoteSubtitle:
+      'Фабрикалар өтініштерге жауап берді. Толық ұсыныс жасау үшін жеткізу бағасын белгілеңіз.',
     noBidsWaiting: 'Қазір котировка күтіп отырған тендер жоқ.',
     addOfferTitle: 'Логист ұсынысын қосу',
     addOfferSubtitle: 'Әр түрлі котировкада қолданылатын жеткізу мүмкіндігін анықтаңыз.',
@@ -480,7 +503,8 @@ const dictionary = {
     itemsSection: 'Тауарлар',
     // Landing workspace
     landingHeroTitle: 'Әр өтініш ең жақсы жолды табады - жылдам, дәл және нақты уақытта.',
-    landingHeroSubtitle: 'Intelli-Factory атыгоуыларды, өндірушілерді және логистиканы шартты және төлем шлюздары бар нақты уақыт ортаға біріктіреді.',
+    landingHeroSubtitle:
+      'Intelli-Factory атыгоуыларды, өндірушілерді және логистиканы шартты және төлем шлюздары бар нақты уақыт ортаға біріктіреді.',
     createAccount: 'Аккаунт жасау',
     openDashboard: 'Дашбордты ашу',
     liveFlowMonitor: 'Ағын мониторы',
@@ -494,7 +518,8 @@ const dictionary = {
     logisticsTitle: 'Логистика',
     logisticsSubtitle: 'Қамту аймағы мен бағасын белгілеңіз. Тігімді мәмілелерге қосылыңыз.',
     oneTransactionTitle: 'Бір транзакция, бір синхронданған хронология.',
-    oneTransactionSubtitle: 'Өтініштер мен жазбалар күте объектілер ретінде енгізіледі, содан санат, тауар және аймақ сәйкес келгенде белсенді болады.',
+    oneTransactionSubtitle:
+      'Өтініштер мен жазбалар күте объектілер ретінде енгізіледі, содан санат, тауар және аймақ сәйкес келгенде белсенді болады.',
   },
 } as const;
 

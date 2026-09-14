@@ -8,7 +8,11 @@ type ThemeSwitcherProps = {
   compact?: boolean;
 };
 
-export default function ThemeSwitcher({ currentTheme, onThemeChange, compact }: ThemeSwitcherProps) {
+export default function ThemeSwitcher({
+  currentTheme,
+  onThemeChange,
+  compact,
+}: ThemeSwitcherProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const themes = THEME_PRESETS.map((p) => p.id);

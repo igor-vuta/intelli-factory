@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { THEME_CLASSES, THEME_PRESETS, type Theme } from '../styles/themePresets';
 
 const STORAGE_KEY = 'if-theme';
 const DEFAULT_THEME: Theme = 'modernDark';
 
 const THEME_ACCENT_HEX: Record<Theme, string> = THEME_PRESETS.reduce(
-  (acc, p) => { acc[p.id] = p.palette.accent; return acc; },
+  (acc, p) => {
+    acc[p.id] = p.palette.accent;
+    return acc;
+  },
   {} as Record<Theme, string>
 );
 
@@ -15,7 +18,10 @@ function getFaviconSvg(): Promise<string | null> {
   if (_faviconSvgRaw !== null) return Promise.resolve(_faviconSvgRaw);
   return fetch('/favicon/favicon.svg')
     .then((res) => (res.ok ? res.text() : null))
-    .then((text) => { _faviconSvgRaw = text; return text; })
+    .then((text) => {
+      _faviconSvgRaw = text;
+      return text;
+    })
     .catch(() => null);
 }
 
@@ -45,28 +51,41 @@ function applyThemeToRoot(theme: Theme) {
   updateFavicon(THEME_ACCENT_HEX[theme]);
 }
 
+let fallbackTheme: Theme = DEFAULT_THEME;
+
+function readTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored && Object.prototype.hasOwnProperty.call(THEME_CLASSES, stored)
+      ? (stored as Theme)
+      : fallbackTheme;
+  } catch {
+    return fallbackTheme;
+  }
+}
+
+function subscribeTheme(onChange: () => void) {
+  window.addEventListener('storage', onChange);
+  window.addEventListener('if-theme-change', onChange);
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener('if-theme-change', onChange);
+  };
+}
+
 export function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => DEFAULT_THEME);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      const initial = (stored && stored in THEME_CLASSES ? stored : DEFAULT_THEME) as Theme;
-      setThemeState(initial);
-      applyThemeToRoot(initial);
-    } catch {
-      applyThemeToRoot(DEFAULT_THEME);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    applyThemeToRoot(theme);
+  }, [theme]);
 
   function setTheme(newTheme: Theme) {
-    setThemeState(newTheme);
-    applyThemeToRoot(newTheme);
+    fallbackTheme = newTheme;
     try {
       localStorage.setItem(STORAGE_KEY, newTheme);
-    } catch {
-    }
+    } catch {}
+    window.dispatchEvent(new Event('if-theme-change'));
   }
 
   return [theme, setTheme];

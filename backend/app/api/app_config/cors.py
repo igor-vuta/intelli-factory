@@ -8,14 +8,6 @@ def get_cors_origins() -> list[str]:
     )
     origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
 
-    required_origins = [
-        "http://localhost:3000",
-        "https://intelli-factory-frontend.vercel.app",
-    ]
-    for origin in required_origins:
-        if origin not in origins:
-            origins.append(origin)
-
     frontend_url = os.getenv("FRONTEND_URL", "").strip()
     if frontend_url and frontend_url not in origins:
         origins.append(frontend_url)

@@ -381,7 +381,7 @@ export function listMyLogisticOffers() {
   return request<LogisticOfferItem[]>('/requests/logistic-offers/mine');
 }
 
-// Matching workflow 
+// Matching workflow
 
 export type OpenRequest = {
   id: string;
@@ -641,17 +641,14 @@ export function getComparisonCatalog() {
   return request<ComparisonCatalogResponse>('/comparison/catalog');
 }
 
-export function optimizeSupply(payload: {
-  request_id: string;
-  mode: 'fast' | 'deep';
-}) {
+export function optimizeSupply(payload: { request_id: string; mode: 'fast' | 'deep' }) {
   return request<OptimizeResponse>('/automations/optimize', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-// Full 3-strategy comparison 
+// Full 3-strategy comparison
 
 export type CompareStrategyEntry = {
   id: string;

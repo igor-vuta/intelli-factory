@@ -1,6 +1,7 @@
 <a id="readme-top"></a>
 
 <!-- SHIELDS -->
+
 [![Python][python-shield]][python-url]
 [![FastAPI][fastapi-shield]][fastapi-url]
 [![Next.js][nextjs-shield]][nextjs-url]
@@ -14,9 +15,9 @@
 <p align="center">
 Multi-Objective Supply Chain Optimisation Platform - BSc Computer Science, De Montfort University
 <br />
-<a href="https://intelli-factory-frontend.vercel.app/"><strong>Live Demo »</strong></a>
+<a href="https://intelli-factory.duckdns.org/"><strong>Live Demo »</strong></a>
 &nbsp;&middot;&nbsp;
-<a href="https://intelli-factory-api.onrender.com/docs"><strong>API Docs »</strong></a>
+<a href="https://intelli-factory.duckdns.org/api/docs"><strong>API Docs »</strong></a>
 </p>
 </div>
 
@@ -56,7 +57,7 @@ Multi-Objective Supply Chain Optimisation Platform - BSc Computer Science, De Mo
 Intelli-Factory is a B2B2C platform that automates supply chain matching between manufacturers, customers, and logistics providers.
 It solves the **Supply Chain Trilemma** - balancing cost, delivery speed, and reliability - using evolutionary computation (NSGA-II genetic algorithm via DEAP).
 
-**Research question:** does weighted multi-objective matching outperform a greedy, cheapest-first baseline under defined criteria? *Answer: yes - measurably (see [Benchmark Results](#benchmark-results)).*
+**Research question:** does weighted multi-objective matching outperform a greedy, cheapest-first baseline under defined criteria? _Answer: yes - measurably (see [Benchmark Results](#benchmark-results))._
 
 The real-world motivation is the manual phone-and-WhatsApp coordination still common in the Almaty trading sector. The **measured** comparison, though, is algorithm against algorithm: the Greedy baseline strategy against the Deep GA, both implemented in this codebase and run over identical scenarios.
 
@@ -64,10 +65,10 @@ The platform covers the full workflow - request → bidding → optimisation →
 
 Three optimisation strategies are available per admin request:
 
-| Mode | Description | Speed |
-|------|-------------|-------|
-| **Greedy** | Sort by lowest raw cost (baseline) | instant |
-| **Fast** | Min-max normalised weighted-sum scoring | < 0.001 s |
+| Mode          | Description                                                                                                                                                              | Speed       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| **Greedy**    | Sort by lowest raw cost (baseline)                                                                                                                                       | instant     |
+| **Fast**      | Min-max normalised weighted-sum scoring                                                                                                                                  | < 0.001 s   |
 | **Deep (GA)** | NSGA-II Pareto-front search via DEAP - population 100, 80 generations, tournament selection (k=3), Hall-of-Fame elitism, knee-point selection by customer weight profile | 0.069 s avg |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -76,7 +77,7 @@ Three optimisation strategies are available per admin request:
 
 ## Screenshots
 
-Every screenshot below is the deployed system at https://intelli-factory-frontend.vercel.app/, not a mockup.
+These screenshots show the earlier hosted version of the application. The current testing site is https://intelli-factory.duckdns.org/.
 
 <div align="center">
 <img src="docs/screenshots/01-landing-page.png" alt="Landing page - the supply-chain orchestration hero over a live flow monitor showing request, match, contract and payment stages, with an EN/RU/KK language switcher and a six-theme selector in the header" width="88%" />
@@ -95,7 +96,7 @@ Every screenshot below is the deployed system at https://intelli-factory-fronten
 <br /><em>Logistics workspace - coverage, pricing constraints, and execution tracking.</em>
 </div>
 
-> **Waking the demo:** the backend runs on a free Render tier and the database on a free Aiven tier, so both spin down when idle. Open the site, then allow roughly 90 seconds on first load - the country list populating on the register page is the signal that the API is up.
+> **Testing deployment:** the Oracle E2 Micro VM has 1 GB RAM and limited CPU capacity. Builds run in CI; the VM runs the three application tiers.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -105,12 +106,12 @@ Every screenshot below is the deployed system at https://intelli-factory-fronten
 
 3,600 evaluations - 120 synthetic scenarios × 30 random seeds - run on the production engine code (`benchmark_evaluation.py`):
 
-| Metric | Greedy baseline | Optimised (Fast / Deep GA) | Change |
-|--------|----------------|---------------------------|--------|
-| Composite fitness | 0.682 | 0.801 | **+17.5%** |
-| Delivery time | 8.02 days | 4.67 days | **41.8% faster** |
-| Reliability score | 0.824 | 0.891 | **+8.1%** |
-| Raw cost (avg KZT) | 21,296 | 51,648 | +142.5% - deliberate trilemma trade-off |
+| Metric             | Greedy baseline | Optimised (Fast / Deep GA) | Change                                  |
+| ------------------ | --------------- | -------------------------- | --------------------------------------- |
+| Composite fitness  | 0.682           | 0.801                      | **+17.5%**                              |
+| Delivery time      | 8.02 days       | 4.67 days                  | **41.8% faster**                        |
+| Reliability score  | 0.824           | 0.891                      | **+8.1%**                               |
+| Raw cost (avg KZT) | 21,296          | 51,648                     | +142.5% - deliberate trilemma trade-off |
 
 - Deep GA Pareto-front hypervolume: **0.852 ± 0.12** (normalised), converging by generations 50-60
 - Feasibility rate: **100%** across all 120 scenarios
@@ -125,14 +126,14 @@ Every screenshot below is the deployed system at https://intelli-factory-fronten
 
 ```mermaid
 flowchart LR
-    U[Browser / PWA] --> FE["Next.js App Router<br/>TypeScript · Tailwind · Recharts<br/>(Vercel)"]
-    FE --> API["FastAPI · Python 3.12 · Uvicorn<br/>(Render)"]
+    U[Browser / PWA] --> FE["Next.js Pages Router<br/>TypeScript · Tailwind · Recharts<br/>(Oracle VM)"]
+    FE --> API["FastAPI · Python 3.12 · Uvicorn<br/>(Oracle VM)"]
     API --> ENGINE["Optimisation engine<br/>DEAP · NSGA-II"]
-    API --> DB[("PostgreSQL 15<br/>~25 Prisma models<br/>(Aiven)")]
+    API --> DB[("PostgreSQL 15<br/>~25 Prisma models<br/>(Oracle VM)")]
     API --> MAIL["Brevo SMTP<br/>email verification"]
 ```
 
-Three-tier production deployment (Vercel + Render + Aiven); Docker Compose for local development. Role-based guards at the API layer across four task-separated routers (`/auth`, `/requests`, `/pairing`, `/automations`); Pydantic validation on all payloads; auto-generated OpenAPI docs.
+Three-tier Oracle testing deployment: Next.js, FastAPI and PostgreSQL in separate containers, with Caddy providing HTTPS. Role-based guards at the API layer across four task-separated routers (`/auth`, `/requests`, `/pairing`, `/automations`); Pydantic validation on all payloads; auto-generated OpenAPI docs.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -142,10 +143,10 @@ Three-tier production deployment (Vercel + Render + Aiven); Docker Compose for l
 
 ### Built With
 
-* [![FastAPI][fastapi-shield]][fastapi-url] Python 3.12 · DEAP · Prisma ORM · Uvicorn
-* [![Next.js][nextjs-shield]][nextjs-url] TypeScript · React · Tailwind CSS
-* [![PostgreSQL][postgres-shield]][postgres-url] Aiven managed · Docker (local)
-* **Email:** Brevo SMTP · **Auth:** HttpOnly sessions · **Testing:** pytest / Vitest
+- [![FastAPI][fastapi-shield]][fastapi-url] Python 3.12 · DEAP · Prisma ORM · Uvicorn
+- [![Next.js][nextjs-shield]][nextjs-url] TypeScript · React · Tailwind CSS
+- [![PostgreSQL][postgres-shield]][postgres-url] PostgreSQL container · persistent volume
+- **Email:** Brevo SMTP · **Auth:** HttpOnly sessions · **Testing:** pytest / Jest
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -185,6 +186,7 @@ poetry install
 4. **Configure environment variables**
 
 Create `backend/app/api/.env`:
+
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB
 SECRET_KEY=your-secret-key
@@ -192,6 +194,7 @@ BREVO_API_KEY=your-brevo-key
 ```
 
 Create `frontend/.env.local`:
+
 ```env
 BACKEND_API_URL=http://localhost:8000
 ```
@@ -252,7 +255,7 @@ npm run dev:frontend
 ### Interactive API docs
 
 ```
-http://localhost:8000/docs
+http://localhost:8000/api/docs
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -278,27 +281,27 @@ curl -X POST http://localhost:8000/api/automations/optimize \
 
 ```json
 {
-"status": "success",
-"request_id": "...",
-"mode": "deep",
-"solution_count": 5,
-"solutions": [
-{
-"rank": 1,
-"candidate_id": "...",
-"total_cost": 124500.0,
-"delivery_days": 4.0,
-"reliability": 0.934,
-"fitness_score": 0.8712,
-"score_breakdown": {
-"cost_norm": 0.31,
-"time_norm": 0.18,
-"reliability_norm": 0.91,
-"final_score": 0.8712,
-"weights": { "cost": 0.34, "time": 0.33, "reliability": 0.33 }
-}
-}
-]
+  "status": "success",
+  "request_id": "...",
+  "mode": "deep",
+  "solution_count": 5,
+  "solutions": [
+    {
+      "rank": 1,
+      "candidate_id": "...",
+      "total_cost": 124500.0,
+      "delivery_days": 4.0,
+      "reliability": 0.934,
+      "fitness_score": 0.8712,
+      "score_breakdown": {
+        "cost_norm": 0.31,
+        "time_norm": 0.18,
+        "reliability_norm": 0.91,
+        "final_score": 0.8712,
+        "weights": { "cost": 0.34, "time": 0.33, "reliability": 0.33 }
+      }
+    }
+  ]
 }
 ```
 
@@ -323,7 +326,7 @@ Validated against the OWASP Password Storage and Session Management Cheat Sheets
 
 ## Testing
 
-**51 automated pytest unit & integration tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison router, requests router, and the full transaction → contract → fulfilment flow. TDD applied to the engine.
+**53 automated pytest unit & integration tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison router, requests router, and the full transaction → contract → fulfilment flow. TDD applied to the engine.
 
 ```sh
 cd backend/app/api
@@ -344,14 +347,20 @@ poetry run python benchmark_evaluation.py
 
 ## Deployment
 
-| Service | Platform | URL |
-|---------|----------|-----|
-| Frontend | Vercel (auto-deploy `main`) | https://intelli-factory-frontend.vercel.app/ |
-| Backend | Render free tier | https://intelli-factory-api.onrender.com |
-| Database | Aiven PostgreSQL 15 | via `DATABASE_URL` env var |
+The testing site is **https://intelli-factory.duckdns.org/**, deployed from the
+SSH-signed `testing/oracle` branch to a dedicated Oracle Always Free E2 Micro VM.
 
-> **Note:** free-tier Render & Aiven spin down idle instances. After opening the register page,
-> allow ~90 s for the backend to wake — the country list loads from the backend once it's up.
+| Tier     | Runtime              | Exposure                                        |
+| -------- | -------------------- | ----------------------------------------------- |
+| Frontend | Next.js behind Caddy | HTTPS at the site domain                        |
+| Backend  | FastAPI              | Private container network, proxied under `/api` |
+| Database | PostgreSQL 15        | Private database network and persistent volume  |
+
+ESLint, Prettier, Jest, Ruff, pytest and commitlint run before the container tests.
+CI tests native AMD64 and ARM64 images; the E2 VM uses the tested AMD64 artifact.
+See [Oracle deployment instructions](deploy/oracle/README.md) for migrations,
+backups, resource limits and rollback. The existing hosted services remain
+available until a separate production cutover.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -370,16 +379,17 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 
 ## Acknowledgments
 
-* [DEAP](https://github.com/DEAP/deap) - genetic algorithm / NSGA-II framework
-* [FastAPI](https://fastapi.tiangolo.com/) - modern Python web framework
-* [Prisma](https://www.prisma.io/) - type-safe ORM
-* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - README structure
+- [DEAP](https://github.com/DEAP/deap) - genetic algorithm / NSGA-II framework
+- [FastAPI](https://fastapi.tiangolo.com/) - modern Python web framework
+- [Prisma](https://www.prisma.io/) - type-safe ORM
+- [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - README structure
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
 <!-- MARKDOWN LINKS & BADGES -->
+
 [python-shield]: https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white
 [python-url]: https://python.org
 [fastapi-shield]: https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi&logoColor=white
@@ -388,5 +398,5 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 [nextjs-url]: https://nextjs.org
 [postgres-shield]: https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
 [postgres-url]: https://postgresql.org
-[tests-shield]: https://img.shields.io/badge/pytest-51%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/pytest-53%20passing-brightgreen?style=for-the-badge
 [license-shield]: https://img.shields.io/badge/License-Academic-lightgrey?style=for-the-badge

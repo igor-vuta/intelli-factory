@@ -3,9 +3,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 export const maxDuration = 60;
 
-const BACKEND =
-  process.env.NEXT_PUBLIC_BACKEND_API_URL ?? 'http://localhost:8000/api';
-
 export const config = {
   api: {
     bodyParser: false,
@@ -13,14 +10,15 @@ export const config = {
   },
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const backend =
+    process.env.BACKEND_API_URL ??
+    process.env.NEXT_PUBLIC_BACKEND_API_URL ??
+    'http://localhost:8000/api';
   const segments = req.query.proxy;
   const path = Array.isArray(segments) ? segments.join('/') : (segments ?? '');
   const qs = req.url?.split('?')[1] ?? '';
-  const targetUrl = `${BACKEND}/${path}${qs ? `?${qs}` : ''}`;
+  const targetUrl = `${backend.replace(/\/$/, '')}/${path}${qs ? `?${qs}` : ''}`;
 
   // only buffer body for methods that carry one (GET/HEAD/DELETE streams never end on Vercel)
   const METHOD_HAS_BODY = new Set(['POST', 'PUT', 'PATCH']);
@@ -34,7 +32,20 @@ export default async function handler(
 
   const forwardHeaders: Record<string, string> = {};
   for (const [key, value] of Object.entries(req.headers)) {
-    if (key.toLowerCase() === 'host') continue;
+    if (
+      [
+        'host',
+        'connection',
+        'transfer-encoding',
+        'keep-alive',
+        'upgrade',
+        'te',
+        'trailer',
+        'proxy-authorization',
+        'proxy-authenticate',
+      ].includes(key.toLowerCase())
+    )
+      continue;
     if (value == null) continue;
     forwardHeaders[key] = Array.isArray(value) ? value.join(', ') : value;
   }
@@ -63,10 +74,13 @@ export default async function handler(
 
   upstream.headers.forEach((value, key) => {
     const lk = key.toLowerCase();
-    if (lk === 'transfer-encoding' || lk === 'connection') return;
+    if (lk === 'set-cookie' || lk === 'transfer-encoding' || lk === 'connection') return;
     if (lk === 'content-encoding' || lk === 'content-length') return;
     res.setHeader(key, value);
   });
+
+  const cookies = upstream.headers.getSetCookie();
+  if (cookies.length) res.setHeader('set-cookie', cookies);
 
   res.status(upstream.status);
   let buf: ArrayBuffer;

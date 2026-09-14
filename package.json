@@ -16,13 +16,13 @@
     "seed:workflow:random": "cd backend/app/api && SCENARIO_RANDOM_BUNDLES=20 poetry run python seed_workflow_scenarios.py",
     "build": "npm run build --workspaces",
     "lint": "npm run lint:ts && npm run lint:eslint && npm run lint:py",
-    "lint:ts": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
-    "lint:eslint": "npm run lint --workspace=frontend",
+    "lint:ts": "prettier --check .",
+    "lint:eslint": "npm run lint --workspace=frontend -- --max-warnings=0",
     "lint:py": "bash scripts/lint-python.sh",
     "format": "npm run format:ts && npm run format:py",
-    "format:ts": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:ts": "prettier --write .",
     "format:py": "bash scripts/format-python.sh",
-    "test": "echo \"Tests pending\"",
+    "test": "npm run test --workspace=frontend",
     "prepare": "node .husky/install.mjs"
   },
   "devDependencies": {
