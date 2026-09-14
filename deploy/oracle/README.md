@@ -97,11 +97,18 @@ Verify the HTTPS hostname after the reload.
 
 ## Data and verification
 
-The testing database starts empty. To load reference geography explicitly:
+The reference snapshot contains 249 countries and territories and 5,046 ISO-coded
+administrative subdivisions. To load or refresh it explicitly:
 
 ```sh
 docker compose --env-file deploy/oracle/.env -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml exec backend python seed_reference_geo.py
 ```
+
+The import is transactional and repeatable, preserving existing IDs, addresses,
+custom regions and inactive flags. Country names cover English, Russian and Kazakh.
+Subdivision translations use the requested language where available, then English.
+Sources, coverage and refresh instructions are in
+`backend/app/api/data/geography/README.md`.
 
 Demo users and workflow scenarios are optional: review `seed.py` before running
 it. Existing Aiven records are not transferred automatically. If those records

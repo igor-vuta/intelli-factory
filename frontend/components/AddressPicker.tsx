@@ -1,7 +1,57 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 
 import { getAddressBootstrap } from '../lib/authClient';
 import type { CountryItem } from '../lib/authClient';
+import { getLocaleFromQuery } from '../lib/i18n';
+
+const labels = {
+  en: {
+    country: 'Country',
+    selectCountry: 'Select country…',
+    region: 'Region',
+    loading: 'Loading regions…',
+    selectRegion: 'Select or type a region…',
+    regionExample: 'e.g. Almaty Region',
+    city: 'City',
+    selectCity: 'Select or type a city…',
+    cityExample: 'e.g. Almaty',
+    street: 'Street',
+    streetExample: 'Abay Ave 10',
+    postal: 'Postal code',
+    optional: 'optional',
+  },
+  ru: {
+    country: 'Страна',
+    selectCountry: 'Выберите страну…',
+    region: 'Регион',
+    loading: 'Загрузка регионов…',
+    selectRegion: 'Выберите или введите регион…',
+    regionExample: 'Например, Алматинская область',
+    city: 'Город',
+    selectCity: 'Выберите или введите город…',
+    cityExample: 'Например, Алматы',
+    street: 'Улица и дом',
+    streetExample: 'Проспект Абая, 10',
+    postal: 'Почтовый индекс',
+    optional: 'необязательно',
+  },
+  kk: {
+    country: 'Ел',
+    selectCountry: 'Елді таңдаңыз…',
+    region: 'Өңір',
+    loading: 'Өңірлер жүктелуде…',
+    selectRegion: 'Өңірді таңдаңыз немесе енгізіңіз…',
+    regionExample: 'Мысалы, Алматы облысы',
+    city: 'Қала',
+    selectCity: 'Қаланы таңдаңыз немесе енгізіңіз…',
+    cityExample: 'Мысалы, Алматы',
+    street: 'Көше және үй',
+    streetExample: 'Абай даңғылы, 10',
+    postal: 'Пошта индексі',
+    optional: 'міндетті емес',
+  },
+};
 
 export type AddressValue = {
   countryCode: string;
@@ -32,6 +82,10 @@ export default function AddressPicker({
   countriesLoading,
   required,
 }: AddressPickerProps) {
+  const router = useRouter();
+  const locale = getLocaleFromQuery(router.query.lang);
+  const copy = labels[locale];
+  const fieldId = useId();
   const [regions, setRegions] = useState<RegionItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [loadingGeo, setLoadingGeo] = useState(false);
@@ -49,7 +103,7 @@ export default function AddressPicker({
     async function run() {
       setLoadingGeo(true);
       try {
-        const data = await getAddressBootstrap(countryCode);
+        const data = await getAddressBootstrap(countryCode, locale);
         if (!active) return;
         setRegions(data.regions);
         setCities(data.cities);
@@ -66,7 +120,12 @@ export default function AddressPicker({
     return () => {
       active = false;
     };
-  }, [countryCode]);
+  }, [countryCode, locale]);
+
+  const sortedCountries = useMemo(
+    () => [...countries].sort((a, b) => a.label.localeCompare(b.label, locale)),
+    [countries, locale]
+  );
 
   const filteredCities = useMemo(() => {
     if (!regionName || regions.length === 0) return cities;
@@ -96,10 +155,14 @@ export default function AddressPicker({
     <div className="flex flex-col gap-3">
       {/* Country */}
       <div>
-        <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-          Country {required && <span className="text-red-400">*</span>}
+        <label
+          htmlFor={`${fieldId}-country`}
+          className="mb-1 block text-sm text-[rgb(var(--muted))]"
+        >
+          {copy.country} {required && <span className="text-red-400">*</span>}
         </label>
         <select
+          id={`${fieldId}-country`}
           value={countryCode}
           onChange={(e) =>
             update({ countryCode: e.target.value, regionName: '', cityName: '', street: '' })
@@ -108,8 +171,8 @@ export default function AddressPicker({
           disabled={countriesLoading || countries.length === 0}
           className={INPUT_CLS}
         >
-          <option value="">Select country…</option>
-          {countries.map((c) => (
+          <option value="">{copy.selectCountry}</option>
+          {sortedCountries.map((c) => (
             <option key={c.code} value={c.code}>
               {c.label}
             </option>
@@ -120,25 +183,29 @@ export default function AddressPicker({
       {/* Region - dropdown if data exists, text input otherwise */}
       {countryCode && (
         <div>
-          <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-            Region {required && <span className="text-red-400">*</span>}
+          <label
+            htmlFor={`${fieldId}-region`}
+            className="mb-1 block text-sm text-[rgb(var(--muted))]"
+          >
+            {copy.region} {required && <span className="text-red-400">*</span>}
           </label>
           {loadingGeo ? (
-            <div className={`${INPUT_CLS} text-[rgb(var(--muted))]`}>Loading regions…</div>
+            <div className={`${INPUT_CLS} text-[rgb(var(--muted))]`}>{copy.loading}</div>
           ) : (
             <>
               <input
-                list="region-list"
+                id={`${fieldId}-region`}
+                list={`${fieldId}-regions`}
                 type="text"
                 value={regionName}
                 onChange={(e) => update({ regionName: e.target.value, cityName: '' })}
                 required={required}
-                placeholder={hasRegionData ? 'Select or type a region…' : 'e.g. Almaty Region'}
+                placeholder={hasRegionData ? copy.selectRegion : copy.regionExample}
                 className={INPUT_CLS}
                 autoComplete="off"
               />
               {hasRegionData && (
-                <datalist id="region-list">
+                <datalist id={`${fieldId}-regions`}>
                   {regions.map((r) => (
                     <option key={r.code} value={r.name} />
                   ))}
@@ -152,22 +219,26 @@ export default function AddressPicker({
       {/* City - dropdown if data exists, text input otherwise */}
       {regionName && (
         <div>
-          <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-            City {required && <span className="text-red-400">*</span>}
+          <label
+            htmlFor={`${fieldId}-city`}
+            className="mb-1 block text-sm text-[rgb(var(--muted))]"
+          >
+            {copy.city} {required && <span className="text-red-400">*</span>}
           </label>
           <>
             <input
-              list="city-list"
+              id={`${fieldId}-city`}
+              list={`${fieldId}-cities`}
               type="text"
               value={cityName}
               onChange={(e) => update({ cityName: e.target.value })}
               required={required}
-              placeholder={hasCityData ? 'Select or type a city…' : 'e.g. Almaty'}
+              placeholder={hasCityData ? copy.selectCity : copy.cityExample}
               className={INPUT_CLS}
               autoComplete="off"
             />
             {hasCityData && (
-              <datalist id="city-list">
+              <datalist id={`${fieldId}-cities`}>
                 {filteredCities.map((c) => (
                   <option key={c.id} value={c.name} />
                 ))}
@@ -181,24 +252,32 @@ export default function AddressPicker({
       {cityName && (
         <>
           <div>
-            <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-              Street {required && <span className="text-red-400">*</span>}
+            <label
+              htmlFor={`${fieldId}-street`}
+              className="mb-1 block text-sm text-[rgb(var(--muted))]"
+            >
+              {copy.street} {required && <span className="text-red-400">*</span>}
             </label>
             <input
+              id={`${fieldId}-street`}
               type="text"
               value={street}
               onChange={(e) => update({ street: e.target.value })}
               required={required}
-              placeholder="Abay Ave 10"
+              placeholder={copy.streetExample}
               className={INPUT_CLS}
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-              Postal code <span className="text-[rgb(var(--muted))]">(optional)</span>
+            <label
+              htmlFor={`${fieldId}-postal`}
+              className="mb-1 block text-sm text-[rgb(var(--muted))]"
+            >
+              {copy.postal} <span className="text-[rgb(var(--muted))]">({copy.optional})</span>
             </label>
             <input
+              id={`${fieldId}-postal`}
               type="text"
               value={postalCode}
               onChange={(e) => update({ postalCode: e.target.value || undefined })}

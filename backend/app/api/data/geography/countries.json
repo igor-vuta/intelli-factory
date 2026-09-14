@@ -1,0 +1,2492 @@
+[
+  {
+    "iso2": "AD",
+    "iso3": "AND",
+    "default_name": "Andorra",
+    "translations": {
+      "en": "Andorra",
+      "ru": "Андорра",
+      "kk": "Андорра"
+    }
+  },
+  {
+    "iso2": "AE",
+    "iso3": "ARE",
+    "default_name": "United Arab Emirates",
+    "translations": {
+      "en": "United Arab Emirates",
+      "ru": "ОАЭ",
+      "kk": "Біріккен Араб Әмірліктері"
+    }
+  },
+  {
+    "iso2": "AF",
+    "iso3": "AFG",
+    "default_name": "Afghanistan",
+    "translations": {
+      "en": "Afghanistan",
+      "ru": "Афганистан",
+      "kk": "Ауғанстан"
+    }
+  },
+  {
+    "iso2": "AG",
+    "iso3": "ATG",
+    "default_name": "Antigua & Barbuda",
+    "translations": {
+      "en": "Antigua & Barbuda",
+      "ru": "Антигуа и Барбуда",
+      "kk": "Антигуа және Барбуда"
+    }
+  },
+  {
+    "iso2": "AI",
+    "iso3": "AIA",
+    "default_name": "Anguilla",
+    "translations": {
+      "en": "Anguilla",
+      "ru": "Ангилья",
+      "kk": "Ангилья"
+    }
+  },
+  {
+    "iso2": "AL",
+    "iso3": "ALB",
+    "default_name": "Albania",
+    "translations": {
+      "en": "Albania",
+      "ru": "Албания",
+      "kk": "Албания"
+    }
+  },
+  {
+    "iso2": "AM",
+    "iso3": "ARM",
+    "default_name": "Armenia",
+    "translations": {
+      "en": "Armenia",
+      "ru": "Армения",
+      "kk": "Армения"
+    }
+  },
+  {
+    "iso2": "AO",
+    "iso3": "AGO",
+    "default_name": "Angola",
+    "translations": {
+      "en": "Angola",
+      "ru": "Ангола",
+      "kk": "Ангола"
+    }
+  },
+  {
+    "iso2": "AQ",
+    "iso3": "ATA",
+    "default_name": "Antarctica",
+    "translations": {
+      "en": "Antarctica",
+      "ru": "Антарктида",
+      "kk": "Антарктида"
+    }
+  },
+  {
+    "iso2": "AR",
+    "iso3": "ARG",
+    "default_name": "Argentina",
+    "translations": {
+      "en": "Argentina",
+      "ru": "Аргентина",
+      "kk": "Аргентина"
+    }
+  },
+  {
+    "iso2": "AS",
+    "iso3": "ASM",
+    "default_name": "American Samoa",
+    "translations": {
+      "en": "American Samoa",
+      "ru": "Американское Самоа",
+      "kk": "Америкалық Самоа"
+    }
+  },
+  {
+    "iso2": "AT",
+    "iso3": "AUT",
+    "default_name": "Austria",
+    "translations": {
+      "en": "Austria",
+      "ru": "Австрия",
+      "kk": "Аустрия"
+    }
+  },
+  {
+    "iso2": "AU",
+    "iso3": "AUS",
+    "default_name": "Australia",
+    "translations": {
+      "en": "Australia",
+      "ru": "Австралия",
+      "kk": "Аустралия"
+    }
+  },
+  {
+    "iso2": "AW",
+    "iso3": "ABW",
+    "default_name": "Aruba",
+    "translations": {
+      "en": "Aruba",
+      "ru": "Аруба",
+      "kk": "Аруба"
+    }
+  },
+  {
+    "iso2": "AX",
+    "iso3": "ALA",
+    "default_name": "Åland Islands",
+    "translations": {
+      "en": "Åland Islands",
+      "ru": "Аландские о-ва",
+      "kk": "Аланд аралдары"
+    }
+  },
+  {
+    "iso2": "AZ",
+    "iso3": "AZE",
+    "default_name": "Azerbaijan",
+    "translations": {
+      "en": "Azerbaijan",
+      "ru": "Азербайджан",
+      "kk": "Әзірбайжан"
+    }
+  },
+  {
+    "iso2": "BA",
+    "iso3": "BIH",
+    "default_name": "Bosnia & Herzegovina",
+    "translations": {
+      "en": "Bosnia & Herzegovina",
+      "ru": "Босния и Герцеговина",
+      "kk": "Босния және Герцеговина"
+    }
+  },
+  {
+    "iso2": "BB",
+    "iso3": "BRB",
+    "default_name": "Barbados",
+    "translations": {
+      "en": "Barbados",
+      "ru": "Барбадос",
+      "kk": "Барбадос"
+    }
+  },
+  {
+    "iso2": "BD",
+    "iso3": "BGD",
+    "default_name": "Bangladesh",
+    "translations": {
+      "en": "Bangladesh",
+      "ru": "Бангладеш",
+      "kk": "Бангладеш"
+    }
+  },
+  {
+    "iso2": "BE",
+    "iso3": "BEL",
+    "default_name": "Belgium",
+    "translations": {
+      "en": "Belgium",
+      "ru": "Бельгия",
+      "kk": "Бельгия"
+    }
+  },
+  {
+    "iso2": "BF",
+    "iso3": "BFA",
+    "default_name": "Burkina Faso",
+    "translations": {
+      "en": "Burkina Faso",
+      "ru": "Буркина-Фасо",
+      "kk": "Буркина-Фасо"
+    }
+  },
+  {
+    "iso2": "BG",
+    "iso3": "BGR",
+    "default_name": "Bulgaria",
+    "translations": {
+      "en": "Bulgaria",
+      "ru": "Болгария",
+      "kk": "Болгария"
+    }
+  },
+  {
+    "iso2": "BH",
+    "iso3": "BHR",
+    "default_name": "Bahrain",
+    "translations": {
+      "en": "Bahrain",
+      "ru": "Бахрейн",
+      "kk": "Бахрейн"
+    }
+  },
+  {
+    "iso2": "BI",
+    "iso3": "BDI",
+    "default_name": "Burundi",
+    "translations": {
+      "en": "Burundi",
+      "ru": "Бурунди",
+      "kk": "Бурунди"
+    }
+  },
+  {
+    "iso2": "BJ",
+    "iso3": "BEN",
+    "default_name": "Benin",
+    "translations": {
+      "en": "Benin",
+      "ru": "Бенин",
+      "kk": "Бенин"
+    }
+  },
+  {
+    "iso2": "BL",
+    "iso3": "BLM",
+    "default_name": "St. Barthélemy",
+    "translations": {
+      "en": "St. Barthélemy",
+      "ru": "Сен-Бартелеми",
+      "kk": "Сен-Бартелеми"
+    }
+  },
+  {
+    "iso2": "BM",
+    "iso3": "BMU",
+    "default_name": "Bermuda",
+    "translations": {
+      "en": "Bermuda",
+      "ru": "Бермудские о-ва",
+      "kk": "Бермуд аралдары"
+    }
+  },
+  {
+    "iso2": "BN",
+    "iso3": "BRN",
+    "default_name": "Brunei",
+    "translations": {
+      "en": "Brunei",
+      "ru": "Бруней",
+      "kk": "Бруней"
+    }
+  },
+  {
+    "iso2": "BO",
+    "iso3": "BOL",
+    "default_name": "Bolivia",
+    "translations": {
+      "en": "Bolivia",
+      "ru": "Боливия",
+      "kk": "Боливия"
+    }
+  },
+  {
+    "iso2": "BQ",
+    "iso3": "BES",
+    "default_name": "Caribbean Netherlands",
+    "translations": {
+      "en": "Caribbean Netherlands",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба",
+      "kk": "Бонэйр, Синт-Эстатиус және Саба"
+    }
+  },
+  {
+    "iso2": "BR",
+    "iso3": "BRA",
+    "default_name": "Brazil",
+    "translations": {
+      "en": "Brazil",
+      "ru": "Бразилия",
+      "kk": "Бразилия"
+    }
+  },
+  {
+    "iso2": "BS",
+    "iso3": "BHS",
+    "default_name": "Bahamas",
+    "translations": {
+      "en": "Bahamas",
+      "ru": "Багамы",
+      "kk": "Багам аралдары"
+    }
+  },
+  {
+    "iso2": "BT",
+    "iso3": "BTN",
+    "default_name": "Bhutan",
+    "translations": {
+      "en": "Bhutan",
+      "ru": "Бутан",
+      "kk": "Бутан"
+    }
+  },
+  {
+    "iso2": "BV",
+    "iso3": "BVT",
+    "default_name": "Bouvet Island",
+    "translations": {
+      "en": "Bouvet Island",
+      "ru": "о-в Буве",
+      "kk": "Буве аралы"
+    }
+  },
+  {
+    "iso2": "BW",
+    "iso3": "BWA",
+    "default_name": "Botswana",
+    "translations": {
+      "en": "Botswana",
+      "ru": "Ботсвана",
+      "kk": "Ботсвана"
+    }
+  },
+  {
+    "iso2": "BY",
+    "iso3": "BLR",
+    "default_name": "Belarus",
+    "translations": {
+      "en": "Belarus",
+      "ru": "Беларусь",
+      "kk": "Беларусь"
+    }
+  },
+  {
+    "iso2": "BZ",
+    "iso3": "BLZ",
+    "default_name": "Belize",
+    "translations": {
+      "en": "Belize",
+      "ru": "Белиз",
+      "kk": "Белиз"
+    }
+  },
+  {
+    "iso2": "CA",
+    "iso3": "CAN",
+    "default_name": "Canada",
+    "translations": {
+      "en": "Canada",
+      "ru": "Канада",
+      "kk": "Канада"
+    }
+  },
+  {
+    "iso2": "CC",
+    "iso3": "CCK",
+    "default_name": "Cocos (Keeling) Islands",
+    "translations": {
+      "en": "Cocos (Keeling) Islands",
+      "ru": "Кокосовые о-ва",
+      "kk": "Кокос (Килинг) аралдары"
+    }
+  },
+  {
+    "iso2": "CD",
+    "iso3": "COD",
+    "default_name": "Congo - Kinshasa",
+    "translations": {
+      "en": "Congo - Kinshasa",
+      "ru": "Конго - Киншаса",
+      "kk": "Конго"
+    }
+  },
+  {
+    "iso2": "CF",
+    "iso3": "CAF",
+    "default_name": "Central African Republic",
+    "translations": {
+      "en": "Central African Republic",
+      "ru": "Центрально-Африканская Республика",
+      "kk": "Орталық Африка Республикасы"
+    }
+  },
+  {
+    "iso2": "CG",
+    "iso3": "COG",
+    "default_name": "Congo - Brazzaville",
+    "translations": {
+      "en": "Congo - Brazzaville",
+      "ru": "Конго - Браззавиль",
+      "kk": "Конго-Браззавиль Республикасы"
+    }
+  },
+  {
+    "iso2": "CH",
+    "iso3": "CHE",
+    "default_name": "Switzerland",
+    "translations": {
+      "en": "Switzerland",
+      "ru": "Швейцария",
+      "kk": "Швейцария"
+    }
+  },
+  {
+    "iso2": "CI",
+    "iso3": "CIV",
+    "default_name": "Côte d’Ivoire",
+    "translations": {
+      "en": "Côte d’Ivoire",
+      "ru": "Кот-д’Ивуар",
+      "kk": "Кот-д’Ивуар"
+    }
+  },
+  {
+    "iso2": "CK",
+    "iso3": "COK",
+    "default_name": "Cook Islands",
+    "translations": {
+      "en": "Cook Islands",
+      "ru": "о-ва Кука",
+      "kk": "Кук аралдары"
+    }
+  },
+  {
+    "iso2": "CL",
+    "iso3": "CHL",
+    "default_name": "Chile",
+    "translations": {
+      "en": "Chile",
+      "ru": "Чили",
+      "kk": "Чили"
+    }
+  },
+  {
+    "iso2": "CM",
+    "iso3": "CMR",
+    "default_name": "Cameroon",
+    "translations": {
+      "en": "Cameroon",
+      "ru": "Камерун",
+      "kk": "Камерун"
+    }
+  },
+  {
+    "iso2": "CN",
+    "iso3": "CHN",
+    "default_name": "China",
+    "translations": {
+      "en": "China",
+      "ru": "Китай",
+      "kk": "Қытай"
+    }
+  },
+  {
+    "iso2": "CO",
+    "iso3": "COL",
+    "default_name": "Colombia",
+    "translations": {
+      "en": "Colombia",
+      "ru": "Колумбия",
+      "kk": "Колумбия"
+    }
+  },
+  {
+    "iso2": "CR",
+    "iso3": "CRI",
+    "default_name": "Costa Rica",
+    "translations": {
+      "en": "Costa Rica",
+      "ru": "Коста-Рика",
+      "kk": "Коста-Рика"
+    }
+  },
+  {
+    "iso2": "CU",
+    "iso3": "CUB",
+    "default_name": "Cuba",
+    "translations": {
+      "en": "Cuba",
+      "ru": "Куба",
+      "kk": "Куба"
+    }
+  },
+  {
+    "iso2": "CV",
+    "iso3": "CPV",
+    "default_name": "Cape Verde",
+    "translations": {
+      "en": "Cape Verde",
+      "ru": "Кабо-Верде",
+      "kk": "Кабо-Верде"
+    }
+  },
+  {
+    "iso2": "CW",
+    "iso3": "CUW",
+    "default_name": "Curaçao",
+    "translations": {
+      "en": "Curaçao",
+      "ru": "Кюрасао",
+      "kk": "Кюрасао"
+    }
+  },
+  {
+    "iso2": "CX",
+    "iso3": "CXR",
+    "default_name": "Christmas Island",
+    "translations": {
+      "en": "Christmas Island",
+      "ru": "о-в Рождества",
+      "kk": "Рождество аралы"
+    }
+  },
+  {
+    "iso2": "CY",
+    "iso3": "CYP",
+    "default_name": "Cyprus",
+    "translations": {
+      "en": "Cyprus",
+      "ru": "Кипр",
+      "kk": "Кипр"
+    }
+  },
+  {
+    "iso2": "CZ",
+    "iso3": "CZE",
+    "default_name": "Czechia",
+    "translations": {
+      "en": "Czechia",
+      "ru": "Чехия",
+      "kk": "Чехия"
+    }
+  },
+  {
+    "iso2": "DE",
+    "iso3": "DEU",
+    "default_name": "Germany",
+    "translations": {
+      "en": "Germany",
+      "ru": "Германия",
+      "kk": "Германия"
+    }
+  },
+  {
+    "iso2": "DJ",
+    "iso3": "DJI",
+    "default_name": "Djibouti",
+    "translations": {
+      "en": "Djibouti",
+      "ru": "Джибути",
+      "kk": "Джибути"
+    }
+  },
+  {
+    "iso2": "DK",
+    "iso3": "DNK",
+    "default_name": "Denmark",
+    "translations": {
+      "en": "Denmark",
+      "ru": "Дания",
+      "kk": "Дания"
+    }
+  },
+  {
+    "iso2": "DM",
+    "iso3": "DMA",
+    "default_name": "Dominica",
+    "translations": {
+      "en": "Dominica",
+      "ru": "Доминика",
+      "kk": "Доминика"
+    }
+  },
+  {
+    "iso2": "DO",
+    "iso3": "DOM",
+    "default_name": "Dominican Republic",
+    "translations": {
+      "en": "Dominican Republic",
+      "ru": "Доминиканская Республика",
+      "kk": "Доминикан Республикасы"
+    }
+  },
+  {
+    "iso2": "DZ",
+    "iso3": "DZA",
+    "default_name": "Algeria",
+    "translations": {
+      "en": "Algeria",
+      "ru": "Алжир",
+      "kk": "Алжир"
+    }
+  },
+  {
+    "iso2": "EC",
+    "iso3": "ECU",
+    "default_name": "Ecuador",
+    "translations": {
+      "en": "Ecuador",
+      "ru": "Эквадор",
+      "kk": "Эквадор"
+    }
+  },
+  {
+    "iso2": "EE",
+    "iso3": "EST",
+    "default_name": "Estonia",
+    "translations": {
+      "en": "Estonia",
+      "ru": "Эстония",
+      "kk": "Эстония"
+    }
+  },
+  {
+    "iso2": "EG",
+    "iso3": "EGY",
+    "default_name": "Egypt",
+    "translations": {
+      "en": "Egypt",
+      "ru": "Египет",
+      "kk": "Мысыр"
+    }
+  },
+  {
+    "iso2": "EH",
+    "iso3": "ESH",
+    "default_name": "Western Sahara",
+    "translations": {
+      "en": "Western Sahara",
+      "ru": "Западная Сахара",
+      "kk": "Батыс Сахара"
+    }
+  },
+  {
+    "iso2": "ER",
+    "iso3": "ERI",
+    "default_name": "Eritrea",
+    "translations": {
+      "en": "Eritrea",
+      "ru": "Эритрея",
+      "kk": "Эритрея"
+    }
+  },
+  {
+    "iso2": "ES",
+    "iso3": "ESP",
+    "default_name": "Spain",
+    "translations": {
+      "en": "Spain",
+      "ru": "Испания",
+      "kk": "Испания"
+    }
+  },
+  {
+    "iso2": "ET",
+    "iso3": "ETH",
+    "default_name": "Ethiopia",
+    "translations": {
+      "en": "Ethiopia",
+      "ru": "Эфиопия",
+      "kk": "Эфиопия"
+    }
+  },
+  {
+    "iso2": "FI",
+    "iso3": "FIN",
+    "default_name": "Finland",
+    "translations": {
+      "en": "Finland",
+      "ru": "Финляндия",
+      "kk": "Финляндия"
+    }
+  },
+  {
+    "iso2": "FJ",
+    "iso3": "FJI",
+    "default_name": "Fiji",
+    "translations": {
+      "en": "Fiji",
+      "ru": "Фиджи",
+      "kk": "Фиджи"
+    }
+  },
+  {
+    "iso2": "FK",
+    "iso3": "FLK",
+    "default_name": "Falkland Islands",
+    "translations": {
+      "en": "Falkland Islands",
+      "ru": "Фолклендские о-ва",
+      "kk": "Фолкленд аралдары"
+    }
+  },
+  {
+    "iso2": "FM",
+    "iso3": "FSM",
+    "default_name": "Micronesia",
+    "translations": {
+      "en": "Micronesia",
+      "ru": "Федеративные Штаты Микронезии",
+      "kk": "Микронезия"
+    }
+  },
+  {
+    "iso2": "FO",
+    "iso3": "FRO",
+    "default_name": "Faroe Islands",
+    "translations": {
+      "en": "Faroe Islands",
+      "ru": "Фарерские о-ва",
+      "kk": "Фарер аралдары"
+    }
+  },
+  {
+    "iso2": "FR",
+    "iso3": "FRA",
+    "default_name": "France",
+    "translations": {
+      "en": "France",
+      "ru": "Франция",
+      "kk": "Франция"
+    }
+  },
+  {
+    "iso2": "GA",
+    "iso3": "GAB",
+    "default_name": "Gabon",
+    "translations": {
+      "en": "Gabon",
+      "ru": "Габон",
+      "kk": "Габон"
+    }
+  },
+  {
+    "iso2": "GB",
+    "iso3": "GBR",
+    "default_name": "United Kingdom",
+    "translations": {
+      "en": "United Kingdom",
+      "ru": "Великобритания",
+      "kk": "Ұлыбритания"
+    }
+  },
+  {
+    "iso2": "GD",
+    "iso3": "GRD",
+    "default_name": "Grenada",
+    "translations": {
+      "en": "Grenada",
+      "ru": "Гренада",
+      "kk": "Гренада"
+    }
+  },
+  {
+    "iso2": "GE",
+    "iso3": "GEO",
+    "default_name": "Georgia",
+    "translations": {
+      "en": "Georgia",
+      "ru": "Грузия",
+      "kk": "Грузия"
+    }
+  },
+  {
+    "iso2": "GF",
+    "iso3": "GUF",
+    "default_name": "French Guiana",
+    "translations": {
+      "en": "French Guiana",
+      "ru": "Французская Гвиана",
+      "kk": "Француз Гвианасы"
+    }
+  },
+  {
+    "iso2": "GG",
+    "iso3": "GGY",
+    "default_name": "Guernsey",
+    "translations": {
+      "en": "Guernsey",
+      "ru": "Гернси",
+      "kk": "Гернси"
+    }
+  },
+  {
+    "iso2": "GH",
+    "iso3": "GHA",
+    "default_name": "Ghana",
+    "translations": {
+      "en": "Ghana",
+      "ru": "Гана",
+      "kk": "Гана"
+    }
+  },
+  {
+    "iso2": "GI",
+    "iso3": "GIB",
+    "default_name": "Gibraltar",
+    "translations": {
+      "en": "Gibraltar",
+      "ru": "Гибралтар",
+      "kk": "Гибралтар"
+    }
+  },
+  {
+    "iso2": "GL",
+    "iso3": "GRL",
+    "default_name": "Greenland",
+    "translations": {
+      "en": "Greenland",
+      "ru": "Гренландия",
+      "kk": "Гренландия"
+    }
+  },
+  {
+    "iso2": "GM",
+    "iso3": "GMB",
+    "default_name": "Gambia",
+    "translations": {
+      "en": "Gambia",
+      "ru": "Гамбия",
+      "kk": "Гамбия"
+    }
+  },
+  {
+    "iso2": "GN",
+    "iso3": "GIN",
+    "default_name": "Guinea",
+    "translations": {
+      "en": "Guinea",
+      "ru": "Гвинея",
+      "kk": "Гвинея"
+    }
+  },
+  {
+    "iso2": "GP",
+    "iso3": "GLP",
+    "default_name": "Guadeloupe",
+    "translations": {
+      "en": "Guadeloupe",
+      "ru": "Гваделупа",
+      "kk": "Гваделупа"
+    }
+  },
+  {
+    "iso2": "GQ",
+    "iso3": "GNQ",
+    "default_name": "Equatorial Guinea",
+    "translations": {
+      "en": "Equatorial Guinea",
+      "ru": "Экваториальная Гвинея",
+      "kk": "Экваторлық Гвинея"
+    }
+  },
+  {
+    "iso2": "GR",
+    "iso3": "GRC",
+    "default_name": "Greece",
+    "translations": {
+      "en": "Greece",
+      "ru": "Греция",
+      "kk": "Грекия"
+    }
+  },
+  {
+    "iso2": "GS",
+    "iso3": "SGS",
+    "default_name": "South Georgia & South Sandwich Islands",
+    "translations": {
+      "en": "South Georgia & South Sandwich Islands",
+      "ru": "Южная Георгия и Южные Сандвичевы о-ва",
+      "kk": "Оңтүстік Георгия және Оңтүстік Сандвич аралдары"
+    }
+  },
+  {
+    "iso2": "GT",
+    "iso3": "GTM",
+    "default_name": "Guatemala",
+    "translations": {
+      "en": "Guatemala",
+      "ru": "Гватемала",
+      "kk": "Гватемала"
+    }
+  },
+  {
+    "iso2": "GU",
+    "iso3": "GUM",
+    "default_name": "Guam",
+    "translations": {
+      "en": "Guam",
+      "ru": "Гуам",
+      "kk": "Гуам"
+    }
+  },
+  {
+    "iso2": "GW",
+    "iso3": "GNB",
+    "default_name": "Guinea-Bissau",
+    "translations": {
+      "en": "Guinea-Bissau",
+      "ru": "Гвинея-Бисау",
+      "kk": "Гвинея-Бисау"
+    }
+  },
+  {
+    "iso2": "GY",
+    "iso3": "GUY",
+    "default_name": "Guyana",
+    "translations": {
+      "en": "Guyana",
+      "ru": "Гайана",
+      "kk": "Гайана"
+    }
+  },
+  {
+    "iso2": "HK",
+    "iso3": "HKG",
+    "default_name": "Hong Kong SAR China",
+    "translations": {
+      "en": "Hong Kong SAR China",
+      "ru": "Гонконг (САР)",
+      "kk": "Сянган АӘА"
+    }
+  },
+  {
+    "iso2": "HM",
+    "iso3": "HMD",
+    "default_name": "Heard & McDonald Islands",
+    "translations": {
+      "en": "Heard & McDonald Islands",
+      "ru": "о-ва Херд и Макдональд",
+      "kk": "Херд аралы және Макдональд аралдары"
+    }
+  },
+  {
+    "iso2": "HN",
+    "iso3": "HND",
+    "default_name": "Honduras",
+    "translations": {
+      "en": "Honduras",
+      "ru": "Гондурас",
+      "kk": "Гондурас"
+    }
+  },
+  {
+    "iso2": "HR",
+    "iso3": "HRV",
+    "default_name": "Croatia",
+    "translations": {
+      "en": "Croatia",
+      "ru": "Хорватия",
+      "kk": "Хорватия"
+    }
+  },
+  {
+    "iso2": "HT",
+    "iso3": "HTI",
+    "default_name": "Haiti",
+    "translations": {
+      "en": "Haiti",
+      "ru": "Гаити",
+      "kk": "Гаити"
+    }
+  },
+  {
+    "iso2": "HU",
+    "iso3": "HUN",
+    "default_name": "Hungary",
+    "translations": {
+      "en": "Hungary",
+      "ru": "Венгрия",
+      "kk": "Венгрия"
+    }
+  },
+  {
+    "iso2": "ID",
+    "iso3": "IDN",
+    "default_name": "Indonesia",
+    "translations": {
+      "en": "Indonesia",
+      "ru": "Индонезия",
+      "kk": "Индонезия"
+    }
+  },
+  {
+    "iso2": "IE",
+    "iso3": "IRL",
+    "default_name": "Ireland",
+    "translations": {
+      "en": "Ireland",
+      "ru": "Ирландия",
+      "kk": "Ирландия"
+    }
+  },
+  {
+    "iso2": "IL",
+    "iso3": "ISR",
+    "default_name": "Israel",
+    "translations": {
+      "en": "Israel",
+      "ru": "Израиль",
+      "kk": "Израиль"
+    }
+  },
+  {
+    "iso2": "IM",
+    "iso3": "IMN",
+    "default_name": "Isle of Man",
+    "translations": {
+      "en": "Isle of Man",
+      "ru": "о-в Мэн",
+      "kk": "Мэн аралы"
+    }
+  },
+  {
+    "iso2": "IN",
+    "iso3": "IND",
+    "default_name": "India",
+    "translations": {
+      "en": "India",
+      "ru": "Индия",
+      "kk": "Үндістан"
+    }
+  },
+  {
+    "iso2": "IO",
+    "iso3": "IOT",
+    "default_name": "British Indian Ocean Territory",
+    "translations": {
+      "en": "British Indian Ocean Territory",
+      "ru": "Британская территория в Индийском океане",
+      "kk": "Үнді мұхитындағы Британ аймағы"
+    }
+  },
+  {
+    "iso2": "IQ",
+    "iso3": "IRQ",
+    "default_name": "Iraq",
+    "translations": {
+      "en": "Iraq",
+      "ru": "Ирак",
+      "kk": "Ирак"
+    }
+  },
+  {
+    "iso2": "IR",
+    "iso3": "IRN",
+    "default_name": "Iran",
+    "translations": {
+      "en": "Iran",
+      "ru": "Иран",
+      "kk": "Иран"
+    }
+  },
+  {
+    "iso2": "IS",
+    "iso3": "ISL",
+    "default_name": "Iceland",
+    "translations": {
+      "en": "Iceland",
+      "ru": "Исландия",
+      "kk": "Исландия"
+    }
+  },
+  {
+    "iso2": "IT",
+    "iso3": "ITA",
+    "default_name": "Italy",
+    "translations": {
+      "en": "Italy",
+      "ru": "Италия",
+      "kk": "Италия"
+    }
+  },
+  {
+    "iso2": "JE",
+    "iso3": "JEY",
+    "default_name": "Jersey",
+    "translations": {
+      "en": "Jersey",
+      "ru": "Джерси",
+      "kk": "Джерси"
+    }
+  },
+  {
+    "iso2": "JM",
+    "iso3": "JAM",
+    "default_name": "Jamaica",
+    "translations": {
+      "en": "Jamaica",
+      "ru": "Ямайка",
+      "kk": "Ямайка"
+    }
+  },
+  {
+    "iso2": "JO",
+    "iso3": "JOR",
+    "default_name": "Jordan",
+    "translations": {
+      "en": "Jordan",
+      "ru": "Иордания",
+      "kk": "Иордания"
+    }
+  },
+  {
+    "iso2": "JP",
+    "iso3": "JPN",
+    "default_name": "Japan",
+    "translations": {
+      "en": "Japan",
+      "ru": "Япония",
+      "kk": "Жапония"
+    }
+  },
+  {
+    "iso2": "KE",
+    "iso3": "KEN",
+    "default_name": "Kenya",
+    "translations": {
+      "en": "Kenya",
+      "ru": "Кения",
+      "kk": "Кения"
+    }
+  },
+  {
+    "iso2": "KG",
+    "iso3": "KGZ",
+    "default_name": "Kyrgyzstan",
+    "translations": {
+      "en": "Kyrgyzstan",
+      "ru": "Киргизия",
+      "kk": "Қырғызстан"
+    }
+  },
+  {
+    "iso2": "KH",
+    "iso3": "KHM",
+    "default_name": "Cambodia",
+    "translations": {
+      "en": "Cambodia",
+      "ru": "Камбоджа",
+      "kk": "Камбоджа"
+    }
+  },
+  {
+    "iso2": "KI",
+    "iso3": "KIR",
+    "default_name": "Kiribati",
+    "translations": {
+      "en": "Kiribati",
+      "ru": "Кирибати",
+      "kk": "Кирибати"
+    }
+  },
+  {
+    "iso2": "KM",
+    "iso3": "COM",
+    "default_name": "Comoros",
+    "translations": {
+      "en": "Comoros",
+      "ru": "Коморы",
+      "kk": "Комор аралдары"
+    }
+  },
+  {
+    "iso2": "KN",
+    "iso3": "KNA",
+    "default_name": "St. Kitts & Nevis",
+    "translations": {
+      "en": "St. Kitts & Nevis",
+      "ru": "Сент-Китс и Невис",
+      "kk": "Сент-Китс және Невис"
+    }
+  },
+  {
+    "iso2": "KP",
+    "iso3": "PRK",
+    "default_name": "North Korea",
+    "translations": {
+      "en": "North Korea",
+      "ru": "КНДР",
+      "kk": "Солтүстік Корея"
+    }
+  },
+  {
+    "iso2": "KR",
+    "iso3": "KOR",
+    "default_name": "South Korea",
+    "translations": {
+      "en": "South Korea",
+      "ru": "Республика Корея",
+      "kk": "Оңтүстік Корея"
+    }
+  },
+  {
+    "iso2": "KW",
+    "iso3": "KWT",
+    "default_name": "Kuwait",
+    "translations": {
+      "en": "Kuwait",
+      "ru": "Кувейт",
+      "kk": "Кувейт"
+    }
+  },
+  {
+    "iso2": "KY",
+    "iso3": "CYM",
+    "default_name": "Cayman Islands",
+    "translations": {
+      "en": "Cayman Islands",
+      "ru": "о-ва Кайман",
+      "kk": "Кайман аралдары"
+    }
+  },
+  {
+    "iso2": "KZ",
+    "iso3": "KAZ",
+    "default_name": "Kazakhstan",
+    "translations": {
+      "en": "Kazakhstan",
+      "ru": "Казахстан",
+      "kk": "Қазақстан"
+    }
+  },
+  {
+    "iso2": "LA",
+    "iso3": "LAO",
+    "default_name": "Laos",
+    "translations": {
+      "en": "Laos",
+      "ru": "Лаос",
+      "kk": "Лаос"
+    }
+  },
+  {
+    "iso2": "LB",
+    "iso3": "LBN",
+    "default_name": "Lebanon",
+    "translations": {
+      "en": "Lebanon",
+      "ru": "Ливан",
+      "kk": "Ливан"
+    }
+  },
+  {
+    "iso2": "LC",
+    "iso3": "LCA",
+    "default_name": "St. Lucia",
+    "translations": {
+      "en": "St. Lucia",
+      "ru": "Сент-Люсия",
+      "kk": "Сент-Люсия"
+    }
+  },
+  {
+    "iso2": "LI",
+    "iso3": "LIE",
+    "default_name": "Liechtenstein",
+    "translations": {
+      "en": "Liechtenstein",
+      "ru": "Лихтенштейн",
+      "kk": "Лихтенштейн"
+    }
+  },
+  {
+    "iso2": "LK",
+    "iso3": "LKA",
+    "default_name": "Sri Lanka",
+    "translations": {
+      "en": "Sri Lanka",
+      "ru": "Шри-Ланка",
+      "kk": "Шри-Ланка"
+    }
+  },
+  {
+    "iso2": "LR",
+    "iso3": "LBR",
+    "default_name": "Liberia",
+    "translations": {
+      "en": "Liberia",
+      "ru": "Либерия",
+      "kk": "Либерия"
+    }
+  },
+  {
+    "iso2": "LS",
+    "iso3": "LSO",
+    "default_name": "Lesotho",
+    "translations": {
+      "en": "Lesotho",
+      "ru": "Лесото",
+      "kk": "Лесото"
+    }
+  },
+  {
+    "iso2": "LT",
+    "iso3": "LTU",
+    "default_name": "Lithuania",
+    "translations": {
+      "en": "Lithuania",
+      "ru": "Литва",
+      "kk": "Литва"
+    }
+  },
+  {
+    "iso2": "LU",
+    "iso3": "LUX",
+    "default_name": "Luxembourg",
+    "translations": {
+      "en": "Luxembourg",
+      "ru": "Люксембург",
+      "kk": "Люксембург"
+    }
+  },
+  {
+    "iso2": "LV",
+    "iso3": "LVA",
+    "default_name": "Latvia",
+    "translations": {
+      "en": "Latvia",
+      "ru": "Латвия",
+      "kk": "Латвия"
+    }
+  },
+  {
+    "iso2": "LY",
+    "iso3": "LBY",
+    "default_name": "Libya",
+    "translations": {
+      "en": "Libya",
+      "ru": "Ливия",
+      "kk": "Ливия"
+    }
+  },
+  {
+    "iso2": "MA",
+    "iso3": "MAR",
+    "default_name": "Morocco",
+    "translations": {
+      "en": "Morocco",
+      "ru": "Марокко",
+      "kk": "Марокко"
+    }
+  },
+  {
+    "iso2": "MC",
+    "iso3": "MCO",
+    "default_name": "Monaco",
+    "translations": {
+      "en": "Monaco",
+      "ru": "Монако",
+      "kk": "Монако"
+    }
+  },
+  {
+    "iso2": "MD",
+    "iso3": "MDA",
+    "default_name": "Moldova",
+    "translations": {
+      "en": "Moldova",
+      "ru": "Молдова",
+      "kk": "Молдова"
+    }
+  },
+  {
+    "iso2": "ME",
+    "iso3": "MNE",
+    "default_name": "Montenegro",
+    "translations": {
+      "en": "Montenegro",
+      "ru": "Черногория",
+      "kk": "Черногория"
+    }
+  },
+  {
+    "iso2": "MF",
+    "iso3": "MAF",
+    "default_name": "St. Martin",
+    "translations": {
+      "en": "St. Martin",
+      "ru": "Сен-Мартен",
+      "kk": "Сен-Мартен"
+    }
+  },
+  {
+    "iso2": "MG",
+    "iso3": "MDG",
+    "default_name": "Madagascar",
+    "translations": {
+      "en": "Madagascar",
+      "ru": "Мадагаскар",
+      "kk": "Мадагаскар"
+    }
+  },
+  {
+    "iso2": "MH",
+    "iso3": "MHL",
+    "default_name": "Marshall Islands",
+    "translations": {
+      "en": "Marshall Islands",
+      "ru": "Маршалловы о-ва",
+      "kk": "Маршалл аралдары"
+    }
+  },
+  {
+    "iso2": "MK",
+    "iso3": "MKD",
+    "default_name": "North Macedonia",
+    "translations": {
+      "en": "North Macedonia",
+      "ru": "Северная Македония",
+      "kk": "Солтүстік Македония"
+    }
+  },
+  {
+    "iso2": "ML",
+    "iso3": "MLI",
+    "default_name": "Mali",
+    "translations": {
+      "en": "Mali",
+      "ru": "Мали",
+      "kk": "Мали"
+    }
+  },
+  {
+    "iso2": "MM",
+    "iso3": "MMR",
+    "default_name": "Myanmar (Burma)",
+    "translations": {
+      "en": "Myanmar (Burma)",
+      "ru": "Мьянма (Бирма)",
+      "kk": "Мьянма (Бирма)"
+    }
+  },
+  {
+    "iso2": "MN",
+    "iso3": "MNG",
+    "default_name": "Mongolia",
+    "translations": {
+      "en": "Mongolia",
+      "ru": "Монголия",
+      "kk": "Моңғолия"
+    }
+  },
+  {
+    "iso2": "MO",
+    "iso3": "MAC",
+    "default_name": "Macao SAR China",
+    "translations": {
+      "en": "Macao SAR China",
+      "ru": "Макао (САР)",
+      "kk": "Макао АӘА"
+    }
+  },
+  {
+    "iso2": "MP",
+    "iso3": "MNP",
+    "default_name": "Northern Mariana Islands",
+    "translations": {
+      "en": "Northern Mariana Islands",
+      "ru": "Северные Марианские о-ва",
+      "kk": "Солтүстік Мариана аралдары"
+    }
+  },
+  {
+    "iso2": "MQ",
+    "iso3": "MTQ",
+    "default_name": "Martinique",
+    "translations": {
+      "en": "Martinique",
+      "ru": "Мартиника",
+      "kk": "Мартиника"
+    }
+  },
+  {
+    "iso2": "MR",
+    "iso3": "MRT",
+    "default_name": "Mauritania",
+    "translations": {
+      "en": "Mauritania",
+      "ru": "Мавритания",
+      "kk": "Мавритания"
+    }
+  },
+  {
+    "iso2": "MS",
+    "iso3": "MSR",
+    "default_name": "Montserrat",
+    "translations": {
+      "en": "Montserrat",
+      "ru": "Монтсеррат",
+      "kk": "Монтсеррат"
+    }
+  },
+  {
+    "iso2": "MT",
+    "iso3": "MLT",
+    "default_name": "Malta",
+    "translations": {
+      "en": "Malta",
+      "ru": "Мальта",
+      "kk": "Мальта"
+    }
+  },
+  {
+    "iso2": "MU",
+    "iso3": "MUS",
+    "default_name": "Mauritius",
+    "translations": {
+      "en": "Mauritius",
+      "ru": "Маврикий",
+      "kk": "Маврикий"
+    }
+  },
+  {
+    "iso2": "MV",
+    "iso3": "MDV",
+    "default_name": "Maldives",
+    "translations": {
+      "en": "Maldives",
+      "ru": "Мальдивы",
+      "kk": "Мальдив аралдары"
+    }
+  },
+  {
+    "iso2": "MW",
+    "iso3": "MWI",
+    "default_name": "Malawi",
+    "translations": {
+      "en": "Malawi",
+      "ru": "Малави",
+      "kk": "Малави"
+    }
+  },
+  {
+    "iso2": "MX",
+    "iso3": "MEX",
+    "default_name": "Mexico",
+    "translations": {
+      "en": "Mexico",
+      "ru": "Мексика",
+      "kk": "Мексика"
+    }
+  },
+  {
+    "iso2": "MY",
+    "iso3": "MYS",
+    "default_name": "Malaysia",
+    "translations": {
+      "en": "Malaysia",
+      "ru": "Малайзия",
+      "kk": "Малайзия"
+    }
+  },
+  {
+    "iso2": "MZ",
+    "iso3": "MOZ",
+    "default_name": "Mozambique",
+    "translations": {
+      "en": "Mozambique",
+      "ru": "Мозамбик",
+      "kk": "Мозамбик"
+    }
+  },
+  {
+    "iso2": "NA",
+    "iso3": "NAM",
+    "default_name": "Namibia",
+    "translations": {
+      "en": "Namibia",
+      "ru": "Намибия",
+      "kk": "Намибия"
+    }
+  },
+  {
+    "iso2": "NC",
+    "iso3": "NCL",
+    "default_name": "New Caledonia",
+    "translations": {
+      "en": "New Caledonia",
+      "ru": "Новая Каледония",
+      "kk": "Жаңа Каледония"
+    }
+  },
+  {
+    "iso2": "NE",
+    "iso3": "NER",
+    "default_name": "Niger",
+    "translations": {
+      "en": "Niger",
+      "ru": "Нигер",
+      "kk": "Нигер"
+    }
+  },
+  {
+    "iso2": "NF",
+    "iso3": "NFK",
+    "default_name": "Norfolk Island",
+    "translations": {
+      "en": "Norfolk Island",
+      "ru": "о-в Норфолк",
+      "kk": "Норфолк аралы"
+    }
+  },
+  {
+    "iso2": "NG",
+    "iso3": "NGA",
+    "default_name": "Nigeria",
+    "translations": {
+      "en": "Nigeria",
+      "ru": "Нигерия",
+      "kk": "Нигерия"
+    }
+  },
+  {
+    "iso2": "NI",
+    "iso3": "NIC",
+    "default_name": "Nicaragua",
+    "translations": {
+      "en": "Nicaragua",
+      "ru": "Никарагуа",
+      "kk": "Никарагуа"
+    }
+  },
+  {
+    "iso2": "NL",
+    "iso3": "NLD",
+    "default_name": "Netherlands",
+    "translations": {
+      "en": "Netherlands",
+      "ru": "Нидерланды",
+      "kk": "Нидерланд"
+    }
+  },
+  {
+    "iso2": "NO",
+    "iso3": "NOR",
+    "default_name": "Norway",
+    "translations": {
+      "en": "Norway",
+      "ru": "Норвегия",
+      "kk": "Норвегия"
+    }
+  },
+  {
+    "iso2": "NP",
+    "iso3": "NPL",
+    "default_name": "Nepal",
+    "translations": {
+      "en": "Nepal",
+      "ru": "Непал",
+      "kk": "Непал"
+    }
+  },
+  {
+    "iso2": "NR",
+    "iso3": "NRU",
+    "default_name": "Nauru",
+    "translations": {
+      "en": "Nauru",
+      "ru": "Науру",
+      "kk": "Науру"
+    }
+  },
+  {
+    "iso2": "NU",
+    "iso3": "NIU",
+    "default_name": "Niue",
+    "translations": {
+      "en": "Niue",
+      "ru": "Ниуэ",
+      "kk": "Ниуэ"
+    }
+  },
+  {
+    "iso2": "NZ",
+    "iso3": "NZL",
+    "default_name": "New Zealand",
+    "translations": {
+      "en": "New Zealand",
+      "ru": "Новая Зеландия",
+      "kk": "Жаңа Зеландия"
+    }
+  },
+  {
+    "iso2": "OM",
+    "iso3": "OMN",
+    "default_name": "Oman",
+    "translations": {
+      "en": "Oman",
+      "ru": "Оман",
+      "kk": "Оман"
+    }
+  },
+  {
+    "iso2": "PA",
+    "iso3": "PAN",
+    "default_name": "Panama",
+    "translations": {
+      "en": "Panama",
+      "ru": "Панама",
+      "kk": "Панама"
+    }
+  },
+  {
+    "iso2": "PE",
+    "iso3": "PER",
+    "default_name": "Peru",
+    "translations": {
+      "en": "Peru",
+      "ru": "Перу",
+      "kk": "Перу"
+    }
+  },
+  {
+    "iso2": "PF",
+    "iso3": "PYF",
+    "default_name": "French Polynesia",
+    "translations": {
+      "en": "French Polynesia",
+      "ru": "Французская Полинезия",
+      "kk": "Француз Полинезиясы"
+    }
+  },
+  {
+    "iso2": "PG",
+    "iso3": "PNG",
+    "default_name": "Papua New Guinea",
+    "translations": {
+      "en": "Papua New Guinea",
+      "ru": "Папуа — Новая Гвинея",
+      "kk": "Папуа — Жаңа Гвинея"
+    }
+  },
+  {
+    "iso2": "PH",
+    "iso3": "PHL",
+    "default_name": "Philippines",
+    "translations": {
+      "en": "Philippines",
+      "ru": "Филиппины",
+      "kk": "Филиппин аралдары"
+    }
+  },
+  {
+    "iso2": "PK",
+    "iso3": "PAK",
+    "default_name": "Pakistan",
+    "translations": {
+      "en": "Pakistan",
+      "ru": "Пакистан",
+      "kk": "Пәкістан"
+    }
+  },
+  {
+    "iso2": "PL",
+    "iso3": "POL",
+    "default_name": "Poland",
+    "translations": {
+      "en": "Poland",
+      "ru": "Польша",
+      "kk": "Польша"
+    }
+  },
+  {
+    "iso2": "PM",
+    "iso3": "SPM",
+    "default_name": "St. Pierre & Miquelon",
+    "translations": {
+      "en": "St. Pierre & Miquelon",
+      "ru": "Сен-Пьер и Микелон",
+      "kk": "Сен-Пьер және Микелон"
+    }
+  },
+  {
+    "iso2": "PN",
+    "iso3": "PCN",
+    "default_name": "Pitcairn Islands",
+    "translations": {
+      "en": "Pitcairn Islands",
+      "ru": "о-ва Питкэрн",
+      "kk": "Питкэрн аралдары"
+    }
+  },
+  {
+    "iso2": "PR",
+    "iso3": "PRI",
+    "default_name": "Puerto Rico",
+    "translations": {
+      "en": "Puerto Rico",
+      "ru": "Пуэрто-Рико",
+      "kk": "Пуэрто-Рико"
+    }
+  },
+  {
+    "iso2": "PS",
+    "iso3": "PSE",
+    "default_name": "Palestinian Territories",
+    "translations": {
+      "en": "Palestinian Territories",
+      "ru": "Палестинские территории",
+      "kk": "Палестина аймақтары"
+    }
+  },
+  {
+    "iso2": "PT",
+    "iso3": "PRT",
+    "default_name": "Portugal",
+    "translations": {
+      "en": "Portugal",
+      "ru": "Португалия",
+      "kk": "Португалия"
+    }
+  },
+  {
+    "iso2": "PW",
+    "iso3": "PLW",
+    "default_name": "Palau",
+    "translations": {
+      "en": "Palau",
+      "ru": "Палау",
+      "kk": "Палау"
+    }
+  },
+  {
+    "iso2": "PY",
+    "iso3": "PRY",
+    "default_name": "Paraguay",
+    "translations": {
+      "en": "Paraguay",
+      "ru": "Парагвай",
+      "kk": "Парагвай"
+    }
+  },
+  {
+    "iso2": "QA",
+    "iso3": "QAT",
+    "default_name": "Qatar",
+    "translations": {
+      "en": "Qatar",
+      "ru": "Катар",
+      "kk": "Катар"
+    }
+  },
+  {
+    "iso2": "RE",
+    "iso3": "REU",
+    "default_name": "Réunion",
+    "translations": {
+      "en": "Réunion",
+      "ru": "Реюньон",
+      "kk": "Реюньон"
+    }
+  },
+  {
+    "iso2": "RO",
+    "iso3": "ROU",
+    "default_name": "Romania",
+    "translations": {
+      "en": "Romania",
+      "ru": "Румыния",
+      "kk": "Румыния"
+    }
+  },
+  {
+    "iso2": "RS",
+    "iso3": "SRB",
+    "default_name": "Serbia",
+    "translations": {
+      "en": "Serbia",
+      "ru": "Сербия",
+      "kk": "Сербия"
+    }
+  },
+  {
+    "iso2": "RU",
+    "iso3": "RUS",
+    "default_name": "Russia",
+    "translations": {
+      "en": "Russia",
+      "ru": "Россия",
+      "kk": "Ресей"
+    }
+  },
+  {
+    "iso2": "RW",
+    "iso3": "RWA",
+    "default_name": "Rwanda",
+    "translations": {
+      "en": "Rwanda",
+      "ru": "Руанда",
+      "kk": "Руанда"
+    }
+  },
+  {
+    "iso2": "SA",
+    "iso3": "SAU",
+    "default_name": "Saudi Arabia",
+    "translations": {
+      "en": "Saudi Arabia",
+      "ru": "Саудовская Аравия",
+      "kk": "Сауд Арабиясы"
+    }
+  },
+  {
+    "iso2": "SB",
+    "iso3": "SLB",
+    "default_name": "Solomon Islands",
+    "translations": {
+      "en": "Solomon Islands",
+      "ru": "Соломоновы о-ва",
+      "kk": "Соломон аралдары"
+    }
+  },
+  {
+    "iso2": "SC",
+    "iso3": "SYC",
+    "default_name": "Seychelles",
+    "translations": {
+      "en": "Seychelles",
+      "ru": "Сейшельские о-ва",
+      "kk": "Сейшель аралдары"
+    }
+  },
+  {
+    "iso2": "SD",
+    "iso3": "SDN",
+    "default_name": "Sudan",
+    "translations": {
+      "en": "Sudan",
+      "ru": "Судан",
+      "kk": "Судан"
+    }
+  },
+  {
+    "iso2": "SE",
+    "iso3": "SWE",
+    "default_name": "Sweden",
+    "translations": {
+      "en": "Sweden",
+      "ru": "Швеция",
+      "kk": "Швеция"
+    }
+  },
+  {
+    "iso2": "SG",
+    "iso3": "SGP",
+    "default_name": "Singapore",
+    "translations": {
+      "en": "Singapore",
+      "ru": "Сингапур",
+      "kk": "Сингапур"
+    }
+  },
+  {
+    "iso2": "SH",
+    "iso3": "SHN",
+    "default_name": "St. Helena",
+    "translations": {
+      "en": "St. Helena",
+      "ru": "о-в Св. Елены",
+      "kk": "Әулие Елена аралы"
+    }
+  },
+  {
+    "iso2": "SI",
+    "iso3": "SVN",
+    "default_name": "Slovenia",
+    "translations": {
+      "en": "Slovenia",
+      "ru": "Словения",
+      "kk": "Словения"
+    }
+  },
+  {
+    "iso2": "SJ",
+    "iso3": "SJM",
+    "default_name": "Svalbard & Jan Mayen",
+    "translations": {
+      "en": "Svalbard & Jan Mayen",
+      "ru": "Шпицберген и Ян-Майен",
+      "kk": "Шпицберген және Ян-Майен"
+    }
+  },
+  {
+    "iso2": "SK",
+    "iso3": "SVK",
+    "default_name": "Slovakia",
+    "translations": {
+      "en": "Slovakia",
+      "ru": "Словакия",
+      "kk": "Словакия"
+    }
+  },
+  {
+    "iso2": "SL",
+    "iso3": "SLE",
+    "default_name": "Sierra Leone",
+    "translations": {
+      "en": "Sierra Leone",
+      "ru": "Сьерра-Леоне",
+      "kk": "Сьерра-Леоне"
+    }
+  },
+  {
+    "iso2": "SM",
+    "iso3": "SMR",
+    "default_name": "San Marino",
+    "translations": {
+      "en": "San Marino",
+      "ru": "Сан-Марино",
+      "kk": "Сан-Марино"
+    }
+  },
+  {
+    "iso2": "SN",
+    "iso3": "SEN",
+    "default_name": "Senegal",
+    "translations": {
+      "en": "Senegal",
+      "ru": "Сенегал",
+      "kk": "Сенегал"
+    }
+  },
+  {
+    "iso2": "SO",
+    "iso3": "SOM",
+    "default_name": "Somalia",
+    "translations": {
+      "en": "Somalia",
+      "ru": "Сомали",
+      "kk": "Сомали"
+    }
+  },
+  {
+    "iso2": "SR",
+    "iso3": "SUR",
+    "default_name": "Suriname",
+    "translations": {
+      "en": "Suriname",
+      "ru": "Суринам",
+      "kk": "Суринам"
+    }
+  },
+  {
+    "iso2": "SS",
+    "iso3": "SSD",
+    "default_name": "South Sudan",
+    "translations": {
+      "en": "South Sudan",
+      "ru": "Южный Судан",
+      "kk": "Оңтүстік Судан"
+    }
+  },
+  {
+    "iso2": "ST",
+    "iso3": "STP",
+    "default_name": "São Tomé & Príncipe",
+    "translations": {
+      "en": "São Tomé & Príncipe",
+      "ru": "Сан-Томе и Принсипи",
+      "kk": "Сан-Томе және Принсипи"
+    }
+  },
+  {
+    "iso2": "SV",
+    "iso3": "SLV",
+    "default_name": "El Salvador",
+    "translations": {
+      "en": "El Salvador",
+      "ru": "Сальвадор",
+      "kk": "Сальвадор"
+    }
+  },
+  {
+    "iso2": "SX",
+    "iso3": "SXM",
+    "default_name": "Sint Maarten",
+    "translations": {
+      "en": "Sint Maarten",
+      "ru": "Синт-Мартен",
+      "kk": "Синт-Мартен"
+    }
+  },
+  {
+    "iso2": "SY",
+    "iso3": "SYR",
+    "default_name": "Syria",
+    "translations": {
+      "en": "Syria",
+      "ru": "Сирия",
+      "kk": "Сирия"
+    }
+  },
+  {
+    "iso2": "SZ",
+    "iso3": "SWZ",
+    "default_name": "Eswatini",
+    "translations": {
+      "en": "Eswatini",
+      "ru": "Эсватини",
+      "kk": "Эсватини"
+    }
+  },
+  {
+    "iso2": "TC",
+    "iso3": "TCA",
+    "default_name": "Turks & Caicos Islands",
+    "translations": {
+      "en": "Turks & Caicos Islands",
+      "ru": "Тёркс и Кайкос",
+      "kk": "Теркс және Кайкос аралдары"
+    }
+  },
+  {
+    "iso2": "TD",
+    "iso3": "TCD",
+    "default_name": "Chad",
+    "translations": {
+      "en": "Chad",
+      "ru": "Чад",
+      "kk": "Чад"
+    }
+  },
+  {
+    "iso2": "TF",
+    "iso3": "ATF",
+    "default_name": "French Southern Territories",
+    "translations": {
+      "en": "French Southern Territories",
+      "ru": "Французские Южные территории",
+      "kk": "Францияның оңтүстік аймақтары"
+    }
+  },
+  {
+    "iso2": "TG",
+    "iso3": "TGO",
+    "default_name": "Togo",
+    "translations": {
+      "en": "Togo",
+      "ru": "Того",
+      "kk": "Того"
+    }
+  },
+  {
+    "iso2": "TH",
+    "iso3": "THA",
+    "default_name": "Thailand",
+    "translations": {
+      "en": "Thailand",
+      "ru": "Таиланд",
+      "kk": "Таиланд"
+    }
+  },
+  {
+    "iso2": "TJ",
+    "iso3": "TJK",
+    "default_name": "Tajikistan",
+    "translations": {
+      "en": "Tajikistan",
+      "ru": "Таджикистан",
+      "kk": "Тәжікстан"
+    }
+  },
+  {
+    "iso2": "TK",
+    "iso3": "TKL",
+    "default_name": "Tokelau",
+    "translations": {
+      "en": "Tokelau",
+      "ru": "Токелау",
+      "kk": "Токелау"
+    }
+  },
+  {
+    "iso2": "TL",
+    "iso3": "TLS",
+    "default_name": "Timor-Leste",
+    "translations": {
+      "en": "Timor-Leste",
+      "ru": "Восточный Тимор",
+      "kk": "Тимор-Лесте"
+    }
+  },
+  {
+    "iso2": "TM",
+    "iso3": "TKM",
+    "default_name": "Turkmenistan",
+    "translations": {
+      "en": "Turkmenistan",
+      "ru": "Туркменистан",
+      "kk": "Түрікменстан"
+    }
+  },
+  {
+    "iso2": "TN",
+    "iso3": "TUN",
+    "default_name": "Tunisia",
+    "translations": {
+      "en": "Tunisia",
+      "ru": "Тунис",
+      "kk": "Тунис"
+    }
+  },
+  {
+    "iso2": "TO",
+    "iso3": "TON",
+    "default_name": "Tonga",
+    "translations": {
+      "en": "Tonga",
+      "ru": "Тонга",
+      "kk": "Тонга"
+    }
+  },
+  {
+    "iso2": "TR",
+    "iso3": "TUR",
+    "default_name": "Türkiye",
+    "translations": {
+      "en": "Türkiye",
+      "ru": "Турция",
+      "kk": "Түркия"
+    }
+  },
+  {
+    "iso2": "TT",
+    "iso3": "TTO",
+    "default_name": "Trinidad & Tobago",
+    "translations": {
+      "en": "Trinidad & Tobago",
+      "ru": "Тринидад и Тобаго",
+      "kk": "Тринидад және Тобаго"
+    }
+  },
+  {
+    "iso2": "TV",
+    "iso3": "TUV",
+    "default_name": "Tuvalu",
+    "translations": {
+      "en": "Tuvalu",
+      "ru": "Тувалу",
+      "kk": "Тувалу"
+    }
+  },
+  {
+    "iso2": "TW",
+    "iso3": "TWN",
+    "default_name": "Taiwan",
+    "translations": {
+      "en": "Taiwan",
+      "ru": "Тайвань",
+      "kk": "Тайвань"
+    }
+  },
+  {
+    "iso2": "TZ",
+    "iso3": "TZA",
+    "default_name": "Tanzania",
+    "translations": {
+      "en": "Tanzania",
+      "ru": "Танзания",
+      "kk": "Танзания"
+    }
+  },
+  {
+    "iso2": "UA",
+    "iso3": "UKR",
+    "default_name": "Ukraine",
+    "translations": {
+      "en": "Ukraine",
+      "ru": "Украина",
+      "kk": "Украина"
+    }
+  },
+  {
+    "iso2": "UG",
+    "iso3": "UGA",
+    "default_name": "Uganda",
+    "translations": {
+      "en": "Uganda",
+      "ru": "Уганда",
+      "kk": "Уганда"
+    }
+  },
+  {
+    "iso2": "UM",
+    "iso3": "UMI",
+    "default_name": "U.S. Outlying Islands",
+    "translations": {
+      "en": "U.S. Outlying Islands",
+      "ru": "Внешние малые о-ва (США)",
+      "kk": "АҚШ-тың сыртқы кіші аралдары"
+    }
+  },
+  {
+    "iso2": "US",
+    "iso3": "USA",
+    "default_name": "United States",
+    "translations": {
+      "en": "United States",
+      "ru": "Соединенные Штаты",
+      "kk": "Америка Құрама Штаттары"
+    }
+  },
+  {
+    "iso2": "UY",
+    "iso3": "URY",
+    "default_name": "Uruguay",
+    "translations": {
+      "en": "Uruguay",
+      "ru": "Уругвай",
+      "kk": "Уругвай"
+    }
+  },
+  {
+    "iso2": "UZ",
+    "iso3": "UZB",
+    "default_name": "Uzbekistan",
+    "translations": {
+      "en": "Uzbekistan",
+      "ru": "Узбекистан",
+      "kk": "Өзбекстан"
+    }
+  },
+  {
+    "iso2": "VA",
+    "iso3": "VAT",
+    "default_name": "Vatican City",
+    "translations": {
+      "en": "Vatican City",
+      "ru": "Ватикан",
+      "kk": "Ватикан"
+    }
+  },
+  {
+    "iso2": "VC",
+    "iso3": "VCT",
+    "default_name": "St. Vincent & Grenadines",
+    "translations": {
+      "en": "St. Vincent & Grenadines",
+      "ru": "Сент-Винсент и Гренадины",
+      "kk": "Сент-Винсент және Гренадин аралдары"
+    }
+  },
+  {
+    "iso2": "VE",
+    "iso3": "VEN",
+    "default_name": "Venezuela",
+    "translations": {
+      "en": "Venezuela",
+      "ru": "Венесуэла",
+      "kk": "Венесуэла"
+    }
+  },
+  {
+    "iso2": "VG",
+    "iso3": "VGB",
+    "default_name": "British Virgin Islands",
+    "translations": {
+      "en": "British Virgin Islands",
+      "ru": "Виргинские о-ва (Великобритания)",
+      "kk": "Британдық Виргин аралдары"
+    }
+  },
+  {
+    "iso2": "VI",
+    "iso3": "VIR",
+    "default_name": "U.S. Virgin Islands",
+    "translations": {
+      "en": "U.S. Virgin Islands",
+      "ru": "Виргинские о-ва (США)",
+      "kk": "АҚШ-тың Виргин аралдары"
+    }
+  },
+  {
+    "iso2": "VN",
+    "iso3": "VNM",
+    "default_name": "Vietnam",
+    "translations": {
+      "en": "Vietnam",
+      "ru": "Вьетнам",
+      "kk": "Вьетнам"
+    }
+  },
+  {
+    "iso2": "VU",
+    "iso3": "VUT",
+    "default_name": "Vanuatu",
+    "translations": {
+      "en": "Vanuatu",
+      "ru": "Вануату",
+      "kk": "Вануату"
+    }
+  },
+  {
+    "iso2": "WF",
+    "iso3": "WLF",
+    "default_name": "Wallis & Futuna",
+    "translations": {
+      "en": "Wallis & Futuna",
+      "ru": "Уоллис и Футуна",
+      "kk": "Уоллис және Футуна"
+    }
+  },
+  {
+    "iso2": "WS",
+    "iso3": "WSM",
+    "default_name": "Samoa",
+    "translations": {
+      "en": "Samoa",
+      "ru": "Самоа",
+      "kk": "Самоа"
+    }
+  },
+  {
+    "iso2": "YE",
+    "iso3": "YEM",
+    "default_name": "Yemen",
+    "translations": {
+      "en": "Yemen",
+      "ru": "Йемен",
+      "kk": "Йемен"
+    }
+  },
+  {
+    "iso2": "YT",
+    "iso3": "MYT",
+    "default_name": "Mayotte",
+    "translations": {
+      "en": "Mayotte",
+      "ru": "Майотта",
+      "kk": "Майотта"
+    }
+  },
+  {
+    "iso2": "ZA",
+    "iso3": "ZAF",
+    "default_name": "South Africa",
+    "translations": {
+      "en": "South Africa",
+      "ru": "Южно-Африканская Республика",
+      "kk": "Оңтүстік Африка"
+    }
+  },
+  {
+    "iso2": "ZM",
+    "iso3": "ZMB",
+    "default_name": "Zambia",
+    "translations": {
+      "en": "Zambia",
+      "ru": "Замбия",
+      "kk": "Замбия"
+    }
+  },
+  {
+    "iso2": "ZW",
+    "iso3": "ZWE",
+    "default_name": "Zimbabwe",
+    "translations": {
+      "en": "Zimbabwe",
+      "ru": "Зимбабве",
+      "kk": "Зимбабве"
+    }
+  }
+]

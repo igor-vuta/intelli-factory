@@ -1,0 +1,36 @@
+{
+  "countries": 249,
+  "subdivisions": 5046,
+  "languages": {
+    "en": {
+      "country_names": 249,
+      "subdivision_names": 5046,
+      "missing_subdivision_names": 0,
+      "subdivision_sources": {
+        "iso3166-2.json": 19,
+        "label-corrections.json": 12,
+        "subdivisions-en.xml": 5015
+      }
+    },
+    "ru": {
+      "country_names": 249,
+      "subdivision_names": 4921,
+      "missing_subdivision_names": 125,
+      "subdivision_sources": {
+        "iso-ru.mo": 89,
+        "label-corrections.json": 12,
+        "subdivisions-ru.xml": 4808,
+        "supplemental-ru.json": 12
+      }
+    },
+    "kk": {
+      "country_names": 249,
+      "subdivision_names": 866,
+      "missing_subdivision_names": 4180,
+      "subdivision_sources": {
+        "subdivisions-kk.xml": 829,
+        "supplemental-kk.json": 37
+      }
+    }
+  }
+}
