@@ -1,0 +1,422 @@
+import { useCallback, useEffect, useState } from 'react';
+import AddressPicker, { type AddressValue } from './AddressPicker';
+import CategoryProposalPanel, {
+  type Category,
+  type Proposal,
+  type AttributeSchema,
+} from './CategoryProposalPanel';
+import AttributeFields from './AttributeFields';
+import { categoryApi, getRequestsBootstrap, type RequestsBootstrap } from '../lib/authClient';
+import { categoryCopy } from '../lib/categoryCopy';
+import type { Locale } from '../lib/i18n';
+type Setup = {
+  ready: boolean;
+  email_verified: boolean;
+  profile_complete: boolean;
+  eligible_inventory_ids: string[];
+  profile: {
+    legal_name: string;
+    contact_name: string | null;
+    phone: string | null;
+    primary_address_id: string | null;
+  };
+  selections: { category_id: string; is_active: boolean; confirmed_at: string | null }[];
+};
+type DraftData = {
+  category_id?: string;
+  proposal_id?: string;
+  item_id?: string;
+  item_name?: string;
+  unit?: string;
+  quantity_available?: string;
+  price_per_unit?: string;
+  currency_code?: string;
+  stock_address_id?: string;
+  characteristics_json?: Record<string, unknown>;
+};
+type Draft = { id: string; data: DraftData };
+export default function FactorySetup({
+  locale,
+  onReady,
+  revision = 0,
+}: {
+  locale: Locale;
+  onReady: (ids: string[]) => void;
+  revision?: number;
+}) {
+  const c = categoryCopy(locale);
+  const [setup, setSetup] = useState<Setup | null>(null);
+  const [cats, setCats] = useState<Category[]>([]);
+  const [bootstrap, setBootstrap] = useState<RequestsBootstrap | null>(null);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const [profile, setProfile] = useState({ legal_name: '', contact_name: '', phone: '' });
+  const [location, setLocation] = useState<AddressValue | null>(null);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [draftId, setDraftId] = useState('');
+  const [data, setData] = useState<DraftData>({ unit: 'pcs' });
+  const [error, setError] = useState(false);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const [s, categories, b, d, p] = await Promise.all([
+      categoryApi<Setup>('/factory-setup'),
+      categoryApi<Category[]>(`/?locale=${locale}`),
+      getRequestsBootstrap(locale),
+      categoryApi<Draft[]>('/drafts'),
+      categoryApi<Proposal[]>('/proposals'),
+    ]);
+    setSetup(s);
+    setCats(categories);
+    setBootstrap(b);
+    setDrafts(d);
+    setProposals(p);
+    setSelected(s.selections.filter((x) => x.is_active).map((x) => x.category_id));
+    setProfile({
+      legal_name: s.profile.legal_name,
+      contact_name: s.profile.contact_name ?? '',
+      phone: s.profile.phone ?? '',
+    });
+    onReady(s.ready ? s.eligible_inventory_ids : []);
+  }, [locale, onReady]);
+  useEffect(() => {
+    void load().catch(() => setError(true));
+  }, [load, revision]);
+  async function act(fn: () => Promise<unknown>, success = c.saved) {
+    setBusy(true);
+    setError(false);
+    setMessage('');
+    try {
+      await fn();
+      await load();
+      setMessage(success);
+    } catch {
+      setError(true);
+      onReady([]);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function patch(v: Partial<DraftData>) {
+    setData((d) => ({ ...d, ...v }));
+  }
+  const product = bootstrap?.items.find((x) => x.id === data.item_id) as
+    | (RequestsBootstrap['items'][number] & { characteristics_schema?: AttributeSchema })
+    | undefined;
+  const category = cats.find((x) => x.id === data.category_id);
+  async function save() {
+    const id = draftId || crypto.randomUUID();
+    setDraftId(id);
+    await categoryApi(`/drafts/${id}`, 'PUT', { data });
+    return id;
+  }
+  return (
+    <section data-section="inventory" className="factory-setup surface-1 rounded-2xl p-6 space-y-4">
+      <h2>{c.setup}</h2>
+      <p role="status">{setup ? (setup.ready ? c.ready : c.incomplete) : c.loading}</p>
+      <p>{c.next}</p>
+      {error && (
+        <p role="alert">
+          {c.error}{' '}
+          <button type="button" onClick={() => void act(load)}>
+            {c.retry}
+          </button>
+        </p>
+      )}
+      {message && <p role="status">{message}</p>}
+      {setup && (
+        <>
+          {!setup.email_verified && <p>{c.verify}</p>}
+          <form
+            className="grid gap-3 sm:grid-cols-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void act(() => categoryApi('/factory-profile', 'PATCH', profile));
+            }}
+          >
+            {(['legal_name', 'contact_name', 'phone'] as const).map((key, i) => (
+              <label key={key}>
+                {[c.company, c.contact, c.phone][i]}
+                <input
+                  value={profile[key]}
+                  onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}
+                />
+              </label>
+            ))}
+            <button disabled={busy} className="btn btn-secondary">
+              {c.saveProfile}
+            </button>
+          </form>
+          <details>
+            <summary>{c.location}</summary>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (location)
+                  void act(() =>
+                    categoryApi('/factory-location', 'PUT', {
+                      country_code: location.countryCode,
+                      region_name: location.regionName,
+                      city_name: location.cityName,
+                      street: location.street,
+                      postal_code: location.postalCode,
+                    })
+                  );
+              }}
+            >
+              <AddressPicker
+                value={location}
+                onChange={setLocation}
+                countries={(bootstrap?.countries ?? []).map((x) => ({
+                  code: x.code,
+                  label: x.name,
+                }))}
+                required
+              />
+              <button disabled={busy} className="btn btn-secondary">
+                {c.saveLocation}
+              </button>
+            </form>
+          </details>
+          <fieldset className="space-y-2">
+            <legend>{c.categories}</legend>
+            <label>
+              {c.search}
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} />
+            </label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {cats
+                .filter(
+                  (x) =>
+                    x.selectable &&
+                    (x.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()) ||
+                      selected.includes(x.id))
+                )
+                .map((x) => (
+                  <label key={x.id}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(x.id)}
+                      onChange={(e) =>
+                        setSelected(
+                          e.target.checked
+                            ? [...selected, x.id]
+                            : selected.filter((id) => id !== x.id)
+                        )
+                      }
+                    />{' '}
+                    {x.parent_id ? `${cats.find((p) => p.id === x.parent_id)?.name ?? ''} / ` : ''}
+                    {x.name}
+                  </label>
+                ))}
+            </div>
+            {!cats.some(
+              (x) => x.selectable && x.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())
+            ) && <p>{c.empty}</p>}
+            <p>{c.removal}</p>
+            <p>{c.fallback}</p>
+            <button
+              disabled={busy}
+              type="button"
+              className="btn btn-secondary"
+              onClick={() =>
+                void act(() =>
+                  categoryApi('/factory-selections', 'PUT', { category_ids: selected })
+                )
+              }
+            >
+              {c.saveCategories}
+            </button>
+          </fieldset>
+          <CategoryProposalPanel
+            locale={locale}
+            onUpdated={() => void load().catch(() => setError(true))}
+          />
+          <h3>{c.drafts}</h3>
+          {drafts.length === 0 && <p>{c.emptyDrafts}</p>}
+          {drafts.map((d) => (
+            <button
+              type="button"
+              key={d.id}
+              onClick={() => {
+                setDraftId(d.id);
+                setData(d.data);
+              }}
+            >
+              {c.resume}:{' '}
+              {d.data.item_name ||
+                bootstrap?.items.find((x) => x.id === d.data.item_id)?.name ||
+                c.draft}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setDraftId('');
+              setData({ unit: 'pcs' });
+            }}
+          >
+            {c.newDraft}
+          </button>
+          <form
+            className="grid gap-3 sm:grid-cols-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void act(save);
+            }}
+          >
+            <h3 className="sm:col-span-2">{c.draft}</h3>
+            <p className="sm:col-span-2">{c.stockOnly}</p>
+            <label>
+              {c.category}
+              <select
+                value={data.proposal_id ? `proposal:${data.proposal_id}` : (data.category_id ?? '')}
+                onChange={(e) =>
+                  patch({
+                    category_id: e.target.value.startsWith('proposal:')
+                      ? undefined
+                      : e.target.value,
+                    proposal_id: e.target.value.startsWith('proposal:')
+                      ? e.target.value.slice(9)
+                      : undefined,
+                    item_id: undefined,
+                    characteristics_json: {},
+                  })
+                }
+              >
+                <option value="">—</option>
+                {cats
+                  .filter((x) => x.selectable)
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                {proposals
+                  .filter((x) => x.status !== 'REJECTED')
+                  .map((x) => (
+                    <option key={x.id} value={`proposal:${x.id}`}>
+                      {x.name} — {x.status === 'APPROVED' ? c.approved : c.pending}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              {c.product}
+              <select
+                value={data.item_id ?? ''}
+                onChange={(e) => {
+                  const item = bootstrap?.items.find((x) => x.id === e.target.value);
+                  patch({ item_id: item?.id, unit: item?.unit || 'pcs', characteristics_json: {} });
+                }}
+              >
+                <option value="">{c.newProduct}</option>
+                {bootstrap?.items
+                  .filter((x) => x.category_id === data.category_id)
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            {!data.item_id && (
+              <label>
+                {c.newProduct}
+                <input
+                  value={data.item_name ?? ''}
+                  onChange={(e) => patch({ item_name: e.target.value })}
+                />
+              </label>
+            )}
+            <label>
+              {c.unit}
+              <select
+                disabled={!!data.item_id}
+                value={data.unit ?? 'pcs'}
+                onChange={(e) => patch({ unit: e.target.value })}
+              >
+                {['pcs', 'kg', 'g', 't', 'tons', 'l', 'm', 'm2', 'm3', 'roll'].map((u) => (
+                  <option key={u}>{u}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {c.quantity} ({data.unit})
+              <input
+                type="number"
+                step="any"
+                value={data.quantity_available ?? ''}
+                onChange={(e) => patch({ quantity_available: e.target.value })}
+              />
+            </label>
+            <label>
+              {c.price} ({data.currency_code || '—'} / {data.unit})
+              <input
+                type="number"
+                step="any"
+                value={data.price_per_unit ?? ''}
+                onChange={(e) => patch({ price_per_unit: e.target.value })}
+              />
+            </label>
+            <label>
+              {c.currency}
+              <select
+                value={data.currency_code ?? ''}
+                onChange={(e) => patch({ currency_code: e.target.value })}
+              >
+                <option value="">—</option>
+                {bootstrap?.currencies.map((x) => (
+                  <option key={x.code}>{x.code}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {c.stock}
+              <select
+                value={data.stock_address_id ?? ''}
+                onChange={(e) => patch({ stock_address_id: e.target.value })}
+              >
+                <option value="">{c.location}</option>
+                {bootstrap?.addresses.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <AttributeFields
+              schema={category?.attributes_schema}
+              value={data.characteristics_json ?? {}}
+              onChange={(v) => patch({ characteristics_json: v })}
+            />
+            <AttributeFields
+              schema={product?.characteristics_schema}
+              value={data.characteristics_json ?? {}}
+              onChange={(v) => patch({ characteristics_json: v })}
+            />
+            <button disabled={busy} className="btn btn-secondary">
+              {c.save}
+            </button>
+            <button
+              type="button"
+              disabled={busy || !setup.email_verified}
+              className="btn btn-primary"
+              onClick={() =>
+                void act(async () => {
+                  const id = await save();
+                  await categoryApi(`/drafts/${id}/publish`, 'POST');
+                  setDraftId('');
+                  setData({ unit: 'pcs' });
+                }, c.published)
+              }
+            >
+              {c.publish}
+            </button>
+          </form>
+        </>
+      )}
+    </section>
+  );
+}
