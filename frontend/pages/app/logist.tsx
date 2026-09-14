@@ -1,11 +1,13 @@
-import PresetIcon from '../../components/PresetIcon';
-import Link from 'next/link';
+import { useExperienceCopy } from '../../hooks/useExperienceCopy';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
+import WorkspaceExperience from '../../components/WorkspaceExperience';
+import { workspacePath } from '../../lib/navigation';
+import Modal from '../../components/Modal';
 import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../../lib/authClient';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
-import LocaleSwitcher from '../../components/LocaleSwitcher';
 import {
   advanceTransactionFulfillment,
   type ContractSigningPayload,
@@ -25,9 +27,6 @@ import {
 } from '../../lib/authClient';
 import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
-import { useTheme } from '../../hooks/useTheme';
-import { THEME_CLASSES } from '../../styles/themePresets';
 
 const TABLE_PAGE_SIZE = 5;
 
@@ -38,7 +37,8 @@ type QuoteModalProps = {
   onQuoted: () => Promise<void>;
 };
 
-function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
+function QuoteModal({ bid, currencies, onClose: onDismiss, onQuoted }: QuoteModalProps) {
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -146,11 +146,10 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
   }
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -370,16 +369,16 @@ function QuoteModal({ bid, currencies, onClose, onQuoted }: QuoteModalProps) {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 export default function LogistWorkspacePage() {
+  const e = useExperienceCopy();
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme, setTheme] = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -523,7 +522,7 @@ export default function LogistWorkspacePage() {
       try {
         const auth = await me();
         if (auth.user.role !== 'LOGIST') {
-          await router.replace(`/login?lang=${locale}`);
+          await router.replace(workspacePath(auth.user.role, locale));
           return;
         }
         const [bootstrap, bids, txRows, offers] = await Promise.all([
@@ -559,8 +558,12 @@ export default function LogistWorkspacePage() {
     if (loading) return;
 
     const intervalId = window.setInterval(() => {
-      void refreshFactoryBids();
-      void refreshTransactions();
+      void refreshFactoryBids().catch(() =>
+        setError('Could not refresh workspace. Please check your connection and try again.')
+      );
+      void refreshTransactions().catch(() =>
+        setError('Could not refresh workspace. Please check your connection and try again.')
+      );
     }, 10000);
 
     return () => {
@@ -703,45 +706,52 @@ export default function LogistWorkspacePage() {
   }
 
   async function handleLogout() {
-    await logout();
-    await router.push(`/login?lang=${locale}`);
+    try {
+      await logout();
+      await router.push(`/login?lang=${locale}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not log out. Please try again.');
+    }
   }
 
   return (
-    <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+    <WorkspaceExperience
+      role="logist"
+      loading={loading}
+      error={error}
+      counts={[
+        factoryBids.filter((bid) => !bid.has_my_quote).length,
+        transactions.filter((tx) => tx.status !== 'COMPLETED').length,
+        logisticOffers.length,
+      ]}
+      items={transactions.map((tx) => ({
+        id: tx.id,
+        title: tx.item_name ?? 'Delivery',
+        status: tx.status,
+        detail: `${tx.total_cost ?? '—'} ${tx.currency_code ?? ''} · ${tx.delivery_days ?? '—'} ${e('days')}`,
+        action: tx.can_sign
+          ? () => void handleWorkflowAction(tx.id, 'SIGN')
+          : tx.can_start_fulfillment
+            ? () => void handleWorkflowAction(tx.id, 'START')
+            : tx.can_mark_in_progress
+              ? () => void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
+              : undefined,
+        actionLabel: tx.can_sign
+          ? 'Review & sign'
+          : tx.can_start_fulfillment
+            ? 'Start delivery'
+            : tx.can_mark_in_progress
+              ? 'Mark delivered'
+              : 'View delivery',
+      }))}
+      onLogout={handleLogout}
     >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
-          >
-            <PresetIcon
-              src="/presets/logist.svg"
-              alt="Logist workspace"
-              size={32}
-              className="rounded-md"
-            />
-            <span>{copy.brand}</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher currentLocale={locale} basePath="/app/logist" />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
-            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-              {copy.logout}
-            </button>
-          </div>
-        </header>
-
+      <div className="workspace-panels">
         {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
-        {error && (
-          <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
-        )}
 
         {!loading && (
           <>
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
+            <section data-section="quotes" className="surface-1 rounded-2xl p-6 sm:p-8">
               <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
                 {copy.logistWorkspaceTitle}
               </h1>
@@ -749,7 +759,9 @@ export default function LogistWorkspacePage() {
                 {copy.logistWorkspaceSubtitle}
               </p>
 
-              <h2 className="mt-6 text-lg font-semibold">{copy.bidsNeedingQuoteTitle}</h2>
+              <h2 id="quotes" className="mt-6 text-lg font-semibold">
+                {copy.bidsNeedingQuoteTitle}
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
                 {copy.bidsNeedingQuoteSubtitle}
               </p>
@@ -902,7 +914,7 @@ export default function LogistWorkspacePage() {
             </section>
 
             {/* Add Logistic Offer */}
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
+            <section data-section="offers" className="surface-1 rounded-2xl p-6 sm:p-8">
               {logisticOffers.length === 0 && (
                 <div className="mb-6 rounded-2xl border-2 border-[rgb(var(--accent))] bg-[rgb(var(--panel))] p-5">
                   <h2 className="text-lg font-semibold">{copy.logistSetupTitle}</h2>
@@ -912,7 +924,9 @@ export default function LogistWorkspacePage() {
                 </div>
               )}
 
-              <h2 className="text-lg font-semibold">{copy.addOfferTitle}</h2>
+              <h2 id="offers" className="text-lg font-semibold">
+                {copy.addOfferTitle}
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.addOfferSubtitle}</p>
 
               <form
@@ -1120,8 +1134,10 @@ export default function LogistWorkspacePage() {
               )}
             </section>
 
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 className="text-lg font-semibold">Contract & Fulfillment Workflow</h2>
+            <section data-section="workflow" className="surface-1 rounded-2xl p-6 sm:p-8">
+              <h2 id="workflow" className="text-lg font-semibold">
+                Contract & Fulfillment Workflow
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
                 Sign contract packets and progress fulfillment after customer payment confirmation.
               </p>
@@ -1299,6 +1315,6 @@ export default function LogistWorkspacePage() {
           onConfirm={handleConfirmSignFromAgreement}
         />
       )}
-    </main>
+    </WorkspaceExperience>
   );
 }

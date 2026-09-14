@@ -1,5 +1,5 @@
-import PresetIcon from '../../components/PresetIcon';
-import Link from 'next/link';
+import WorkspaceExperience from '../../components/WorkspaceExperience';
+import { workspacePath } from '../../lib/navigation';
 import { useRouter } from 'next/router';
 import { useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../../lib/authClient';
@@ -35,10 +35,6 @@ import {
 } from '../../lib/authClient';
 import { formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
-import LocaleSwitcher from '../../components/LocaleSwitcher';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
-import { useTheme } from '../../hooks/useTheme';
-import { THEME_CLASSES } from '../../styles/themePresets';
 
 const REQUESTS_PAGE_SIZE = 5;
 
@@ -47,7 +43,6 @@ export default function AdminWorkspacePage() {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme, setTheme] = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestSummary[]>([]);
@@ -74,7 +69,7 @@ export default function AdminWorkspacePage() {
       try {
         const auth = await me();
         if (auth.user.role !== 'ADMIN') {
-          await router.replace(`/login?lang=${locale}`);
+          await router.replace(workspacePath(auth.user.role, locale));
           return;
         }
 
@@ -102,8 +97,12 @@ export default function AdminWorkspacePage() {
   }, [locale, router]);
 
   async function handleLogout() {
-    await logout();
-    await router.push(`/login?lang=${locale}`);
+    try {
+      await logout();
+      await router.push(`/login?lang=${locale}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not log out. Please try again.');
+    }
   }
 
   async function handleCompare() {
@@ -367,43 +366,29 @@ export default function AdminWorkspacePage() {
   };
 
   return (
-    <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+    <WorkspaceExperience
+      role="admin"
+      loading={loading}
+      error={error}
+      counts={[statusStats.total, statusStats.pairing, statusStats.completed]}
+      items={requests.map((row) => ({
+        id: row.id,
+        title: row.item_name ?? row.requested_name_text ?? 'Supply request',
+        status: row.status,
+        detail: `${row.quantity} ${row.quantity_unit}`,
+      }))}
+      onLogout={handleLogout}
     >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
-          >
-            <PresetIcon
-              src="/presets/admin.svg"
-              alt="Admin workspace"
-              size={32}
-              className="rounded-md"
-            />
-            <span>{copy.brand}</span>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher currentLocale={locale} basePath="/app/admin" />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
-            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-              {copy.logout}
-            </button>
-          </div>
-        </header>
-
-        <section className="surface-1 rounded-2xl p-6 sm:p-8">
-          <h1 className="slide-up text-2xl font-semibold sm:text-3xl">{copy.adminTitle}</h1>
+      <div className="workspace-panels">
+        <section data-section="operations" className="surface-1 rounded-2xl p-6 sm:p-8">
+          <h1 id="overview" className="slide-up text-2xl font-semibold sm:text-3xl">
+            {copy.adminTitle}
+          </h1>
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">
             Track request pipeline and status distribution.
           </p>
 
           {loading && <p className="mt-4 text-[rgb(var(--muted))]">Loading workspace...</p>}
-          {error && (
-            <p className="mt-4 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
-          )}
 
           {!loading && !error && (
             <>
@@ -585,7 +570,9 @@ export default function AdminWorkspacePage() {
                 {/* Section header + seed button */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-semibold">Optimization Engine Comparison</h2>
+                    <h2 id="optimization" className="text-xl font-semibold">
+                      Optimization Engine Comparison
+                    </h2>
                     <p className="mt-1 text-sm text-[rgb(var(--muted))]">
                       Compare Greedy, Fast Weighted, and Deep (GA) strategies side-by-side.
                     </p>
@@ -1060,6 +1047,6 @@ export default function AdminWorkspacePage() {
           )}
         </section>
       </div>
-    </main>
+    </WorkspaceExperience>
   );
 }

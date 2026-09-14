@@ -1144,7 +1144,8 @@ async def seed(run_large: bool = False) -> None:
     if _bool_env("SEED_WITH_REFERENCE_GEO", True):
         await seed_reference_geo()
 
-    prisma = Prisma()
+    # The optimisation engine uses the application client.
+    from db import prisma
     await prisma.connect()
 
     try:

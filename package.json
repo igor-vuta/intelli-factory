@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "cd backend/app/api && poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:backend": "cd backend/app/api && uv run --no-project uvicorn main:app --reload --host 127.0.0.1 --port 8000",
     "test:backend": "cd backend/app/api && poetry run pytest tests/ -v",
     "benchmark:backend": "cd backend/app/api && poetry run python benchmark_evaluation.py",
     "seed:workflow": "cd backend/app/api && poetry run python seed_workflow_scenarios.py",

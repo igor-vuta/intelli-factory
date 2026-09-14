@@ -70,6 +70,7 @@ def _validate_auth_email(value: str) -> str:
 
 
 class RegisterRequest(BaseModel):
+    preferred_locale: Literal["en", "ru", "kk"] | None = None
     email: str = Field(..., min_length=5, max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
     role: UserRole
@@ -129,6 +130,7 @@ class AuthUserResponse(BaseModel):
     email: str
     role: UserRole
     is_email_verified: bool
+    preferred_locale: Literal["en", "ru", "kk"] | None = None
 
 
 class AuthStatusResponse(BaseModel):
@@ -221,6 +223,7 @@ async def register(payload: RegisterRequest, request: Request):
             "password_hash": _hash_password(payload.password),
             "role": payload.role,
             "is_email_verified": False,
+            "preferred_locale": payload.preferred_locale,
         }
     )
 
@@ -443,6 +446,7 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             email=user.email,
             role=user.role,
             is_email_verified=user.is_email_verified,
+            preferred_locale=user.preferred_locale,
         ),
     )
 
@@ -522,6 +526,7 @@ async def me(request: Request):
             email=user.email,
             role=user.role,
             is_email_verified=user.is_email_verified,
+            preferred_locale=user.preferred_locale,
         ),
     )
 
@@ -550,3 +555,25 @@ async def dev_verify(payload: DevVerifyRequest):
         data={"is_email_verified": True},
     )
     return MessageResponse(status="ok", message="Account verified")
+
+class LocalePreferenceRequest(BaseModel):
+    preferred_locale: Literal["en", "ru", "kk"]
+
+
+@router.patch("/preferences", response_model=AuthStatusResponse)
+async def update_preferences(payload: LocalePreferenceRequest, request: Request):
+    auth = await me(request)
+    user = await prisma.user.update(
+        where={"id": auth.user.id},
+        data={"preferred_locale": payload.preferred_locale},
+    )
+    return AuthStatusResponse(
+        status="success",
+        user=AuthUserResponse(
+            id=user.id,
+            email=user.email,
+            role=user.role,
+            is_email_verified=user.is_email_verified,
+            preferred_locale=user.preferred_locale,
+        ),
+    )

@@ -2,12 +2,12 @@ import { Html, Head, Main, NextScript } from 'next/document';
 
 export default function Document() {
   return (
-    <Html lang="en">
+    <Html lang="en" data-scroll-behavior="smooth">
       <Head>
         {/* Prevent FOUC: apply stored theme class to <html> before any paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('if-theme');var v=['midnightCore','telegramBlue','whatsappEmerald','cyberNeon','modernLight','modernDark'];var m={midnightCore:'theme-midnight-core',telegramBlue:'theme-telegram-blue',whatsappEmerald:'theme-whatsapp-emerald',cyberNeon:'theme-cyber-neon',modernLight:'theme-modern-light',modernDark:'theme-modern-dark'};var t=v.indexOf(s)!==-1?s:'modernDark';document.documentElement.classList.add(m[t]);}catch(e){document.documentElement.classList.add('theme-modern-dark');}})();`,
+            __html: `(function(){var p=location.pathname;var t=p==='/app/customer'?'modernLight':(p==='/app/factory')?'whatsappEmerald':'modernDark';try{var s=localStorage.getItem('if-theme');if(s)t=(s==='modernLight'||s==='whatsappEmerald')?s:'modernDark';}catch(e){}var m={modernLight:'theme-modern-light',modernDark:'theme-modern-dark',whatsappEmerald:'theme-whatsapp-emerald'};document.documentElement.classList.add(m[t]);})();`,
           }}
         />
 

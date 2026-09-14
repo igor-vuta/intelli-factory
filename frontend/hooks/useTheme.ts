@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { THEME_CLASSES, THEME_PRESETS, type Theme } from '../styles/themePresets';
+import { useRouter } from 'next/router';
+import { THEME_CLASSES, THEME_PRESETS, resolveTheme, type Theme } from '../styles/themePresets';
 
 const STORAGE_KEY = 'if-theme';
 const DEFAULT_THEME: Theme = 'modernDark';
@@ -51,16 +52,14 @@ function applyThemeToRoot(theme: Theme) {
   updateFavicon(THEME_ACCENT_HEX[theme]);
 }
 
-let fallbackTheme: Theme = DEFAULT_THEME;
+let manualTheme: Theme | null = null;
 
-function readTheme(): Theme {
+function readTheme(defaultTheme: Theme): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored && Object.prototype.hasOwnProperty.call(THEME_CLASSES, stored)
-      ? (stored as Theme)
-      : fallbackTheme;
+    return stored ? resolveTheme(stored) : (manualTheme ?? defaultTheme);
   } catch {
-    return fallbackTheme;
+    return manualTheme ?? defaultTheme;
   }
 }
 
@@ -74,14 +73,25 @@ function subscribeTheme(onChange: () => void) {
 }
 
 export function useTheme(): [Theme, (theme: Theme) => void] {
-  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => DEFAULT_THEME);
+  const { pathname } = useRouter();
+  const defaultTheme: Theme =
+    pathname === '/app/customer'
+      ? 'modernLight'
+      : pathname === '/app/factory'
+        ? 'whatsappEmerald'
+        : DEFAULT_THEME;
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    () => readTheme(defaultTheme),
+    () => defaultTheme
+  );
 
   useEffect(() => {
     applyThemeToRoot(theme);
   }, [theme]);
 
   function setTheme(newTheme: Theme) {
-    fallbackTheme = newTheme;
+    manualTheme = newTheme;
     try {
       localStorage.setItem(STORAGE_KEY, newTheme);
     } catch {}

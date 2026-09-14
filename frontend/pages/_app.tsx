@@ -1,35 +1,55 @@
+import InteractionMotion from '../components/InteractionMotion';
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
+import { useRouter } from 'next/router';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { THEME_PRESETS, type Theme } from '../styles/themePresets';
-import { updateFavicon } from '../hooks/useTheme';
+import { useTheme } from '../hooks/useTheme';
+import { rememberLocale, rememberedLocale, validLocale } from '../lib/localePreference';
+import { me } from '../lib/authClient';
 import '../styles/globals.css';
-
-const ACCENT_HEX: Record<Theme, string> = THEME_PRESETS.reduce(
-  (acc, p) => {
-    acc[p.id] = p.palette.accent;
-    return acc;
-  },
-  {} as Record<Theme, string>
-);
+import '../styles/experience.css';
 
 export default function App({ Component, pageProps }: AppProps) {
+  useTheme();
+  const router = useRouter();
   useEffect(() => {
-    const stored = localStorage.getItem('if-theme') as Theme | null;
-    const theme: Theme = (stored && stored in ACCENT_HEX ? stored : 'modernDark') as Theme;
-    updateFavicon(ACCENT_HEX[theme]);
-
-    function onStorageChange(e: StorageEvent) {
-      if (e.key === 'if-theme' && e.newValue && e.newValue in ACCENT_HEX) {
-        updateFavicon(ACCENT_HEX[e.newValue as Theme]);
-      }
+    if (!router.isReady) return;
+    if (validLocale(router.query.lang)) {
+      rememberLocale(router.query.lang);
+      document.documentElement.lang = router.query.lang;
+      return;
     }
-    window.addEventListener('storage', onStorageChange);
-    return () => window.removeEventListener('storage', onStorageChange);
-  }, []);
-
+    let cancelled = false;
+    async function restore() {
+      let locale = rememberedLocale();
+      if (router.pathname.startsWith('/app/')) {
+        try {
+          const auth = await me();
+          if (validLocale(auth.user.preferred_locale)) locale = auth.user.preferred_locale;
+        } catch {
+          /* The workspace handles authentication errors. */
+        }
+      }
+      if (!cancelled)
+        await router.replace(
+          {
+            pathname: router.pathname,
+            query: { ...router.query, lang: locale },
+            hash: window.location.hash,
+          },
+          undefined,
+          { shallow: true }
+        );
+    }
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, router.isReady, router.query.lang]);
+  if (!router.isReady || !validLocale(router.query.lang)) return null;
   return (
     <ErrorBoundary>
+      <InteractionMotion />
       <Component {...pageProps} />
     </ErrorBoundary>
   );

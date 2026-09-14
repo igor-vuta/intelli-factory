@@ -1,3 +1,5 @@
+import { useModalDismiss } from '../hooks/useModalDismiss';
+import Modal from './Modal';
 import { useMemo, useState } from 'react';
 
 import { type WorkflowTransaction } from '../lib/authClient';
@@ -36,9 +38,10 @@ function formatExpiryInput(value: string) {
 export default function PaymentMockupModal({
   transaction,
   busy,
-  onClose,
+  onClose: onDismiss,
   onConfirm,
 }: PaymentMockupModalProps) {
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
   const [amount, setAmount] = useState(transaction.total_cost ?? '');
   const [cardHolder, setCardHolder] = useState('');
@@ -93,11 +96,11 @@ export default function PaymentMockupModal({
   }
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      busy={busy}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -109,6 +112,7 @@ export default function PaymentMockupModal({
           </div>
           <button
             type="button"
+            disabled={busy}
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
           >
@@ -256,7 +260,12 @@ export default function PaymentMockupModal({
         </label>
 
         <div className="mt-4 flex gap-3">
-          <button type="button" onClick={onClose} className="btn btn-ghost flex-1 text-sm">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="btn btn-ghost flex-1 text-sm"
+          >
             Cancel
           </button>
           <button
@@ -269,6 +278,6 @@ export default function PaymentMockupModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

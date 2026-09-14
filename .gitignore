@@ -90,3 +90,9 @@ docker-compose.override.yml
 
 # Oracle database backups
 deploy/oracle/backups/
+
+# Browser test artifacts
+frontend/test-results/
+frontend/playwright-report/
+
+!docs/quality/ui-ux.md

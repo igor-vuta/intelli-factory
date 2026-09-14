@@ -1,3 +1,4 @@
+import type { Locale } from './i18n';
 export type UserRole = 'CUSTOMER' | 'FACTORY' | 'LOGIST' | 'ADMIN';
 
 export type AuthUser = {
@@ -5,6 +6,7 @@ export type AuthUser = {
   email: string;
   role: UserRole;
   is_email_verified: boolean;
+  preferred_locale?: Locale | null;
 };
 
 export type ApiMessage = {
@@ -244,10 +246,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     credentials: 'include',
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = data?.detail || data?.message || 'Request failed';
+    const detail = data?.detail ?? data?.message;
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((item: { msg?: string }) => item.msg ?? 'Invalid value').join('. ')
+          : 'The service is temporarily unavailable. Please try again.';
     throw new ApiError(message, response.status);
   }
 
@@ -261,6 +269,7 @@ export function getAddressBootstrap(countryCode: string) {
 }
 
 export function register(input: {
+  preferred_locale?: Locale;
   email: string;
   password: string;
   role: UserRole;
@@ -689,4 +698,11 @@ export function seedLargeScale() {
     '/automations/seed-large-scale',
     { method: 'POST' }
   );
+}
+
+export function saveAccountLocale(preferred_locale: Locale) {
+  return request<AuthStatusResponse>('/auth/preferences', {
+    method: 'PATCH',
+    body: JSON.stringify({ preferred_locale }),
+  });
 }

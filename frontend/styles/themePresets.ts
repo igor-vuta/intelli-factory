@@ -1,10 +1,4 @@
-export type Theme =
-  | 'midnightCore'
-  | 'telegramBlue'
-  | 'whatsappEmerald'
-  | 'cyberNeon'
-  | 'modernLight'
-  | 'modernDark';
+export type Theme = 'modernLight' | 'modernDark' | 'whatsappEmerald';
 
 export type ThemePreset = {
   id: Theme;
@@ -23,36 +17,8 @@ export type ThemePreset = {
 
 export const THEME_PRESETS: ThemePreset[] = [
   {
-    id: 'midnightCore',
-    label: 'Midnight Core',
-    cssClass: 'theme-midnight-core',
-    personality: 'Premium, technical, high-trust',
-    useCase: 'Default product surfaces and dashboards',
-    palette: {
-      bg: '#070b14',
-      card: '#0e1628',
-      accent: '#67a2ff',
-      text: '#eef3ff',
-      muted: '#a6b5d3',
-    },
-  },
-  {
-    id: 'telegramBlue',
-    label: 'Telegram Blue',
-    cssClass: 'theme-telegram-blue',
-    personality: 'Clear, responsive, communication-first',
-    useCase: 'Messaging-like real-time status and partner collaboration',
-    palette: {
-      bg: '#0c1628',
-      card: '#17263f',
-      accent: '#54a9ff',
-      text: '#edf5ff',
-      muted: '#9fb8d9',
-    },
-  },
-  {
     id: 'whatsappEmerald',
-    label: 'WhatsApp Emerald',
+    label: 'Grove',
     cssClass: 'theme-whatsapp-emerald',
     personality: 'Trustworthy, conversational, operationally calm',
     useCase: 'Operational workflows and action-heavy forms',
@@ -65,36 +31,22 @@ export const THEME_PRESETS: ThemePreset[] = [
     },
   },
   {
-    id: 'cyberNeon',
-    label: 'Cyber Neon',
-    cssClass: 'theme-cyber-neon',
-    personality: 'Controlled cyberpunk, energetic but not noisy',
-    useCase: 'Hero surfaces and feature spotlights',
-    palette: {
-      bg: '#140a21',
-      card: '#251338',
-      accent: '#ff4fd8',
-      text: '#f6ebff',
-      muted: '#c6addf',
-    },
-  },
-  {
     id: 'modernLight',
-    label: 'Modern Light',
+    label: 'Pearl',
     cssClass: 'theme-modern-light',
     personality: 'Clean, minimal, professional - Vercel/Linear style',
     useCase: 'Light mode dashboards and professional surfaces',
     palette: {
       bg: '#fafafc',
       card: '#ffffff',
-      accent: '#3b82f6',
+      accent: '#2563eb',
       text: '#0f172a',
-      muted: '#64748b',
+      muted: '#51627a',
     },
   },
   {
     id: 'modernDark',
-    label: 'Modern Dark',
+    label: 'Midnight',
     cssClass: 'theme-modern-dark',
     personality: 'Deep charcoal with vibrant blue/purple - premium dark mode',
     useCase: 'Default premium app surfaces and dashboards',
@@ -123,3 +75,8 @@ export const THEME_CLASSES: Record<Theme, string> = THEME_PRESETS.reduce(
   },
   {} as Record<Theme, string>
 );
+
+export function resolveTheme(stored: string | null): Theme {
+  if (stored === 'modernLight' || stored === 'whatsappEmerald') return stored;
+  return 'modernDark';
+}

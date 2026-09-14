@@ -1,13 +1,16 @@
+import { rememberLocale } from '../lib/localePreference';
+import LocaleSwitcher from '../components/LocaleSwitcher';
+import AuthStory from '../components/AuthStory';
+import { workspacePath } from '../lib/navigation';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useState } from 'react';
 
-import { login, type UserRole } from '../lib/authClient';
-import { getLocaleFromQuery, supportedLocales, t } from '../lib/i18n';
+import { login, saveAccountLocale } from '../lib/authClient';
+import { getLocaleFromQuery, t } from '../lib/i18n';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import { useTheme } from '../hooks/useTheme';
-import { THEME_CLASSES } from '../styles/themePresets';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,22 +24,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const localeLinks = useMemo(
-    () =>
-      supportedLocales.map((lang) => ({
-        lang,
-        href: `/login?lang=${lang}`,
-      })),
-    []
-  );
-
-  function routeByRole(role: UserRole): string {
-    if (role === 'FACTORY') return '/app/factory';
-    if (role === 'LOGIST') return '/app/logist';
-    if (role === 'ADMIN') return '/app/admin';
-    return '/app/customer';
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -49,9 +36,13 @@ export default function LoginPage() {
         password,
       });
       setSuccess(copy.successLogin);
-      setTimeout(() => {
-        void router.push(`${routeByRole(auth.user.role)}?lang=${locale}`);
-      }, 700);
+      const nextLocale = auth.user.preferred_locale ?? locale;
+      rememberLocale(nextLocale);
+      if (!auth.user.preferred_locale) {
+        // First login for an existing account adopts the current interface language.
+        await saveAccountLocale(nextLocale).catch(() => undefined);
+      }
+      await router.push(workspacePath(auth.user.role, nextLocale));
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Login failed');
     } finally {
@@ -61,16 +52,17 @@ export default function LoginPage() {
 
   return (
     <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+      className={`auth-screen min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
     >
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+      <AuthStory />
+      <div className="auth-form-column mx-auto flex w-full max-w-xl flex-col gap-5">
         <header className="flex items-center justify-between">
           <Link
-            href="/"
+            href={`/?lang=${locale}`}
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
             <PresetIcon
-              src="/favicon/favicon.svg"
+              src="/presets/brand.svg"
               alt="Intelli-Factory"
               size={32}
               className="rounded-md"
@@ -79,21 +71,7 @@ export default function LoginPage() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--card))]/80 p-1">
-              {localeLinks.map((entry) => (
-                <Link
-                  key={entry.lang}
-                  href={entry.href}
-                  className={`rounded-md px-2 py-1 text-xs transition ${
-                    entry.lang === locale
-                      ? 'bg-[rgb(var(--accent-soft))] text-[rgb(var(--text))]'
-                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
-                  }`}
-                >
-                  {entry.lang.toUpperCase()}
-                </Link>
-              ))}
-            </div>
+            <LocaleSwitcher currentLocale={locale} basePath="/login" />
             <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
           </div>
         </header>
@@ -110,6 +88,7 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -124,6 +103,7 @@ export default function LoginPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 required
                 minLength={8}
                 value={password}
@@ -133,10 +113,15 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+              <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {error}
+              </p>
             )}
             {success && (
-              <p className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+              <p
+                role="status"
+                className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+              >
                 {success}
               </p>
             )}
@@ -146,7 +131,7 @@ export default function LoginPage() {
               disabled={loading}
               className="btn btn-primary w-full justify-center"
             >
-              {loading ? '...' : copy.login}
+              {loading && <span className="spinner" aria-hidden />} {copy.login}
             </button>
           </form>
 
@@ -171,7 +156,10 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <Link href="/" className="text-center text-sm text-[rgb(var(--muted))] hover:underline">
+        <Link
+          href={`/?lang=${locale}`}
+          className="text-center text-sm text-[rgb(var(--muted))] hover:underline"
+        >
           {copy.backHome}
         </Link>
       </div>

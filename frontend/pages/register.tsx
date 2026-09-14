@@ -1,7 +1,9 @@
+import LocaleSwitcher from '../components/LocaleSwitcher';
+import AuthStory from '../components/AuthStory';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 import AddressPicker, { type AddressValue } from '../components/AddressPicker';
 import {
@@ -13,10 +15,9 @@ import {
   type UserRole,
 } from '../lib/authClient';
 import { formatCurrencyOptionLabel } from '../lib/formatting';
-import { getLocaleFromQuery, supportedLocales, t } from '../lib/i18n';
+import { getLocaleFromQuery, t } from '../lib/i18n';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import { useTheme } from '../hooks/useTheme';
-import { THEME_CLASSES } from '../styles/themePresets';
 
 const roles: {
   value: UserRole;
@@ -34,21 +35,16 @@ export default function RegisterPage() {
 
   const [theme, setTheme] = useTheme();
 
-  const localeLinks = useMemo(
-    () =>
-      supportedLocales.map((lang) => ({
-        lang,
-        href: `/register?lang=${lang}`,
-      })),
-    []
-  );
-
   const [displayName, setDisplayName] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('CUSTOMER');
+  const [selectedRole, setRole] = useState<UserRole | null>(null);
+  const suggestedRole = router.query.role;
+  const role: UserRole =
+    selectedRole ??
+    (suggestedRole === 'FACTORY' || suggestedRole === 'LOGIST' ? suggestedRole : 'CUSTOMER');
   const [phone, setPhone] = useState('');
   const [addressValue, setAddressValue] = useState<AddressValue | null>(null);
   const [currencyCode, setCurrencyCode] = useState('');
@@ -183,6 +179,7 @@ export default function RegisterPage() {
           : undefined;
 
       await register({
+        preferred_locale: locale,
         email,
         password,
         role,
@@ -217,16 +214,17 @@ export default function RegisterPage() {
 
   return (
     <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+      className={`auth-screen min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
     >
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+      <AuthStory />
+      <div className="auth-form-column mx-auto flex w-full max-w-xl flex-col gap-5">
         <header className="flex items-center justify-between">
           <Link
-            href="/"
+            href={`/?lang=${locale}`}
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
             <PresetIcon
-              src="/favicon/favicon.svg"
+              src="/presets/brand.svg"
               alt="Intelli-Factory"
               size={32}
               className="rounded-md"
@@ -235,21 +233,7 @@ export default function RegisterPage() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--card))]/80 p-1">
-              {localeLinks.map((entry) => (
-                <Link
-                  key={entry.lang}
-                  href={entry.href}
-                  className={`rounded-md px-2 py-1 text-xs transition ${
-                    entry.lang === locale
-                      ? 'bg-[rgb(var(--accent-soft))] text-[rgb(var(--text))]'
-                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
-                  }`}
-                >
-                  {entry.lang.toUpperCase()}
-                </Link>
-              ))}
-            </div>
+            <LocaleSwitcher currentLocale={locale} basePath="/register" />
             <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
           </div>
         </header>
@@ -487,10 +471,15 @@ export default function RegisterPage() {
             )}
 
             {error && (
-              <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+              <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {error}
+              </p>
             )}
             {success && (
-              <p className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+              <p
+                role="status"
+                className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+              >
                 {success}
               </p>
             )}
@@ -515,7 +504,10 @@ export default function RegisterPage() {
           </div>
         </section>
 
-        <Link href="/" className="text-center text-sm text-[rgb(var(--muted))] hover:underline">
+        <Link
+          href={`/?lang=${locale}`}
+          className="text-center text-sm text-[rgb(var(--muted))] hover:underline"
+        >
           {copy.backHome}
         </Link>
       </div>
