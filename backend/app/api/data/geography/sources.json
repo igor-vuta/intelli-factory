@@ -1,0 +1,74 @@
+{
+  "iso3166-1.json": {
+    "url": "https://raw.githubusercontent.com/pycountry/pycountry/4c6a69927a25326a69bf753671fb571bb437cd7d/src/pycountry/databases/iso3166-1.json",
+    "sha256": "f01b812b57fba9f31ff621bf33e7c7570a01964dbeb5be2167e94decf538c89f"
+  },
+  "iso3166-2.json": {
+    "url": "https://raw.githubusercontent.com/pycountry/pycountry/4c6a69927a25326a69bf753671fb571bb437cd7d/src/pycountry/databases/iso3166-2.json",
+    "sha256": "78c90ef7fc25b5c2631aac5f089bc9ff6ec22c025c05b6ddbc087a1f1be2e46a"
+  },
+  "main-en.xml": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/main/en.xml",
+    "sha256": "67607f4c9cf57157e70564987d8ae92a9ddcd73c00a2f1cd6abf79524a969cbd"
+  },
+  "main-ru.xml": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/main/ru.xml",
+    "sha256": "a90f5d3e76d18e00ee430c369809a1e19f3a1bdf32f86abc0cb3a5f416de18fb"
+  },
+  "main-kk.xml": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/main/kk.xml",
+    "sha256": "6050ee58682d00307e51edcdeb3abe5daada9d3cf729917556c65b499a1a53e5"
+  },
+  "subdivisions-en.xml": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/subdivisions/en.xml",
+    "sha256": "997a14da1144bb66f36a829db1783afe41f7529e33070afbe964bdd8e387b1d2"
+  },
+  "subdivisions-ru.xml": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/subdivisions/ru.xml",
+    "sha256": "9ea401cea67c2a7b506340453a978569aa955457d108c3673a0776fe4d48329c"
+  },
+  "subdivisions-kk.xml": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/common/subdivisions/kk.xml",
+    "sha256": "8da75ef4751d1451622125bf047527b0793172aae8abb09e3de4042697a66001"
+  },
+  "iso-ru.mo": {
+    "url": "https://raw.githubusercontent.com/pycountry/pycountry/4c6a69927a25326a69bf753671fb571bb437cd7d/src/pycountry/locales/ru/LC_MESSAGES/iso3166-2.mo",
+    "sha256": "e9cfa4473f4dd8f0875ee44b413c693545aef1489e613c4140bd8c11a56d63c0"
+  },
+  "iso-LICENSE.txt": {
+    "url": "https://raw.githubusercontent.com/pycountry/pycountry/4c6a69927a25326a69bf753671fb571bb437cd7d/LICENSE.txt",
+    "sha256": "3fa39c6e18a3a4411082b64c164deae1d8f47b03a4d45304c1f0ae478626e382"
+  },
+  "iso-COPYRIGHT.txt": {
+    "url": "https://raw.githubusercontent.com/pycountry/pycountry/4c6a69927a25326a69bf753671fb571bb437cd7d/COPYRIGHT.txt",
+    "sha256": "f4b01617064bcd9e9fe3db62ec9c6ef8d0afcc388dda58d9b2935a551d7960e4"
+  },
+  "unicode-LICENSE.txt": {
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/LICENSE",
+    "sha256": "b49d0e9f8ead51ca8b7df6fec89cc3ae6809198b4b9d43c74216da0118f23f5b"
+  },
+  "supplemental-ru.json": {
+    "url": "https://www.wikidata.org/wiki/Property:P300",
+    "sha256": "ad3f30b3485772e41656939351d8ef6bef7822047bc1514b2839bc29580ce1fd",
+    "retrieved": "2026-09-14",
+    "license": "CC0-1.0"
+  },
+  "supplemental-kk.json": {
+    "url": "https://www.wikidata.org/wiki/Property:P300",
+    "sha256": "83c4ebb32fe4a0088b46433d4c382c6e90d657ea9ef83ac913f7d1295bcb0d37",
+    "retrieved": "2026-09-14",
+    "license": "CC0-1.0"
+  },
+  "label-corrections.json": {
+    "url": "https://www.wikidata.org/wiki/Property:P300",
+    "sha256": "6359850f0c03e65cd67849e3fe170fbadc28495631c539ab78352db4e079af83",
+    "retrieved": "2026-09-14",
+    "license": "CC0-1.0"
+  },
+  "wikidata-snapshot.json": {
+    "url": "https://www.wikidata.org/wiki/Property:P300",
+    "sha256": "1d9a1a694ec4be779ed8c5fe752fb4c665655409ff6168fecee4fcb0beb87585",
+    "retrieved": "2026-09-14",
+    "license": "CC0-1.0"
+  }
+}

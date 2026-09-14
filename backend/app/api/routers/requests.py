@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from prisma import Json
 
 from db import prisma
+from routers.addresses import matches_name
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
 from routers.ratings import get_computed_reliability
 
@@ -204,10 +205,10 @@ async def _resolve_or_create_address(
 
     region_rows = await prisma.region.find_many(
         where={"country_id": country.id, "is_active": True},
-        take=500,
+        include={"translations": True},
     )
     region = next(
-        (r for r in region_rows if _norm_for_match(r.default_name) == _norm_for_match(normalized_region_name)),
+        (r for r in region_rows if matches_name(r, normalized_region_name)),
         None,
     )
     if not region:
@@ -229,10 +230,10 @@ async def _resolve_or_create_address(
 
     city_rows = await prisma.city.find_many(
         where={"region_id": region.id, "is_active": True},
-        take=500,
+        include={"translations": True},
     )
     city = next(
-        (c for c in city_rows if _norm_for_match(c.default_name) == _norm_for_match(normalized_city_name)),
+        (c for c in city_rows if matches_name(c, normalized_city_name)),
         None,
     )
     if not city:

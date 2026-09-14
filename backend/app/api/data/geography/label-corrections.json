@@ -1,0 +1,122 @@
+{
+  "MA-01": {
+    "translations": {
+      "en": "Tangier-Tetouan-Al Hoceima",
+      "ru": "Танжер — Тетуан — Эль-Хосейма"
+    },
+    "source": "http://www.wikidata.org/entity/Q19951300",
+    "source_code": "MA-01",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-02": {
+    "translations": {
+      "en": "Oriental",
+      "ru": "Восточная область"
+    },
+    "source": "http://www.wikidata.org/entity/Q23048167",
+    "source_code": "MA-02",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-03": {
+    "translations": {
+      "en": "Fès-Meknès",
+      "ru": "Фес-Мекнес"
+    },
+    "source": "http://www.wikidata.org/entity/Q19951027",
+    "source_code": "MA-03",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-04": {
+    "translations": {
+      "en": "Rabat-Salé-Kénitra",
+      "ru": "Рабат-Сале-Кенитра"
+    },
+    "source": "http://www.wikidata.org/entity/Q19951239",
+    "source_code": "MA-04",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-05": {
+    "translations": {
+      "en": "Béni Mellal-Khénifra",
+      "ru": "Бени-Меллаль — Хенифра"
+    },
+    "source": "http://www.wikidata.org/entity/Q19953016",
+    "source_code": "MA-05",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-06": {
+    "translations": {
+      "en": "Casablanca-Settat",
+      "ru": "Касабланка — Сеттат"
+    },
+    "source": "http://www.wikidata.org/entity/Q19843788",
+    "source_code": "MA-06",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-07": {
+    "translations": {
+      "en": "Marrakesh-Safi",
+      "ru": "Марракеш-Сафи"
+    },
+    "source": "http://www.wikidata.org/entity/Q19951125",
+    "source_code": "MA-07",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-08": {
+    "translations": {
+      "en": "Drâa-Tafilalet",
+      "ru": "Драа — Тафилалет"
+    },
+    "source": "http://www.wikidata.org/entity/Q19950954",
+    "source_code": "MA-08",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-09": {
+    "translations": {
+      "en": "Souss-Massa",
+      "ru": "Сус — Масса"
+    },
+    "source": "http://www.wikidata.org/entity/Q20652586",
+    "source_code": "MA-09",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-10": {
+    "translations": {
+      "en": "Guelmim-Oued Noun",
+      "ru": "Гельмим — Уэд-Нун"
+    },
+    "source": "http://www.wikidata.org/entity/Q19951051",
+    "source_code": "MA-10",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-11": {
+    "translations": {
+      "en": "Laâyoune-Sakia El Hamra",
+      "ru": "Эль-Аюн — Сегиет-эль-Хамра"
+    },
+    "source": "http://www.wikidata.org/entity/Q19951088",
+    "source_code": "MA-11",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  },
+  "MA-12": {
+    "translations": {
+      "en": "Dakhla-Oued Ed-Dahab",
+      "ru": "Дахла-Уэд-Эд-Дахаб"
+    },
+    "source": "http://www.wikidata.org/entity/Q21235104",
+    "source_code": "MA-12",
+    "retrieved": "2026-09-14",
+    "reason": "CLDR labels refer to pre-2015 regions whose codes were reassigned."
+  }
+}

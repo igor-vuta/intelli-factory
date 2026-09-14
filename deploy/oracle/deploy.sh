@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-if [[ "$(git branch --show-current)" != 'testing/oracle' ]]; then
-  echo 'Deploy from testing/oracle.' >&2
+if [[ "$(git branch --show-current)" != 'main' ]]; then
+  echo 'Deploy from main.' >&2
   exit 1
 fi
 if [[ -n "$(git status --porcelain)" ]]; then
