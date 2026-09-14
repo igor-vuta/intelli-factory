@@ -1,6 +1,6 @@
-# Oracle testing deployment
+# Oracle deployment
 
-Branch: `testing/oracle`. The active site uses Oracle for all three tiers.
+Branch: `main`. The active site uses Oracle for all three tiers.
 The former Vercel Git integration is disconnected; pushes to this branch run
 the Oracle workflow, which calls the quality checks once before testing the stack.
 
@@ -39,8 +39,13 @@ database volume. Keep this value for the CI image artifact and deploy script.
 ## Configure and deploy
 
 Install Docker Engine, the Compose v2 plugin and Caddy on the VM. Use a checkout of the
-reviewed, committed `testing/oracle` branch. No push workflow deploys this branch:
+reviewed, committed `main` branch. No push workflow deploys this branch:
 releases are deliberate, using the script below.
+
+Feature branches are reviewed through pull requests into `main`. The Oracle
+workflow runs the quality checks and both architecture smoke tests, then publishes
+the tested AMD64 image artifact. Deploy that exact commit manually only after the
+whole workflow succeeds. A staging branch is not used for this live environment.
 
 ```sh
 cp deploy/oracle/.env.example deploy/oracle/.env

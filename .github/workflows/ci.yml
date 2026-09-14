@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches-ignore: [main, testing/oracle]
+    branches-ignore: [main]
   push:
-    branches: [main, develop]
+    branches: [develop]
   workflow_call:
 
 permissions:

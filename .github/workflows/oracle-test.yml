@@ -2,9 +2,9 @@ name: Oracle stack test
 
 on:
   pull_request:
-    branches: [main, testing/oracle]
+    branches: [main]
   push:
-    branches: [testing/oracle]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
