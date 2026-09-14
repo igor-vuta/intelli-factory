@@ -254,9 +254,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export function getAddressBootstrap(countryCode: string) {
+export function getAddressBootstrap(countryCode: string, locale: 'en' | 'ru' | 'kk' = 'en') {
   return request<AddressBootstrapResponse>(
-    `/addresses/bootstrap?country_code=${encodeURIComponent(countryCode)}`
+    `/addresses/bootstrap?country_code=${encodeURIComponent(countryCode)}&locale=${locale}`
   );
 }
 

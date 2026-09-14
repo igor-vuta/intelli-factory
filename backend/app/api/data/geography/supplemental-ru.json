@@ -1,0 +1,50 @@
+{
+  "NL-AW": {
+    "name": "Аруба",
+    "source": "http://www.wikidata.org/entity/Q21203"
+  },
+  "NL-CW": {
+    "name": "Кюрасао",
+    "source": "http://www.wikidata.org/entity/Q25279"
+  },
+  "IT-23": {
+    "name": "Валле-д’Аоста",
+    "source": "http://www.wikidata.org/entity/Q1222"
+  },
+  "FR-CP": {
+    "name": "Клиппертон",
+    "source": "http://www.wikidata.org/entity/Q161258"
+  },
+  "FR-BL": {
+    "name": "Сен-Бартелеми",
+    "source": "http://www.wikidata.org/entity/Q25362"
+  },
+  "MA-BER": {
+    "name": "Беркан (провинция)",
+    "source": "http://www.wikidata.org/entity/Q820802"
+  },
+  "FJ-12": {
+    "name": "провинция Рева",
+    "source": "http://www.wikidata.org/entity/Q1365257"
+  },
+  "IS-TJO": {
+    "name": "Тьорнесхреппюр",
+    "source": "http://www.wikidata.org/entity/Q628888"
+  },
+  "NL-SX": {
+    "name": "Синт-Мартен",
+    "source": "http://www.wikidata.org/entity/Q26273"
+  },
+  "FR-MF": {
+    "name": "Сен-Мартен",
+    "source": "http://www.wikidata.org/entity/Q126125"
+  },
+  "DZ-57": {
+    "name": "Эль-М'гаир",
+    "source": "http://www.wikidata.org/entity/Q77103173"
+  },
+  "SH-TA": {
+    "name": "Острова Тристан-да-Кунья",
+    "source": "http://www.wikidata.org/entity/Q34625512"
+  }
+}

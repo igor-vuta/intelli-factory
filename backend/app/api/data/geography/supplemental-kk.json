@@ -1,0 +1,261 @@
+{
+  "AU-NSW": {
+    "name": "Жаңа Оңтүстік Уэльс",
+    "source": "http://www.wikidata.org/entity/Q3224",
+    "source_code": "AU-NSW",
+    "source_english": "New South Wales",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-AGA": {
+    "name": "Ақстафа ауданы",
+    "source": "http://www.wikidata.org/entity/Q275744",
+    "source_code": "AZ-AGA",
+    "source_english": "Aghstafa District",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-AGC": {
+    "name": "Ағжабеди ауданы",
+    "source": "http://www.wikidata.org/entity/Q330818",
+    "source_code": "AZ-AGC",
+    "source_english": "Aghjabadi District",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-AGM": {
+    "name": "Ағдам ауданы",
+    "source": "http://www.wikidata.org/entity/Q201647",
+    "source_code": "AZ-AGM",
+    "source_english": "Aghdam District",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-AGS": {
+    "name": "Ағдаш ауданы",
+    "source": "http://www.wikidata.org/entity/Q275784",
+    "source_code": "AZ-AGS",
+    "source_english": "Aghdash District",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-LA": {
+    "name": "Ләнкәран",
+    "source": "http://www.wikidata.org/entity/Q228811",
+    "source_code": "AZ-LA",
+    "source_english": "Lankaran",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-MI": {
+    "name": "Мингәчевир",
+    "source": "http://www.wikidata.org/entity/Q230932",
+    "source_code": "AZ-MI",
+    "source_english": "Mingachevir",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-SA": {
+    "name": "Шеки",
+    "source": "http://www.wikidata.org/entity/Q234783",
+    "source_code": "AZ-SA",
+    "source_english": "Shaki",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-SM": {
+    "name": "Сумгайыт",
+    "source": "http://www.wikidata.org/entity/Q179833",
+    "source_code": "AZ-SM",
+    "source_english": "Sumgait",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-SR": {
+    "name": "Ширван",
+    "source": "http://www.wikidata.org/entity/Q241116",
+    "source_code": "AZ-SR",
+    "source_english": "Shirvan",
+    "retrieved": "2026-09-14"
+  },
+  "AZ-YE": {
+    "name": "Иевлах",
+    "source": "http://www.wikidata.org/entity/Q175459",
+    "source_code": "AZ-YE",
+    "source_english": "Yevlakh",
+    "retrieved": "2026-09-14"
+  },
+  "BE-VLI": {
+    "name": "Лимбург (Бельгия)",
+    "source": "http://www.wikidata.org/entity/Q1095",
+    "source_code": "BE-VLI",
+    "source_english": "Limburg",
+    "retrieved": "2026-09-14"
+  },
+  "BY-VI": {
+    "name": "Витебск облысы",
+    "source": "http://www.wikidata.org/entity/Q185700",
+    "source_code": "BY-VI",
+    "source_english": "Vitebsk Region",
+    "retrieved": "2026-09-14"
+  },
+  "FI-01": {
+    "name": "Аланд аралдары",
+    "source": "http://www.wikidata.org/entity/Q5689",
+    "source_code": "FI-01",
+    "source_english": "Åland",
+    "retrieved": "2026-09-14"
+  },
+  "FR-BL": {
+    "name": "Сен-Бартелеми",
+    "source": "http://www.wikidata.org/entity/Q25362",
+    "source_code": "FR-BL",
+    "source_english": "Saint Barthélemy",
+    "retrieved": "2026-09-14"
+  },
+  "FR-CP": {
+    "name": "Клиппертон",
+    "source": "http://www.wikidata.org/entity/Q161258",
+    "source_code": "FR-CP",
+    "source_english": "Clipperton Island",
+    "retrieved": "2026-09-14"
+  },
+  "FR-MF": {
+    "name": "Сен-Мартен (Франция иелігі)",
+    "source": "http://www.wikidata.org/entity/Q126125",
+    "source_code": "FR-MF",
+    "source_english": "Saint-Martin",
+    "retrieved": "2026-09-14"
+  },
+  "FR-NC": {
+    "name": "Жаңа Каледония",
+    "source": "http://www.wikidata.org/entity/Q33788",
+    "source_code": "FR-NC",
+    "source_english": "New Caledonia",
+    "retrieved": "2026-09-14"
+  },
+  "FR-PF": {
+    "name": "Франция Полинезиясы",
+    "source": "http://www.wikidata.org/entity/Q30971",
+    "source_code": "FR-PF",
+    "source_english": "French Polynesia",
+    "retrieved": "2026-09-14"
+  },
+  "FR-PM": {
+    "name": "Сен-Пьер және Микелон",
+    "source": "http://www.wikidata.org/entity/Q34617",
+    "source_code": "FR-PM",
+    "source_english": "Saint Pierre and Miquelon",
+    "retrieved": "2026-09-14"
+  },
+  "FR-TF": {
+    "name": "Францияның оңтүстік және Антарктикалық аймақтары",
+    "source": "http://www.wikidata.org/entity/Q129003",
+    "source_code": "FR-TF",
+    "source_english": "French Southern and Antarctic Lands",
+    "retrieved": "2026-09-14"
+  },
+  "FR-WF": {
+    "name": "Уоллис және Футуна",
+    "source": "http://www.wikidata.org/entity/Q35555",
+    "source_code": "FR-WF",
+    "source_english": "Wallis and Futuna",
+    "retrieved": "2026-09-14"
+  },
+  "IN-UK": {
+    "name": "Уттаракханд",
+    "source": "http://www.wikidata.org/entity/Q1499",
+    "source_code": "IN-UK",
+    "source_english": "Uttarakhand",
+    "retrieved": "2026-09-14"
+  },
+  "JP-29": {
+    "name": "Нара (префектура)",
+    "source": "http://www.wikidata.org/entity/Q131287",
+    "source_code": "JP-29",
+    "source_english": "Nara Prefecture",
+    "retrieved": "2026-09-14"
+  },
+  "MN-035": {
+    "name": "Орхон облысы",
+    "source": "http://www.wikidata.org/entity/Q234710",
+    "source_code": "MN-035",
+    "source_english": "Orkhon Province",
+    "retrieved": "2026-09-14"
+  },
+  "MY-10": {
+    "name": "Селангор",
+    "source": "http://www.wikidata.org/entity/Q189710",
+    "source_code": "MY-10",
+    "source_english": "Selangor",
+    "retrieved": "2026-09-14"
+  },
+  "NL-AW": {
+    "name": "Аруба",
+    "source": "http://www.wikidata.org/entity/Q21203",
+    "source_code": "NL-AW",
+    "source_english": "Aruba",
+    "retrieved": "2026-09-14"
+  },
+  "NL-CW": {
+    "name": "Кюрасао",
+    "source": "http://www.wikidata.org/entity/Q25279",
+    "source_code": "NL-CW",
+    "source_english": "Curaçao",
+    "retrieved": "2026-09-14"
+  },
+  "NL-SX": {
+    "name": "Синт-Мартен",
+    "source": "http://www.wikidata.org/entity/Q26273",
+    "source_code": "NL-SX",
+    "source_english": "Sint Maarten",
+    "retrieved": "2026-09-14"
+  },
+  "RU-MOS": {
+    "name": "Мәскеу облысы",
+    "source": "http://www.wikidata.org/entity/Q1697",
+    "source_code": "RU-MOS",
+    "source_english": "Moscow Oblast",
+    "retrieved": "2026-09-14"
+  },
+  "RU-SAM": {
+    "name": "Самара облысы",
+    "source": "http://www.wikidata.org/entity/Q1727",
+    "source_code": "RU-SAM",
+    "source_english": "Samara Oblast",
+    "retrieved": "2026-09-14"
+  },
+  "US-AS": {
+    "name": "Американ Самоасы",
+    "source": "http://www.wikidata.org/entity/Q16641",
+    "source_code": "US-AS",
+    "source_english": "American Samoa",
+    "retrieved": "2026-09-14"
+  },
+  "US-GU": {
+    "name": "Гуам",
+    "source": "http://www.wikidata.org/entity/Q16635",
+    "source_code": "US-GU",
+    "source_english": "Guam",
+    "retrieved": "2026-09-14"
+  },
+  "US-MP": {
+    "name": "Солтүстік Мариана аралдары",
+    "source": "http://www.wikidata.org/entity/Q16644",
+    "source_code": "US-MP",
+    "source_english": "Northern Mariana Islands",
+    "retrieved": "2026-09-14"
+  },
+  "US-PR": {
+    "name": "Пуэрто-Рико",
+    "source": "http://www.wikidata.org/entity/Q1183",
+    "source_code": "US-PR",
+    "source_english": "Puerto Rico",
+    "retrieved": "2026-09-14"
+  },
+  "US-UM": {
+    "name": "АҚШ сыртқы кіші аралдары",
+    "source": "http://www.wikidata.org/entity/Q16645",
+    "source_code": "US-UM",
+    "source_english": "United States Minor Outlying Islands",
+    "retrieved": "2026-09-14"
+  },
+  "US-VI": {
+    "name": "Американ Вирджин Аралдары",
+    "source": "http://www.wikidata.org/entity/Q11703",
+    "source_code": "US-VI",
+    "source_english": "United States Virgin Islands",
+    "retrieved": "2026-09-14"
+  }
+}

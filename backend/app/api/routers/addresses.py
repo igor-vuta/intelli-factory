@@ -1,4 +1,6 @@
+from collections import Counter
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -41,7 +43,7 @@ class AddressResponse(BaseModel):
 
 
 @router.get("/bootstrap", response_model=AddressBootstrapResponse)
-async def address_bootstrap(country_code: str):
+async def address_bootstrap(country_code: str, locale: Literal["en", "ru", "kk"] = "en"):
     normalized = country_code.strip().upper()
     country = await prisma.country.find_unique(where={"iso2": normalized})
     if not country:
@@ -50,6 +52,7 @@ async def address_bootstrap(country_code: str):
     regions = await prisma.region.find_many(
         where={"country_id": country.id, "is_active": True},
         order={"default_name": "asc"},
+        include={"translations": True},
     )
     if not regions:
         return AddressBootstrapResponse(regions=[], cities=[])
@@ -58,16 +61,41 @@ async def address_bootstrap(country_code: str):
     cities = await prisma.city.find_many(
         where={"region_id": {"in": region_ids}, "is_active": True},
         order={"default_name": "asc"},
+        include={"translations": True},
     )
     region_code_by_id = {r.id: r.code for r in regions}
 
+    name_counts = Counter(localized_name(r, locale).casefold() for r in regions)
+
     return AddressBootstrapResponse(
-        regions=[RegionItem(code=r.code, name=r.default_name) for r in regions],
+        regions=sorted(
+            [RegionItem(
+                code=r.code,
+                name=(f"{localized_name(r, locale)} ({r.code})"
+                      if name_counts[localized_name(r, locale).casefold()] > 1
+                      else localized_name(r, locale)),
+            ) for r in regions],
+            key=lambda item: item.name.casefold(),
+        ),
         cities=[
-            CityItem(id=c.id, name=c.default_name, region_code=region_code_by_id.get(c.region_id, ""))
+            CityItem(id=c.id, name=localized_name(c, locale), region_code=region_code_by_id.get(c.region_id, ""))
             for c in cities
         ],
     )
+
+
+def localized_name(record, locale: str) -> str:
+    names = {row.locale: row.name for row in (record.translations or [])}
+    return names.get(locale) or names.get("en") or record.default_name
+
+
+def matches_name(record, name: str) -> bool:
+    names = [record.default_name, *(row.name for row in (getattr(record, "translations", None) or []))]
+    code = getattr(record, "code", None)
+    if code:
+        names += [f"{value} ({code})" for value in names]
+    normalized = " ".join(name.split()).casefold()
+    return any(" ".join(value.split()).casefold() == normalized for value in names)
 
 
 async def resolve_or_create_address(
@@ -85,9 +113,11 @@ async def resolve_or_create_address(
     region_name_clean = region_name.strip()
 
     # Try to match existing region by name
-    all_regions = await prisma.region.find_many(where={"country_id": country.id})
+    all_regions = await prisma.region.find_many(
+        where={"country_id": country.id}, include={"translations": True}
+    )
     region = next(
-        (r for r in all_regions if r.default_name.lower() == region_name_clean.lower()),
+        (r for r in all_regions if matches_name(r, region_name_clean)),
         None,
     )
 
@@ -112,9 +142,11 @@ async def resolve_or_create_address(
     city_name_clean = city_name.strip()
 
     # Try to match existing city by name
-    all_cities = await prisma.city.find_many(where={"region_id": region.id})
+    all_cities = await prisma.city.find_many(
+        where={"region_id": region.id}, include={"translations": True}
+    )
     city = next(
-        (c for c in all_cities if c.default_name.lower() == city_name_clean.lower()),
+        (c for c in all_cities if matches_name(c, city_name_clean)),
         None,
     )
     if not city:
