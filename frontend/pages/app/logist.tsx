@@ -1,3 +1,5 @@
+import SelectField from '../../components/SelectField';
+import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
@@ -303,7 +305,8 @@ function QuoteModal({ bid, currencies, onClose: onDismiss, onQuoted }: QuoteModa
 
           <div>
             <label className="mb-1 block text-sm text-[rgb(var(--muted))]">Currency</label>
-            <select
+            <SelectField
+              aria-label="Currency"
               value={currencyCode}
               onChange={(e) => setCurrencyCode(e.target.value)}
               className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -314,7 +317,7 @@ function QuoteModal({ bid, currencies, onClose: onDismiss, onQuoted }: QuoteModa
                   {formatCurrencyOptionLabel(c.code, c.name)}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <div>
@@ -374,6 +377,7 @@ function QuoteModal({ bid, currencies, onClose: onDismiss, onQuoted }: QuoteModa
 }
 
 export default function LogistWorkspacePage() {
+  const { confirm, confirmation } = useActionConfirmation();
   const e = useExperienceCopy();
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
@@ -585,6 +589,11 @@ export default function LogistWorkspacePage() {
       return;
     }
 
+    if (
+      workflowBusyId ||
+      !(await confirm(action === 'START' ? 'Start delivery' : 'Mark delivered'))
+    )
+      return;
     setWorkflowBusyId(transactionId + action);
     try {
       await advanceTransactionFulfillment(transactionId, action);
@@ -728,6 +737,9 @@ export default function LogistWorkspacePage() {
         id: tx.id,
         title: tx.item_name ?? 'Delivery',
         status: tx.status,
+        moveToRoad: tx.can_start_fulfillment
+          ? () => void handleWorkflowAction(tx.id, 'START')
+          : undefined,
         detail: `${tx.total_cost ?? '—'} ${tx.currency_code ?? ''} · ${tx.delivery_days ?? '—'} ${e('days')}`,
         action: tx.can_sign
           ? () => void handleWorkflowAction(tx.id, 'SIGN')
@@ -774,7 +786,8 @@ export default function LogistWorkspacePage() {
                   placeholder="Search item/factory/note"
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
-                <select
+                <SelectField
+                  aria-label="Status"
                   value={factoryBidsRequestStatusFilter}
                   onChange={(e) => setFactoryBidsRequestStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -785,8 +798,9 @@ export default function LogistWorkspacePage() {
                       {status}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Currency"
                   value={factoryBidsCurrencyFilter}
                   onChange={(e) => setFactoryBidsCurrencyFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -797,8 +811,9 @@ export default function LogistWorkspacePage() {
                       {currency}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Quote status"
                   value={factoryBidsQuoteFilter}
                   onChange={(e) => setFactoryBidsQuoteFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -806,7 +821,7 @@ export default function LogistWorkspacePage() {
                   <option value="ALL">All quote states</option>
                   <option value="NOT_QUOTED">Need quote</option>
                   <option value="QUOTED">Already quoted</option>
-                </select>
+                </SelectField>
               </div>
 
               {filteredFactoryBids.length === 0 ? (
@@ -967,7 +982,8 @@ export default function LogistWorkspacePage() {
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
                     {copy.currency} <span className="text-red-400">*</span>
                   </label>
-                  <select
+                  <SelectField
+                    aria-label="Currency"
                     value={offerCurrencyCode}
                     onChange={(e) => setOfferCurrencyCode(e.target.value)}
                     className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -978,7 +994,7 @@ export default function LogistWorkspacePage() {
                         {formatCurrencyOptionLabel(c.code, c.name)}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
 
                 {/* Optional terms toggle */}
@@ -1150,7 +1166,8 @@ export default function LogistWorkspacePage() {
                   placeholder="Search tx or item"
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
-                <select
+                <SelectField
+                  aria-label="Status"
                   value={transactionsStatusFilter}
                   onChange={(e) => setTransactionsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -1161,8 +1178,9 @@ export default function LogistWorkspacePage() {
                       {status}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Payment status"
                   value={transactionsPaymentFilter}
                   onChange={(e) => setTransactionsPaymentFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -1173,7 +1191,7 @@ export default function LogistWorkspacePage() {
                       {payment}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
 
               {filteredTransactions.length === 0 ? (
@@ -1315,6 +1333,7 @@ export default function LogistWorkspacePage() {
           onConfirm={handleConfirmSignFromAgreement}
         />
       )}
+      {confirmation}
     </WorkspaceExperience>
   );
 }

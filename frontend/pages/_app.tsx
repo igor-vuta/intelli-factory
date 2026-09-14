@@ -1,3 +1,4 @@
+import { WelcomePreferences } from '../components/Preferences';
 import InteractionMotion from '../components/InteractionMotion';
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
@@ -50,6 +51,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ErrorBoundary>
       <InteractionMotion />
+      <WelcomePreferences />
       <Component {...pageProps} />
     </ErrorBoundary>
   );
