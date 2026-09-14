@@ -15,7 +15,10 @@ export function useModalDismiss(onDismiss: () => void) {
     panel?.animate(
       [
         { opacity: 1, transform: 'translateY(0) scale(1)' },
-        { opacity: 0, transform: 'translateY(14px) scale(.98)' },
+        {
+          opacity: 0,
+          transform: `translateX(${backdrop.dataset.side === 'left' ? '-100%' : '100%'})`,
+        },
       ],
       { duration: 180, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }
     );

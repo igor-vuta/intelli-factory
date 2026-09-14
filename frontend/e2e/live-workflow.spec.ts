@@ -10,7 +10,7 @@ async function post(page: Page, path: string, data: object) {
   return result;
 }
 async function login(page: Page, role: string) {
-  await page.goto('/login');
+  await page.goto('/login?lang=en');
   await page.getByLabel('Email', { exact: true }).fill(`${role}.demo@intelli.local`);
   await page.getByLabel('Password', { exact: true }).fill('password123');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
@@ -102,7 +102,7 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
       [factory, 'factory'],
       [logist, 'logist'],
     ] as const) {
-      await page.goto(`/app/${role}?view=workflow`);
+      await page.goto(`/app/${role}?view=workflow&lang=en`);
       await txRow(page).getByRole('button', { name: 'Sign', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Contract Review & Signature' });
       await dialog.getByLabel('Full name', { exact: true }).fill(`Test ${role}`);
@@ -116,7 +116,7 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
       expect((await response).ok()).toBeTruthy();
       await expect(dialog).toHaveCount(0);
     }
-    await customer.goto('/app/customer?view=workflow');
+    await customer.goto('/app/customer?view=workflow&lang=en');
     await txRow(customer).getByRole('button', { name: 'Pay', exact: true }).click();
     const payment = customer.getByRole('dialog', { name: 'Payment Mockup Checkout' });
     await payment.getByRole('button', { name: 'Wallet', exact: true }).click();
@@ -124,14 +124,20 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
     await payment.getByRole('checkbox').check();
     await payment.getByRole('button', { name: 'Pay (Mock)' }).click();
     await expect(payment).toHaveCount(0);
-    await factory.goto('/app/factory?view=workflow');
+    await factory.goto('/app/factory?view=workflow&lang=en');
     await txRow(factory).getByRole('button', { name: 'Given to logist' }).click();
+    await factory.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
     await expect(txRow(factory)).toContainText('FULFILLMENT_STARTED');
-    await logist.goto('/app/logist?view=workflow');
+    await logist.goto('/app/logist?view=workflow&lang=en');
     await txRow(logist).getByRole('button', { name: 'Delivered', exact: true }).click();
+    await logist.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
     await expect(txRow(logist)).toContainText('IN_PROGRESS');
-    await customer.goto('/app/customer?view=workflow');
+    await customer.goto('/app/customer?view=workflow&lang=en');
     await txRow(customer).getByRole('button', { name: 'Accept', exact: true }).click();
+    await customer
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Confirm', exact: true })
+      .click();
     await expect(txRow(customer)).toContainText('COMPLETED');
     await txRow(customer).getByRole('button', { name: 'Rate', exact: true }).click();
     await customer.getByRole('dialog').getByRole('button', { name: 'Submit rating' }).click();

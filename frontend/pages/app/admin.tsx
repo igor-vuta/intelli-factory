@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField';
 import CategoryProposalPanel from '../../components/CategoryProposalPanel';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
 import { workspacePath } from '../../lib/navigation';
@@ -448,7 +449,8 @@ export default function AdminWorkspacePage() {
                     placeholder="Search ID/customer/item"
                     className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                   />
-                  <select
+                  <SelectField
+                    aria-label="Status"
                     value={requestsStatusFilter}
                     onChange={(e) => setRequestsStatusFilter(e.target.value)}
                     className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -459,8 +461,9 @@ export default function AdminWorkspacePage() {
                         {status}
                       </option>
                     ))}
-                  </select>
-                  <select
+                  </SelectField>
+                  <SelectField
+                    aria-label="Currency"
                     value={requestsCurrencyFilter}
                     onChange={(e) => setRequestsCurrencyFilter(e.target.value)}
                     className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -471,8 +474,9 @@ export default function AdminWorkspacePage() {
                         {currency}
                       </option>
                     ))}
-                  </select>
-                  <select
+                  </SelectField>
+                  <SelectField
+                    aria-label="Customer"
                     value={requestsCustomerFilter}
                     onChange={(e) => setRequestsCustomerFilter(e.target.value)}
                     className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -483,7 +487,7 @@ export default function AdminWorkspacePage() {
                         {customerId.slice(0, 8)}...
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
 
                 {filteredRequests.length === 0 ? (
@@ -607,7 +611,8 @@ export default function AdminWorkspacePage() {
                     <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
                       Request (select one with PAIRING_IN_PROGRESS status)
                     </label>
-                    <select
+                    <SelectField
+                      aria-label="Request"
                       value={selectedRequestId}
                       onChange={(e) => {
                         setSelectedRequestId(e.target.value);
@@ -625,14 +630,15 @@ export default function AdminWorkspacePage() {
                             {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
                           </option>
                         ))}
-                    </select>
+                    </SelectField>
                   </div>
 
                   <div className="min-w-[220px]">
                     <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
                       Optimization profile
                     </label>
-                    <select
+                    <SelectField
+                      aria-label="Optimization profile"
                       value={profile}
                       onChange={(e) => {
                         setProfile(e.target.value as OptimizePriority);
@@ -643,7 +649,7 @@ export default function AdminWorkspacePage() {
                       <option value="cost">Cost-first (0.70 / 0.20 / 0.10)</option>
                       <option value="speed">Speed-first (0.20 / 0.70 / 0.10)</option>
                       <option value="reliability">Reliability-first (0.20 / 0.20 / 0.60)</option>
-                    </select>
+                    </SelectField>
                   </div>
 
                   <button

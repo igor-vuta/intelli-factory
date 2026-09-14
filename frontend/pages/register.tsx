@@ -1,4 +1,4 @@
-import LocaleSwitcher from '../components/LocaleSwitcher';
+import SelectField from '../components/SelectField';
 import AuthStory from '../components/AuthStory';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
@@ -16,8 +16,6 @@ import {
 } from '../lib/authClient';
 import { formatCurrencyOptionLabel } from '../lib/formatting';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import ThemeSwitcher from '../components/ThemeSwitcher';
-import { useTheme } from '../hooks/useTheme';
 
 const roles: {
   value: UserRole;
@@ -32,8 +30,6 @@ export default function RegisterPage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
-
-  const [theme, setTheme] = useTheme();
 
   const [displayName, setDisplayName] = useState('');
   const [contactName, setContactName] = useState('');
@@ -232,10 +228,7 @@ export default function RegisterPage() {
             <span>{copy.brand}</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher currentLocale={locale} basePath="/register" />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
-          </div>
+          <div className="flex items-center gap-2"></div>
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
@@ -295,7 +288,7 @@ export default function RegisterPage() {
               <label htmlFor="role" className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.role}
               </label>
-              <select
+              <SelectField
                 id="role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as UserRole)}
@@ -306,7 +299,7 @@ export default function RegisterPage() {
                     {entry.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
 
             <div>
@@ -364,7 +357,7 @@ export default function RegisterPage() {
               <label htmlFor="currency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.currency}
               </label>
-              <select
+              <SelectField
                 id="currency"
                 value={currencyCode}
                 onChange={(e) => setCurrencyCode(e.target.value)}
@@ -377,7 +370,7 @@ export default function RegisterPage() {
                     {formatCurrencyOptionLabel(item.code, item.name)}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.currencyHint}</p>
             </div>
 
@@ -433,7 +426,7 @@ export default function RegisterPage() {
                       >
                         {copy.initialOfferCurrency}
                       </label>
-                      <select
+                      <SelectField
                         id="initialOfferCurrency"
                         value={initialOfferCurrency}
                         onChange={(e) => setInitialOfferCurrency(e.target.value)}
@@ -446,7 +439,7 @@ export default function RegisterPage() {
                             {formatCurrencyOptionLabel(item.code, item.name)}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </div>
                   </div>
 

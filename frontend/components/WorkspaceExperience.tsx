@@ -1,11 +1,11 @@
+import { ProfileSettingsButton } from './Preferences';
 import { useExperienceCopy } from '../hooks/useExperienceCopy';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import Modal from './Modal';
+import ReorderableCards from './ReorderableCards';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import PresetIcon from './PresetIcon';
-import ThemeSwitcher from './ThemeSwitcher';
-import LocaleSwitcher from './LocaleSwitcher';
-import { useTheme } from '../hooks/useTheme';
 import { getLocaleFromQuery, t } from '../lib/i18n';
 
 type Role = 'customer' | 'factory' | 'logist' | 'admin';
@@ -16,6 +16,7 @@ export type WorkItem = {
   detail?: string;
   action?: () => void;
   actionLabel?: string;
+  moveToRoad?: () => void;
 };
 type Props = {
   role: Role;
@@ -109,14 +110,15 @@ export default function WorkspaceExperience({
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
-  const [theme, setTheme] = useTheme();
   const c = config[role];
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const requestedView = router.query.view;
   const view =
     typeof requestedView === 'string' && c.nav.some(([id]) => id === requestedView)
       ? requestedView
       : 'home';
   function navigate(next: string) {
+    setNavigationOpen(false);
     const query = { ...router.query, view: next };
     void router.push({ pathname: router.pathname, query }, undefined, {
       shallow: true,
@@ -155,41 +157,49 @@ export default function WorkspaceExperience({
         {e('Loading your workspace…')}{' '}
       </p>
     ) : list.length ? (
-      list.slice(0, 6).map((item, index) => (
-        <article
-          className="work-card"
-          key={item.id}
-          style={{ '--order': index } as React.CSSProperties}
-        >
-          <div className="work-card-top">
-            <span className={`status-dot status-${item.status.toLowerCase()}`} />{' '}
-            <span>{locale === 'en' ? label(item.status) : e(item.status)}</span>
-            <span className="work-reference">{item.id.slice(0, 6)}</span>
-          </div>
-          <h3>{item.title}</h3>
-          <p>{item.detail || e('Your next step is ready in the workspace.')}</p>
-          <button
-            type="button"
-            className="work-card-action"
-            onClick={
-              item.action ??
-              (() =>
-                navigate(
-                  role === 'customer'
-                    ? 'requests'
-                    : role === 'factory'
-                      ? 'requests'
-                      : role === 'logist'
-                        ? 'workflow'
-                        : 'operations'
-                ))
-            }
+      <ReorderableCards
+        storageKey={`workspace-order:${role}:${empty}`}
+        items={list.slice(0, 6)}
+        onExternalDrop={(item, x, y) => {
+          const lane = document.elementFromPoint(x, y)?.closest('[data-delivery-lane]');
+          if (lane?.getAttribute('data-delivery-lane') === '1') item.moveToRoad?.();
+        }}
+        render={(item, index) => (
+          <article
+            className="work-card"
+            key={item.id}
+            style={{ '--order': index } as React.CSSProperties}
           >
-            {e(item.actionLabel ?? 'Open details')}
-            <Arrow />
-          </button>
-        </article>
-      ))
+            <div className="work-card-top">
+              <span className={`status-dot status-${item.status.toLowerCase()}`} />{' '}
+              <span>{locale === 'en' ? label(item.status) : e(item.status)}</span>
+              <span className="work-reference">{item.id.slice(0, 6)}</span>
+            </div>
+            <h3>{item.title}</h3>
+            <p>{item.detail || e('Your next step is ready in the workspace.')}</p>
+            <button
+              type="button"
+              className="work-card-action"
+              onClick={
+                item.action ??
+                (() =>
+                  navigate(
+                    role === 'customer'
+                      ? 'requests'
+                      : role === 'factory'
+                        ? 'requests'
+                        : role === 'logist'
+                          ? 'workflow'
+                          : 'operations'
+                  ))
+              }
+            >
+              {e(item.actionLabel ?? 'Open details')}
+              <Arrow />
+            </button>
+          </article>
+        )}
+      />
     ) : (
       <div className="experience-empty">
         <PresetIcon src={`/presets/${role}.svg`} alt="" size={42} />
@@ -221,16 +231,42 @@ export default function WorkspaceExperience({
           </div>
         </aside>
       )}
+      {navigationOpen && (
+        <Modal side="left" onClose={() => setNavigationOpen(false)}>
+          <section className="navigation-sheet">
+            <div className="sheet-title">
+              <PresetIcon src={`/presets/${role}.svg`} alt="" size={32} />
+              <h2>{e(c.name)}</h2>
+              <button
+                type="button"
+                aria-label={e('Close')}
+                onClick={() => setNavigationOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {nav}
+          </section>
+        </Modal>
+      )}
       <div className="experience-body">
         <header className="experience-header">
+          <button
+            type="button"
+            className="workspace-menu"
+            aria-label={e('Workspace sections')}
+            aria-expanded={navigationOpen}
+            onClick={() => setNavigationOpen(true)}
+          >
+            <span aria-hidden>☰</span>
+          </button>
           <Link href={`/?lang=${locale}`} className="experience-brand">
             <PresetIcon src="/presets/brand.svg" alt="" size={28} />
             <span>Intelli-Factory</span>
             <span className="edition">{e(c.name)}</span>
           </Link>
           <div className="experience-settings">
-            <LocaleSwitcher currentLocale={locale} basePath={`/app/${role}`} />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
+            <ProfileSettingsButton />
             <button type="button" className="experience-logout" onClick={onLogout}>
               {copy.logout}
               <span aria-hidden>↗</span>
@@ -471,7 +507,11 @@ export default function WorkspaceExperience({
                     ['On the road', ['FULFILLMENT_STARTED', 'IN_PROGRESS']],
                     ['Delivered', ['COMPLETED']],
                   ].map(([name, statuses], i) => (
-                    <div className={`dispatch-lane lane-${i}`} key={String(name)}>
+                    <div
+                      data-delivery-lane={i}
+                      className={`dispatch-lane lane-${i}`}
+                      key={String(name)}
+                    >
                       <div className="lane-heading">
                         <span className="status-dot" />
                         <h3>{e(String(name))}</h3>

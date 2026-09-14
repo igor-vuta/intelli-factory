@@ -1,5 +1,4 @@
 import { rememberLocale } from '../lib/localePreference';
-import LocaleSwitcher from '../components/LocaleSwitcher';
 import AuthStory from '../components/AuthStory';
 import { workspacePath } from '../lib/navigation';
 import PresetIcon from '../components/PresetIcon';
@@ -9,15 +8,12 @@ import { FormEvent, useState } from 'react';
 
 import { login, saveAccountLocale } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import ThemeSwitcher from '../components/ThemeSwitcher';
-import { useTheme } from '../hooks/useTheme';
 
 export default function LoginPage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme, setTheme] = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,10 +66,7 @@ export default function LoginPage() {
             <span>{copy.brand}</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher currentLocale={locale} basePath="/login" />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
-          </div>
+          <div className="flex items-center gap-2"></div>
         </header>
 
         <section className="surface-1 rounded-2xl p-6 sm:p-8">
