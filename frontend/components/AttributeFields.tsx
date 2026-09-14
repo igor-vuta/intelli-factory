@@ -1,3 +1,4 @@
+import SelectField from './SelectField';
 import type { AttributeSchema } from './CategoryProposalPanel';
 export default function AttributeFields({
   schema,
@@ -17,7 +18,8 @@ export default function AttributeFields({
           {field.unit ? ` (${field.unit})` : ''}
           {schema.required?.includes(key) ? ' *' : ''}
           {field.enum ? (
-            <select
+            <SelectField
+              aria-label={`${key}${field.unit ? ` (${field.unit})` : ''}${schema.required?.includes(key) ? ' *' : ''}`}
               value={String(value[key] ?? '')}
               onChange={(e) =>
                 onChange({
@@ -35,16 +37,17 @@ export default function AttributeFields({
                   {v}
                 </option>
               ))}
-            </select>
+            </SelectField>
           ) : field.type === 'boolean' ? (
-            <select
+            <SelectField
+              aria-label={`${key}${field.unit ? ` (${field.unit})` : ''}${schema.required?.includes(key) ? ' *' : ''}`}
               value={String(value[key] ?? '')}
               onChange={(e) => onChange({ ...value, [key]: e.target.value === 'true' })}
             >
               <option value="">—</option>
               <option value="true">✓</option>
               <option value="false">✕</option>
-            </select>
+            </SelectField>
           ) : (
             <input
               type={field.type === 'string' ? 'text' : 'number'}

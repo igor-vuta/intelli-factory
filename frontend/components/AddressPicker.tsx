@@ -1,3 +1,5 @@
+import ChoiceField from './ChoiceField';
+import SelectField from './SelectField';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 
@@ -161,7 +163,7 @@ export default function AddressPicker({
         >
           {copy.country} {required && <span className="text-red-400">*</span>}
         </label>
-        <select
+        <SelectField
           id={`${fieldId}-country`}
           value={countryCode}
           onChange={(e) =>
@@ -177,7 +179,7 @@ export default function AddressPicker({
               {c.label}
             </option>
           ))}
-        </select>
+        </SelectField>
       </div>
 
       {/* Region - dropdown if data exists, text input otherwise */}
@@ -193,24 +195,17 @@ export default function AddressPicker({
             <div className={`${INPUT_CLS} text-[rgb(var(--muted))]`}>{copy.loading}</div>
           ) : (
             <>
-              <input
+              <ChoiceField
                 id={`${fieldId}-region`}
-                list={`${fieldId}-regions`}
-                type="text"
+                options={regions.map((r) => ({ id: r.name, label: r.name }))}
                 value={regionName}
-                onChange={(e) => update({ regionName: e.target.value, cityName: '' })}
+                text={regionName}
+                onSelect={(_id, label) => update({ regionName: label, cityName: '' })}
+                onTextChange={(value) => update({ regionName: value, cityName: '' })}
                 required={required}
                 placeholder={hasRegionData ? copy.selectRegion : copy.regionExample}
                 className={INPUT_CLS}
-                autoComplete="off"
               />
-              {hasRegionData && (
-                <datalist id={`${fieldId}-regions`}>
-                  {regions.map((r) => (
-                    <option key={r.code} value={r.name} />
-                  ))}
-                </datalist>
-              )}
             </>
           )}
         </div>
@@ -226,24 +221,17 @@ export default function AddressPicker({
             {copy.city} {required && <span className="text-red-400">*</span>}
           </label>
           <>
-            <input
+            <ChoiceField
               id={`${fieldId}-city`}
-              list={`${fieldId}-cities`}
-              type="text"
+              options={filteredCities.map((c) => ({ id: c.name, label: c.name }))}
               value={cityName}
-              onChange={(e) => update({ cityName: e.target.value })}
+              text={cityName}
+              onSelect={(_id, label) => update({ cityName: label })}
+              onTextChange={(value) => update({ cityName: value })}
               required={required}
               placeholder={hasCityData ? copy.selectCity : copy.cityExample}
               className={INPUT_CLS}
-              autoComplete="off"
             />
-            {hasCityData && (
-              <datalist id={`${fieldId}-cities`}>
-                {filteredCities.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-              </datalist>
-            )}
           </>
         </div>
       )}

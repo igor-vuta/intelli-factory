@@ -1,3 +1,7 @@
+import Combobox from '../../components/Combobox';
+import SelectField from '../../components/SelectField';
+import { dissolve } from '../../lib/dissolve';
+import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import CategoryProposalPanel from '../../components/CategoryProposalPanel';
 import AttributeFields from '../../components/AttributeFields';
 import { categoryCopy } from '../../lib/categoryCopy';
@@ -432,7 +436,7 @@ function NewRequestModal({
 
   const categoryLocale = getLocaleFromQuery(useRouter().query.lang);
   const [attributes, setAttributes] = useState<Record<string, unknown>>({});
-  const [categoryText, setCategoryText] = useState('');
+  const [, setCategoryText] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [itemText, setItemText] = useState('');
   const [itemId, setItemId] = useState('');
@@ -441,7 +445,7 @@ function NewRequestModal({
   const [quantityUnitId, setQuantityUnitId] = useState('pcs');
   const [currencyCode, setCurrencyCode] = useState(currencies[0]?.code ?? 'USD');
   const [addressId, setAddressId] = useState(defaultAddressId ?? addresses[0]?.id ?? '');
-  const [useManualAddress, setUseManualAddress] = useState(false);
+  const [useManualAddress, setUseManualAddress] = useState(addresses.length === 0);
   const [countryCode, setCountryCode] = useState(defaultCountryCode ?? countries[0]?.code ?? '');
   const [regionName, setRegionName] = useState('');
   const [cityName, setCityName] = useState('');
@@ -529,16 +533,17 @@ function NewRequestModal({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) return;
     setError(null);
     setSuccess(null);
 
     const qty = Number(quantity);
     if (!Number.isFinite(qty) || qty <= 0) {
-      setError('Quantity must be greater than 0');
+      setError(e('Quantity must be greater than 0'));
       return;
     }
     if (!itemText.trim()) {
-      setError('Please describe the item you need');
+      setError(e('Please describe the item you need'));
       return;
     }
     if (!categoryId) {
@@ -546,7 +551,7 @@ function NewRequestModal({
       return;
     }
     if (!quantityUnitText.trim()) {
-      setError('Please provide a quantity unit (e.g. kg, liters, pcs)');
+      setError(e('Please provide a quantity unit (e.g. kg, liters, pcs)'));
       return;
     }
 
@@ -566,7 +571,7 @@ function NewRequestModal({
         destination_street: useManualAddress ? street.trim() : undefined,
         preferred_currency_code: currencyCode,
       });
-      setSuccess(`Request created (${result.request_id.slice(0, 8)}\u2026)`);
+      setSuccess(`${e('Request created')} (${result.request_id.slice(0, 8)}…)`);
       setItemText('');
       setItemId('');
       setCategoryText('');
@@ -574,7 +579,7 @@ function NewRequestModal({
       await onCreated();
       setTimeout(onClose, 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create request');
+      setError(err instanceof Error ? err.message : e('Failed to create request'));
     } finally {
       setSubmitting(false);
     }
@@ -584,35 +589,41 @@ function NewRequestModal({
     <Modal
       id={dialogId}
       onClose={onClose}
+      busy={submitting}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
     >
-      <div className="slide-up w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
+      <div className="request-composer slide-up w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">New Supply Request</h2>
+            <h2 className="text-xl font-semibold">{e('New Supply Request')}</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Choose a category, then describe what you need. Start typing to see suggestions.
+              {e(
+                'Choose a category, then describe what you need. Start typing to see suggestions.'
+              )}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] transition hover:bg-[rgb(var(--stroke))]/40"
-            aria-label="Close"
+            aria-label={e('Close')}
           >
             &times;
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Step 1 \u2014 Category */}
-          <SearchableInput
-            suggestions={categoryOptions}
-            text={categoryText}
-            selectedId={categoryId}
-            onChange={handleCategoryChange}
+          <div className="composer-section-title">
+            <span>01</span>
+            <h3>{e('What do you need?')}</h3>
+          </div>
+          <Combobox
+            options={categoryOptions}
+            value={categoryId}
+            onChange={(id) => handleCategoryChange(categoryNameById.get(id) ?? '', id)}
             placeholder={categoryCopy(categoryLocale).select}
-            label="Category"
+            label={e('Category')}
             required
           />
 
@@ -634,25 +645,30 @@ function NewRequestModal({
             onChange={handleItemChange}
             placeholder={
               categoryId
-                ? `Describe item in ${categoryNameById.get(categoryId) ?? 'category'}\u2026`
-                : 'Describe item  (e.g. cotton t-shirt, organic pasta, PCB board\u2026)'
+                ? `${e('Describe item')} · ${categoryNameById.get(categoryId) ?? e('Category')}`
+                : e('Describe item')
             }
-            label="Item name / description"
+            label={e('Item name / description')}
             required
           />
 
           {!itemId && itemText && (
             <p className="-mt-2 text-xs text-[rgb(var(--muted))]">
-              No catalogue match — your description will be used directly.
+              {e('No catalogue match — your description will be used directly.')}
             </p>
           )}
 
+          <div className="composer-section-title">
+            <span>02</span>
+            <h3>{e('Quantity & budget')}</h3>
+          </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <label className="text-sm text-[rgb(var(--muted))]">
+              <label htmlFor="request-quantity" className="text-sm text-[rgb(var(--muted))]">
                 {e('Quantity')} <span className="text-red-400">*</span>
               </label>
               <input
+                id="request-quantity"
                 type="number"
                 min="1"
                 value={quantity}
@@ -664,21 +680,23 @@ function NewRequestModal({
 
             <div className="flex flex-col gap-1">
               <SearchableInput
+                disabled={!!itemId}
                 suggestions={unitSuggestions}
                 text={quantityUnitText}
                 selectedId={quantityUnitId}
                 onChange={handleUnitChange}
-                placeholder="Choose or type a unit (kg, liters, pcs)"
-                label="Unit"
+                placeholder={e('Choose or type a unit (kg, liters, pcs)')}
+                label={e('Unit')}
                 required
               />
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-sm text-[rgb(var(--muted))]">
-                Currency <span className="text-red-400">*</span>
+                {e('Currency')} <span className="text-red-400">*</span>
               </label>
-              <select
+              <SelectField
+                aria-label="Currency"
                 value={currencyCode}
                 onChange={(e) => setCurrencyCode(e.target.value)}
                 className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -689,41 +707,49 @@ function NewRequestModal({
                     {formatCurrencyOptionLabel(c.code, c.name)}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           </div>
 
+          <div className="composer-section-title">
+            <span>03</span>
+            <h3>{e('Where should it arrive?')}</h3>
+          </div>
           <div className="flex flex-col gap-2">
             <label className="text-sm text-[rgb(var(--muted))]">
-              Destination address <span className="text-red-400">*</span>
+              {e('Destination address')} <span className="text-red-400">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setUseManualAddress(false)}
+                disabled={addresses.length === 0}
+                aria-pressed={!useManualAddress}
                 className={`rounded-md border px-2 py-1 text-xs ${
                   !useManualAddress
                     ? 'border-sky-700/80 text-sky-300'
                     : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                 }`}
               >
-                Choose existing
+                {e('Choose existing')}
               </button>
               <button
                 type="button"
                 onClick={() => setUseManualAddress(true)}
+                aria-pressed={useManualAddress}
                 className={`rounded-md border px-2 py-1 text-xs ${
                   useManualAddress
                     ? 'border-sky-700/80 text-sky-300'
                     : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                 }`}
               >
-                Provide yourself
+                {e('Provide yourself')}
               </button>
             </div>
 
             {!useManualAddress ? (
-              <select
+              <SelectField
+                aria-label="Address"
                 value={addressId}
                 onChange={(e) => setAddressId(e.target.value)}
                 className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -734,10 +760,11 @@ function NewRequestModal({
                     {a.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
-                <select
+                <SelectField
+                  aria-label="Country"
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -748,26 +775,26 @@ function NewRequestModal({
                       {country.code} - {country.name}
                     </option>
                   ))}
-                </select>
+                </SelectField>
                 <input
                   value={regionName}
                   onChange={(e) => setRegionName(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  placeholder="Region"
+                  placeholder={e('Region')}
                   required
                 />
                 <input
                   value={cityName}
                   onChange={(e) => setCityName(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  placeholder="City"
+                  placeholder={e('City')}
                   required
                 />
                 <input
                   value={street}
                   onChange={(e) => setStreet(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm sm:col-span-2"
-                  placeholder="Address / Street"
+                  placeholder={e('Address / Street')}
                   required
                 />
               </div>
@@ -788,12 +815,17 @@ function NewRequestModal({
             </p>
           )}
 
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="btn btn-ghost flex-1 text-sm">
-              Cancel
+          <div className="composer-actions flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="btn btn-ghost flex-1 text-sm"
+            >
+              {e('Cancel')}
             </button>
             <button type="submit" disabled={submitting} className="btn btn-primary flex-1 text-sm">
-              {submitting ? 'Creating\u2026' : 'Create Request'}
+              {submitting ? e('Creating…') : e('Create Request')}
             </button>
           </div>
         </form>
@@ -803,6 +835,7 @@ function NewRequestModal({
 }
 
 export default function CustomerWorkspacePage() {
+  const { confirm, confirmation } = useActionConfirmation();
   const e = useExperienceCopy();
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
@@ -1047,6 +1080,7 @@ export default function CustomerWorkspacePage() {
       return;
     }
 
+    if (workflowBusyId || !(await confirm('Accept'))) return;
     setWorkflowBusyId(transactionId + action);
     try {
       await acceptTransactionCompletion(transactionId);
@@ -1101,10 +1135,12 @@ export default function CustomerWorkspacePage() {
 
   async function handleCancelRequest(requestId: string) {
     if (cancellingRequest) return;
+    if (!(await confirm('Cancel request'))) return;
     setCancellingRequest(requestId);
     setPageError(null);
     try {
       await updateRequestStatus(requestId, 'CANCELLED');
+      await dissolve(document.getElementById(`request-${requestId}`));
       await refreshRequests();
     } catch (cause) {
       setPageError(
@@ -1204,7 +1240,8 @@ export default function CustomerWorkspacePage() {
                       placeholder="Search by name/category/id"
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm lg:col-span-2"
                     />
-                    <select
+                    <SelectField
+                      aria-label="Status"
                       value={requestStatusFilter}
                       onChange={(e) => setRequestStatusFilter(e.target.value)}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -1215,8 +1252,9 @@ export default function CustomerWorkspacePage() {
                           {status}
                         </option>
                       ))}
-                    </select>
-                    <select
+                    </SelectField>
+                    <SelectField
+                      aria-label="Currency"
                       value={requestCurrencyFilter}
                       onChange={(e) => setRequestCurrencyFilter(e.target.value)}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -1227,7 +1265,7 @@ export default function CustomerWorkspacePage() {
                           {currency}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -1246,7 +1284,11 @@ export default function CustomerWorkspacePage() {
                       </thead>
                       <tbody>
                         {paginatedRequests.map((row) => (
-                          <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
+                          <tr
+                            id={`request-${row.id}`}
+                            key={row.id}
+                            className="border-b border-[rgb(var(--stroke))]/40"
+                          >
                             <td className="py-2 pr-4 font-mono text-xs">
                               <span className="record-label" aria-hidden="true">
                                 {e('Reference')}{' '}
@@ -1598,6 +1640,7 @@ export default function CustomerWorkspacePage() {
           onConfirm={handleConfirmPayment}
         />
       )}
+      {confirmation}
     </WorkspaceExperience>
   );
 }

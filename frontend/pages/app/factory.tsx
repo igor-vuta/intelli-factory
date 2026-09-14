@@ -1,3 +1,5 @@
+import SelectField from '../../components/SelectField';
+import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import FactorySetup from '../../components/FactorySetup';
 import { categoryCopy } from '../../lib/categoryCopy';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -181,6 +183,7 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
 }
 
 export default function FactoryWorkspacePage() {
+  const { confirm, confirmation } = useActionConfirmation();
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
@@ -466,6 +469,11 @@ export default function FactoryWorkspacePage() {
       return;
     }
 
+    if (
+      workflowBusyId ||
+      !(await confirm(action === 'START' ? 'Given to logist' : 'Mark delivered'))
+    )
+      return;
     setWorkflowBusyId(transactionId + action);
     try {
       await advanceTransactionFulfillment(transactionId, action);
@@ -560,7 +568,8 @@ export default function FactoryWorkspacePage() {
                   placeholder="Search item/category"
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
-                <select
+                <SelectField
+                  aria-label="Status"
                   value={openRequestsStatusFilter}
                   onChange={(e) => setOpenRequestsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -571,8 +580,9 @@ export default function FactoryWorkspacePage() {
                       {status}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Currency"
                   value={openRequestsCurrencyFilter}
                   onChange={(e) => setOpenRequestsCurrencyFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -583,7 +593,7 @@ export default function FactoryWorkspacePage() {
                       {currency}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
 
               {filteredOpenRequests.length === 0 ? (
@@ -706,7 +716,8 @@ export default function FactoryWorkspacePage() {
                   placeholder="Search item"
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
-                <select
+                <SelectField
+                  aria-label="Status"
                   value={myBidsStatusFilter}
                   onChange={(e) => setMyBidsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -717,8 +728,9 @@ export default function FactoryWorkspacePage() {
                       {status}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Currency"
                   value={myBidsCurrencyFilter}
                   onChange={(e) => setMyBidsCurrencyFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -729,8 +741,9 @@ export default function FactoryWorkspacePage() {
                       {currency}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Proposal stage"
                   value={myBidsStageFilter}
                   onChange={(e) => setMyBidsStageFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -738,7 +751,7 @@ export default function FactoryWorkspacePage() {
                   <option value="ALL">All stages</option>
                   <option value="FACTORY_ONLY">Factory bid only</option>
                   <option value="COMPLETE">Complete proposal</option>
-                </select>
+                </SelectField>
               </div>
 
               {filteredMyBids.length === 0 ? (
@@ -845,7 +858,8 @@ export default function FactoryWorkspacePage() {
                   placeholder="Search tx or item"
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
-                <select
+                <SelectField
+                  aria-label="Status"
                   value={transactionsStatusFilter}
                   onChange={(e) => setTransactionsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -856,8 +870,9 @@ export default function FactoryWorkspacePage() {
                       {status}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
+                  aria-label="Payment status"
                   value={transactionsPaymentFilter}
                   onChange={(e) => setTransactionsPaymentFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -868,7 +883,7 @@ export default function FactoryWorkspacePage() {
                       {payment}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
 
               {filteredTransactions.length === 0 ? (
@@ -1004,7 +1019,8 @@ export default function FactoryWorkspacePage() {
                       placeholder="Search item"
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     />
-                    <select
+                    <SelectField
+                      aria-label="Status"
                       value={inventoryStatusFilter}
                       onChange={(e) => setInventoryStatusFilter(e.target.value)}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -1015,8 +1031,9 @@ export default function FactoryWorkspacePage() {
                           {status}
                         </option>
                       ))}
-                    </select>
-                    <select
+                    </SelectField>
+                    <SelectField
+                      aria-label="Currency"
                       value={inventoryCurrencyFilter}
                       onChange={(e) => setInventoryCurrencyFilter(e.target.value)}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
@@ -1027,7 +1044,7 @@ export default function FactoryWorkspacePage() {
                           {currency}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </div>
 
                   {filteredInventory.length === 0 ? (
@@ -1145,6 +1162,7 @@ export default function FactoryWorkspacePage() {
           onConfirm={handleConfirmSignFromAgreement}
         />
       )}
+      {confirmation}
     </WorkspaceExperience>
   );
 }

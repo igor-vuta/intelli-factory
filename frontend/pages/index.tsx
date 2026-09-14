@@ -4,10 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useMemo } from 'react';
 import HeaderActions from '../components/HeaderActions';
-import LocaleSwitcher from '../components/LocaleSwitcher';
-import { useTheme } from '../hooks/useTheme';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import { THEME_LABELS } from '../styles/themePresets';
 
 const liveEvents = [
   'Customer request created: Titanium pipes · Almaty',
@@ -23,7 +20,6 @@ export default function Home() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
-  const [theme, setTheme] = useTheme();
 
   const roleCards = useMemo(
     () => [
@@ -73,8 +69,7 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
-          <LocaleSwitcher currentLocale={locale} basePath="/" />
-          <HeaderActions theme={theme} themeLabel={THEME_LABELS} onThemeChange={setTheme} />
+          <HeaderActions />
         </div>
       </header>
 

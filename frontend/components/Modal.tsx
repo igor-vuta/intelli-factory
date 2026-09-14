@@ -7,9 +7,17 @@ type Props = {
   className?: string;
   onClose: () => void;
   busy?: boolean;
+  side?: 'left' | 'right';
 };
 
-export default function Modal({ id, children, className, onClose, busy = false }: Props) {
+export default function Modal({
+  id,
+  children,
+  className,
+  onClose,
+  busy = false,
+  side = 'right',
+}: Props) {
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const close = useRef(onClose);
@@ -69,6 +77,7 @@ export default function Modal({ id, children, className, onClose, busy = false }
     <div
       id={id}
       ref={dialog}
+      data-side={side}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
