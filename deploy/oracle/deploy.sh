@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-if [[ "$(git branch --show-current)" != 'main' ]]; then
-  echo 'Deploy from main.' >&2
+if [[ "$(git branch --show-current)" != 'production' ]]; then
+  echo 'Deploy from production.' >&2
   exit 1
 fi
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -17,9 +17,13 @@ export IMAGE_TAG
 IMAGE_TAG="$(git rev-parse HEAD)"
 docker_command=(docker)
 if [[ "${ORACLE_DOCKER_SUDO:-false}" == 'true' ]]; then
-  docker_command=(sudo --preserve-env=IMAGE_TAG docker)
+  docker_command=(sudo -n --preserve-env=IMAGE_TAG docker)
 fi
 compose=("${docker_command[@]}" compose --env-file deploy/oracle/.env -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml)
+if [[ "$(git rev-parse origin/production)" != "$IMAGE_TAG" ]]; then
+  echo 'Deploy the current production commit.' >&2
+  exit 1
+fi
 "${compose[@]}" config --quiet
 # Load the tested linux/amd64 images from CI before running this script.
 for service in backend frontend; do
@@ -31,6 +35,8 @@ chmod 700 deploy/oracle/backups
 umask 077
 backup="deploy/oracle/backups/$(date -u +%Y%m%dT%H%M%SZ)-before-${IMAGE_TAG}.dump"
 "${compose[@]}" exec -T db pg_dump -U intelli -d intelli_factory -Fc > "$backup"
+test -s "$backup"
+"${compose[@]}" exec -T db pg_restore --list < "$backup" > /dev/null
 # A new one-off job runs on every release, including repeated deployments.
 "${compose[@]}" run --rm --no-deps migrate
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 backend
