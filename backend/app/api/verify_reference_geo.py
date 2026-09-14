@@ -23,7 +23,13 @@ async def verify():
         before = await snapshot(prisma)
         assert before["Country"][0]["count"] == 249
         assert before["Region"][0]["count"] == 5046
-        await seed()
+    finally:
+        await prisma.disconnect()
+
+    # The importer owns a Prisma engine; release ours before starting it on the micro VM.
+    await seed()
+    await prisma.connect()
+    try:
         assert await snapshot(prisma) == before, "Repeat import changed IDs or row counts"
         print("Geography import repeatability passed: row counts and IDs are unchanged.")
     finally:
