@@ -1,6 +1,6 @@
 # Oracle deployment
 
-Branch: `main`. The active site uses Oracle for all three tiers.
+Release branch: `production`. Development branch: `main`. The active site uses Oracle for all three tiers.
 The former Vercel Git integration is disconnected; pushes to this branch run
 the Oracle workflow, which calls the quality checks once before testing the stack.
 
@@ -38,14 +38,51 @@ database volume. Keep this value for the CI image artifact and deploy script.
 
 ## Configure and deploy
 
-Install Docker Engine, the Compose v2 plugin and Caddy on the VM. Use a checkout of the
-reviewed, committed `main` branch. No push workflow deploys this branch:
-releases are deliberate, using the script below.
+Install Docker Engine, the Compose v2 plugin and Caddy on the VM. The deployment
+checkout tracks `production`; `main` remains the integration branch.
 
-Feature branches are reviewed through pull requests into `main`. The Oracle
-workflow runs the quality checks and both architecture smoke tests, then publishes
-the tested AMD64 image artifact. Deploy that exact commit manually only after the
-whole workflow succeeds. A staging branch is not used for this live environment.
+## Automatic releases
+
+1. Merge feature work into `main`.
+2. Open a pull request from `main` into `production`.
+3. Wait for **Release ready**. It requires all code checks and both architecture
+   stack tests. Only `main` in this repository may be the source of a release PR.
+4. Merge the PR. **Production deployment** tests that exact merge commit, then
+   transfers its tested AMD64 images and deploys them over SSH.
+
+The `production` protection requires PRs, up-to-date passing checks and resolved
+conversations, including for administrators. Direct pushes, force pushes and
+branch deletion are blocked. A second reviewer is not required for this sole-owner
+repository. A production push never skips testing, even after the PR checks passed.
+Manual workflow dispatch can retry the current `production` commit.
+
+The **Production** GitHub environment accepts only the `production` branch and has
+no additional approval prompt. Configure these environment values before the first
+release:
+
+| Type     | Name                     | Value                                           |
+| -------- | ------------------------ | ----------------------------------------------- |
+| Variable | `ORACLE_HOST`            | VM SSH hostname or public IP                    |
+| Variable | `ORACLE_USER`            | Deployment login, normally `ubuntu`             |
+| Variable | `ORACLE_PATH`            | Absolute clean checkout path on the VM          |
+| Secret   | `ORACLE_SSH_PRIVATE_KEY` | Dedicated deployment SSH private key            |
+| Secret   | `ORACLE_SSH_KNOWN_HOSTS` | Verified SSH host-key entries for `ORACLE_HOST` |
+
+Authorize the matching public key on the deployment account. Use a dedicated key,
+not a Git signing key. Keep host-key checking enabled; obtain known-host entries
+from an already trusted connection. The account needs passwordless `sudo docker`
+and read access to this public repository. The application `.env` stays on the VM;
+CI does not need the database or mail passwords. Allow the chosen runner to reach
+SSH using the VM's network policy; do not silently broaden an existing firewall rule.
+
+Deployment is serialized in GitHub and with a VM lock. Before changing the checkout,
+the script verifies the archive checksum and refuses stale commits or local edits.
+It loads the tested images, creates and validates a database backup, applies
+migrations, and waits for both application containers to become healthy. Public
+HTTPS and API requests must also pass for the workflow to succeed. A failed check
+marks the release failed; database restoration is never automatic.
+
+## Initial VM configuration
 
 ```sh
 cp deploy/oracle/.env.example deploy/oracle/.env
@@ -69,10 +106,9 @@ Workspace subscription is needed for this setup. See Google's
 The database password initializes a new volume; changing the variable alone does
 not rotate an existing PostgreSQL role's password.
 
-After the branch is committed and pushed, the `Oracle stack test` workflow builds
-and tests images. Download the successful run's `oracle-amd64-COMMIT_SHA` artifact,
-extract `oracle-images.tar.gz`, and transfer it to the VM. Match the VM checkout
-to that exact commit. No image registry publishing or CI SSH credentials are used.
+For a manual retry, use the successful **Production deployment** run's
+`oracle-amd64-COMMIT_SHA` artifact and the exact `production` commit. The normal
+workflow performs these steps automatically:
 
 ```sh
 gunzip -c oracle-images.tar.gz | sudo docker load
@@ -158,3 +194,22 @@ The frontend uses the root npm workspace lock. Standalone output follows the
 service ordering uses [Compose health dependencies](https://docs.docker.com/compose/how-tos/startup-order/).
 
 Shape and allowance details: [Oracle Always Free resources](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm).
+
+## Failed release recovery
+
+Keep the previous image tags and the pre-release database backup. Do not delete or
+restore the database volume as an automatic reaction to a failed health check.
+Inspect the failed job and container logs first. For an application rollback,
+confirm that the previous code is compatible with any applied migrations, then
+start the previous backend and frontend image tags using the compose command in
+this document. A database restore requires an explicit recovery decision because
+it can discard writes after the backup. Follow with a revert PR through `main` and
+`production` so the branch history records the recovered release.
+
+Validate release guards locally with:
+
+```sh
+bash -n deploy/oracle/deploy.sh deploy/oracle/release.sh
+shellcheck deploy/oracle/deploy.sh deploy/oracle/release.sh
+python3 -m unittest discover -s deploy/oracle/tests -v
+```

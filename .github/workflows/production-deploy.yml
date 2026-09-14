@@ -1,0 +1,78 @@
+name: Production deployment
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A running deployment must finish before another release can touch the database.
+concurrency:
+  group: oracle-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.ref == 'refs/heads/production'
+    uses: ./.github/workflows/oracle-test.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: Production
+      url: https://intelli-factory.duckdns.org
+    env:
+      RELEASE_SHA: ${{ github.sha }}
+      ORACLE_HOST: ${{ vars.ORACLE_HOST }}
+      ORACLE_USER: ${{ vars.ORACLE_USER }}
+      ORACLE_PATH: ${{ vars.ORACLE_PATH }}
+      SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: oracle-amd64-${{ github.sha }}
+          path: release
+      - name: Configure pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ORACLE_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$ORACLE_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$ORACLE_PATH" =~ ^/[a-zA-Z0-9/_-]+$ ]]
+          test -n "$SSH_PRIVATE_KEY"
+          test -n "$SSH_KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/oracle_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/oracle_deploy ~/.ssh/known_hosts
+      - name: Transfer and deploy the tested release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh_options=(-i ~/.ssh/oracle_deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=30)
+          remote="$ORACLE_USER@$ORACLE_HOST"
+          upload="/tmp/intelli-release-$RELEASE_SHA"
+          checksum="$(sha256sum release/oracle-images.tar.gz | cut -d ' ' -f 1)"
+          # Arguments are validated above and intentionally expanded on the runner.
+          # shellcheck disable=SC2029
+          ssh "${ssh_options[@]}" "$remote" "install -d -m 700 '$upload'"
+          scp "${ssh_options[@]}" release/oracle-images.tar.gz deploy/oracle/release.sh "$remote:$upload/"
+          # Arguments are validated above and intentionally expanded on the runner.
+          # shellcheck disable=SC2029
+          ssh "${ssh_options[@]}" "$remote" "bash '$upload/release.sh' '$ORACLE_PATH' '$RELEASE_SHA' '$upload/oracle-images.tar.gz' '$checksum'"
+      - name: Check public HTTPS and API
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://intelli-factory.duckdns.org/ > /dev/null
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 https://intelli-factory.duckdns.org/api/auth/countries > countries.json
+          python3 -c 'import json; data=json.load(open("countries.json")); assert isinstance(data,list) and len(data)>0'
+      - name: Remove runner SSH identity
+        if: always()
+        run: rm -f ~/.ssh/oracle_deploy

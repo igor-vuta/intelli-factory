@@ -2,15 +2,32 @@ name: Oracle stack test
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production]
   push:
     branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  release-source:
+    name: Release source
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Only main can release to production
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "$BASE" = production ]; then
+            test "$HEAD" = main
+            test "$HEAD_REPO" = "$REPOSITORY"
+          fi
+
   checks:
     uses: ./.github/workflows/ci.yml
 
@@ -55,3 +72,16 @@ jobs:
       - name: Remove test stack
         if: always()
         run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml down -v
+
+  release-ready:
+    name: Release ready
+    if: always()
+    needs: [release-source, checks, stack]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every release check
+        env:
+          SOURCE: ${{ needs.release-source.result }}
+          CHECKS: ${{ needs.checks.result }}
+          STACK: ${{ needs.stack.result }}
+        run: test "$SOURCE" = success && test "$CHECKS" = success && test "$STACK" = success

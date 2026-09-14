@@ -348,7 +348,10 @@ poetry run python benchmark_evaluation.py
 ## Deployment
 
 The testing site is **https://intelli-factory.duckdns.org/**, deployed from the
-SSH-signed `testing/oracle` branch to a dedicated Oracle Always Free E2 Micro VM.
+protected `production` branch to a dedicated Oracle Always Free E2 Micro VM.
+Changes are integrated into `main`, then released through a checked PR from
+`main` to `production`. The production workflow tests the merge commit and deploys
+its exact image artifact once the Oracle SSH environment is configured.
 
 | Tier     | Runtime              | Exposure                                        |
 | -------- | -------------------- | ----------------------------------------------- |
@@ -359,8 +362,7 @@ SSH-signed `testing/oracle` branch to a dedicated Oracle Always Free E2 Micro VM
 ESLint, Prettier, Jest, Ruff, pytest and commitlint run before the container tests.
 CI tests native AMD64 and ARM64 images; the E2 VM uses the tested AMD64 artifact.
 See [Oracle deployment instructions](deploy/oracle/README.md) for migrations,
-backups, resource limits and rollback. The existing hosted services remain
-available until a separate production cutover.
+backups, environment configuration, resource limits and rollback.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
