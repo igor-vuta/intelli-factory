@@ -1,11 +1,14 @@
-import PresetIcon from '../../components/PresetIcon';
-import Link from 'next/link';
+import { useExperienceCopy } from '../../hooks/useExperienceCopy';
+import OrderProgress from '../../components/OrderProgress';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
+import WorkspaceExperience from '../../components/WorkspaceExperience';
+import { workspacePath } from '../../lib/navigation';
+import Modal from '../../components/Modal';
 import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { type ComboboxOption } from '../../components/Combobox';
 import AgreementSignModal from '../../components/AgreementSignModal';
-import LocaleSwitcher from '../../components/LocaleSwitcher';
 import PaymentMockupModal from '../../components/PaymentMockupModal';
 import RatingModal from '../../components/RatingModal';
 import SearchableInput from '../../components/SearchableInput';
@@ -37,9 +40,6 @@ import {
 } from '../../lib/authClient';
 import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
-import { useTheme } from '../../hooks/useTheme';
-import { THEME_CLASSES } from '../../styles/themePresets';
 
 const STATUS_COLOR: Record<string, string> = {
   PENDING: 'text-amber-300',
@@ -83,9 +83,11 @@ function ProposalsModal({
   loadingCandidates,
   loadError,
   onRefresh,
-  onClose,
+  onClose: onDismiss,
   onSelected,
 }: ProposalsModalProps) {
+  const e = useExperienceCopy();
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [selecting, setSelecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recommendationGoal, setRecommendationGoal] = useState<RecommendationGoal>('RELIABILITY');
@@ -142,18 +144,17 @@ function ProposalsModal({
   }
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up my-auto flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] p-6 sm:p-8">
           <div>
             <h2 className="text-lg font-semibold">Proposals for your request</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Request {requestId.slice(0, 8)}… &mdash; Select the best offer.
+              {e('Request')} {requestId.slice(0, 8)}… &mdash; Select the best offer.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -265,11 +266,11 @@ function ProposalsModal({
                   <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
                     <th className="py-2 pr-3">Factory</th>
                     <th className="py-2 pr-3">From</th>
-                    <th className="py-2 pr-3">Item</th>
+                    <th className="py-2 pr-3">{e('Item')}</th>
                     <th className="py-2 pr-3">Qty</th>
                     <th className="py-2 pr-3">Logist</th>
                     <th className="py-2 pr-3">Goods cost</th>
-                    <th className="py-2 pr-3">Delivery</th>
+                    <th className="py-2 pr-3">{e('Delivery')}</th>
                     <th className="py-2 pr-3">Total</th>
                     <th className="py-2 pr-3">Days</th>
                     <th className="py-2 pr-3">Score</th>
@@ -391,7 +392,7 @@ function ProposalsModal({
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -417,9 +418,11 @@ function NewRequestModal({
   defaultAddressId,
   defaultCountryCode,
   defaultStreet,
-  onClose,
+  onClose: onDismiss,
   onCreated,
 }: ModalProps) {
+  const e = useExperienceCopy();
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -570,11 +573,10 @@ function NewRequestModal({
   }
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-5 flex items-start justify-between gap-4">
@@ -623,14 +625,14 @@ function NewRequestModal({
 
           {!itemId && itemText && (
             <p className="-mt-2 text-xs text-[rgb(var(--muted))]">
-              No catalogue match \u2014 your description will be used directly.
+              No catalogue match — your description will be used directly.
             </p>
           )}
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label className="text-sm text-[rgb(var(--muted))]">
-                Quantity <span className="text-red-400">*</span>
+                {e('Quantity')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="number"
@@ -755,10 +757,15 @@ function NewRequestModal({
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+            <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              {error}
+            </p>
           )}
           {success && (
-            <p className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+            <p
+              role="status"
+              className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+            >
               {success}
             </p>
           )}
@@ -773,16 +780,16 @@ function NewRequestModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 export default function CustomerWorkspacePage() {
+  const e = useExperienceCopy();
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme, setTheme] = useTheme();
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -928,7 +935,7 @@ export default function CustomerWorkspacePage() {
       try {
         const auth = await me();
         if (auth.user.role !== 'CUSTOMER') {
-          await router.replace(`/login?lang=${locale}`);
+          await router.replace(workspacePath(auth.user.role, locale));
           return;
         }
 
@@ -974,10 +981,16 @@ export default function CustomerWorkspacePage() {
     if (loading) return;
 
     const intervalId = window.setInterval(() => {
-      void refreshRequests();
-      void refreshTransactions();
+      void refreshRequests().catch(() =>
+        setPageError('Could not refresh workspace. Please check your connection and try again.')
+      );
+      void refreshTransactions().catch(() =>
+        setPageError('Could not refresh workspace. Please check your connection and try again.')
+      );
       if (proposalsRequestId) {
-        void refreshCandidatesForRequest(proposalsRequestId);
+        void refreshCandidatesForRequest(proposalsRequestId).catch(() =>
+          setPageError('Could not refresh workspace. Please check your connection and try again.')
+        );
       }
     }, 10000);
 
@@ -1058,50 +1071,62 @@ export default function CustomerWorkspacePage() {
   }
 
   async function handleLogout() {
-    await logout();
-    await router.push(`/login?lang=${locale}`);
+    try {
+      await logout();
+      await router.push(`/login?lang=${locale}`);
+    } catch (cause) {
+      setPageError(cause instanceof Error ? cause.message : 'Could not log out. Please try again.');
+    }
   }
 
+  const [cancellingRequest, setCancellingRequest] = useState<string | null>(null);
+
   async function handleCancelRequest(requestId: string) {
+    if (cancellingRequest) return;
+    setCancellingRequest(requestId);
+    setPageError(null);
     try {
       await updateRequestStatus(requestId, 'CANCELLED');
       await refreshRequests();
-    } catch {
-      /* non-critical */
+    } catch (cause) {
+      setPageError(
+        cause instanceof Error ? cause.message : 'Could not cancel the request. Please try again.'
+      );
+    } finally {
+      setCancellingRequest(null);
     }
   }
 
   return (
-    <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+    <WorkspaceExperience
+      role="customer"
+      loading={loading}
+      error={pageError}
+      counts={[
+        requests.length,
+        transactions.filter((tx) => tx.status !== 'COMPLETED').length,
+        transactions.filter((tx) => tx.status === 'COMPLETED').length,
+      ]}
+      items={requests.map((row) => ({
+        id: row.id,
+        title: row.item_name ?? row.requested_name_text ?? row.category_name ?? 'Supply request',
+        status: row.status,
+        detail: `${row.quantity} ${row.quantity_unit} · ${row.preferred_currency_code}`,
+        action: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
+          ? () => void openProposals(row.id)
+          : undefined,
+        actionLabel: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
+          ? 'Compare proposals'
+          : 'View request',
+      }))}
+      onLogout={handleLogout}
+      onCreate={() => setShowModal(true)}
     >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
-          >
-            <PresetIcon
-              src="/presets/customer.svg"
-              alt="Customer workspace"
-              size={32}
-              className="rounded-md"
-            />
-            <span>{copy.brand}</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher currentLocale={locale} basePath="/app/customer" />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
-            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-              {copy.logout}
-            </button>
-          </div>
-        </header>
-
-        <section className="surface-1 rounded-2xl p-6 sm:p-8">
+      <div className="workspace-panels">
+        <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
+              <h1 id="requests" className="slide-up text-2xl font-semibold sm:text-3xl">
                 {copy.myRequestsTitle}
               </h1>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">{copy.myRequestsSubtitle}</p>
@@ -1119,12 +1144,6 @@ export default function CustomerWorkspacePage() {
 
           {loading && (
             <p className="mt-6 text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>
-          )}
-
-          {pageError && (
-            <p className="mt-4 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
-              {pageError}
-            </p>
           )}
 
           {!loading && (
@@ -1210,28 +1229,52 @@ export default function CustomerWorkspacePage() {
                         {paginatedRequests.map((row) => (
                           <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
                             <td className="py-2 pr-4 font-mono text-xs">
+                              <span className="record-label" aria-hidden="true">
+                                {e('Reference')}{' '}
+                              </span>
                               {row.id.slice(0, 8)}
                               \u2026
                             </td>
                             <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
+                              <span className="record-label" aria-hidden="true">
+                                {e('Category')}{' '}
+                              </span>
                               {row.category_name ?? '\u2014'}
                             </td>
                             <td className="py-2 pr-4">
+                              <span className="record-label" aria-hidden="true">
+                                {e('Item')}{' '}
+                              </span>
                               {row.item_name ?? row.requested_name_text ?? '\u2014'}
                             </td>
                             <td className="py-2 pr-4">
+                              <span className="record-label" aria-hidden="true">
+                                {e('Quantity')}{' '}
+                              </span>
                               {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
                             </td>
-                            <td className="py-2 pr-4">{row.preferred_currency_code}</td>
+                            <td className="py-2 pr-4">
+                              <span className="record-label" aria-hidden="true">
+                                Currency
+                              </span>
+                              {row.preferred_currency_code}
+                            </td>
                             <td className={`py-2 pr-4 ${STATUS_COLOR[row.status] ?? ''}`}>
-                              {row.status}
+                              <span className="record-label" aria-hidden="true">
+                                {e('Status')}{' '}
+                              </span>
+                              {e(row.status)}
                             </td>
                             <td className="py-2 pr-4">
+                              <span className="record-label" aria-hidden="true">
+                                {e('Next step')}{' '}
+                              </span>
                               <div className="flex flex-wrap gap-1">
                                 {row.status === 'PENDING' && (
                                   <button
                                     type="button"
                                     onClick={() => void handleCancelRequest(row.id)}
+                                    disabled={cancellingRequest !== null}
                                     className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30"
                                   >
                                     {copy.cancelRequest}
@@ -1255,6 +1298,9 @@ export default function CustomerWorkspacePage() {
                               </div>
                             </td>
                             <td className="py-2 text-xs text-[rgb(var(--muted))]">
+                              <span className="record-label" aria-hidden="true">
+                                {e('Created')}{' '}
+                              </span>
                               {new Date(row.created_at).toLocaleString('en-GB', {
                                 timeZone: 'UTC',
                               })}
@@ -1303,11 +1349,14 @@ export default function CustomerWorkspacePage() {
         </section>
 
         {!loading && (
-          <section className="surface-1 rounded-2xl p-6 sm:p-8">
-            <h2 className="text-lg font-semibold">Contract, Payment & Acceptance</h2>
+          <section data-section="workflow" className="surface-1 rounded-2xl p-6 sm:p-8">
+            <h2 id="workflow" className="text-lg font-semibold">
+              {e('Contract, Payment & Acceptance')}{' '}
+            </h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              Continue matched requests: sign contract, pay after all signatures, then accept
-              completion at the end of delivery.
+              {e(
+                'Continue matched requests: sign contract, pay after all signatures, then accept completion at the end of delivery.'
+              )}{' '}
             </p>
 
             {transactions.length === 0 ? (
@@ -1319,30 +1368,54 @@ export default function CustomerWorkspacePage() {
                     <thead>
                       <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
                         <th className="py-2 pr-4">Transaction</th>
-                        <th className="py-2 pr-4">Item</th>
-                        <th className="py-2 pr-4">Status</th>
-                        <th className="py-2 pr-4">Signatures</th>
-                        <th className="py-2 pr-4">Payment</th>
-                        <th className="py-2">Actions</th>
+                        <th className="py-2 pr-4">{e('Item')}</th>
+                        <th className="py-2 pr-4">{e('Status')}</th>
+                        <th className="py-2 pr-4">{e('Signatures')}</th>
+                        <th className="py-2 pr-4">{e('Payment')}</th>
+                        <th className="py-2">{e('Actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedTransactions.map((tx) => (
                         <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
-                          <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
+                          <td className="py-2 pr-4 font-mono text-xs">
+                            <span className="record-label" aria-hidden="true">
+                              {e('Reference')}{' '}
+                            </span>
+                            {tx.id.slice(0, 8)}...
+                          </td>
+                          <td className="py-2 pr-4">
+                            <span className="record-label" aria-hidden="true">
+                              {e('Item')}{' '}
+                            </span>
+                            {tx.item_name ?? '-'}
+                          </td>
                           <td className={`py-2 pr-4 ${STATUS_COLOR[tx.status] ?? ''}`}>
-                            {tx.status}
+                            <span className="record-label" aria-hidden="true">
+                              {e('Status')}{' '}
+                            </span>
+                            {e(tx.status)}
+                            <OrderProgress status={e(tx.status)} />
                           </td>
                           <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
-                            {tx.signature_status.LOGIST}
+                            <span className="record-label" aria-hidden="true">
+                              {e('Signatures')}{' '}
+                            </span>
+                            C:{e(tx.signature_status.CUSTOMER)} F:{e(tx.signature_status.FACTORY)}{' '}
+                            L:
+                            {e(tx.signature_status.LOGIST)}
                           </td>
                           <td className="py-2 pr-4 text-xs">
+                            <span className="record-label" aria-hidden="true">
+                              {e('Payment')}{' '}
+                            </span>
                             {tx.total_cost ? `${tx.total_cost} ${tx.currency_code ?? ''}` : '-'} (
-                            {tx.payment_status})
+                            {e(tx.payment_status)})
                           </td>
                           <td className="py-2">
+                            <span className="record-label" aria-hidden="true">
+                              {e('Next step')}{' '}
+                            </span>
                             <div className="flex flex-wrap gap-1">
                               {tx.can_sign && (
                                 <button
@@ -1384,7 +1457,7 @@ export default function CustomerWorkspacePage() {
                                   onClick={() => setRatingTransaction(tx)}
                                   className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30"
                                 >
-                                  Rate
+                                  {e('Rate')}{' '}
                                 </button>
                               )}
                               {!tx.can_sign &&
@@ -1485,7 +1558,9 @@ export default function CustomerWorkspacePage() {
           transaction={ratingTransaction}
           alreadyRatedTargets={ratedTargetsMap[ratingTransaction.id] ?? new Set()}
           onClose={() => setRatingTransaction(null)}
-          onRated={() => void refreshTransactions()}
+          onRated={() =>
+            void refreshTransactions().catch(() => setPageError('Could not refresh transactions.'))
+          }
         />
       )}
       {signingTransaction && (
@@ -1504,6 +1579,6 @@ export default function CustomerWorkspacePage() {
           onConfirm={handleConfirmPayment}
         />
       )}
-    </main>
+    </WorkspaceExperience>
   );
 }

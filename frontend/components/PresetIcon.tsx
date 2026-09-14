@@ -8,13 +8,14 @@ type PresetIconProps = {
 export default function PresetIcon({ src, alt, size = 32, className = '' }: PresetIconProps) {
   return (
     <span
-      role="img"
+      role={alt ? 'img' : undefined}
+      aria-hidden={alt ? undefined : true}
       aria-label={alt}
       className={`block shrink-0 ${className}`}
       style={{
         width: size,
         height: size,
-        backgroundColor: 'rgb(var(--accent))',
+        backgroundColor: 'currentColor',
         WebkitMaskImage: `url(${src})`,
         maskImage: `url(${src})`,
         WebkitMaskSize: 'contain',

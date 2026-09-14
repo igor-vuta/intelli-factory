@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 
 export type ComboboxOption = {
   id: string;
@@ -29,6 +29,9 @@ export default function Combobox({
 }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputId = useId();
+  const listId = `${inputId}-options`;
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(() => options.find((o) => o.id === value) ?? null, [options, value]);
@@ -43,6 +46,7 @@ export default function Combobox({
     onChange(option.id);
     setQuery('');
     setOpen(false);
+    setActiveIndex(0);
   }
 
   function handleClear() {
@@ -56,7 +60,7 @@ export default function Combobox({
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm text-[rgb(var(--muted))]">
+      <label htmlFor={inputId} className="text-sm text-[rgb(var(--muted))]">
         {label}
         {required && <span className="ml-1 text-red-400">*</span>}
       </label>
@@ -88,18 +92,41 @@ export default function Combobox({
         <div className="relative">
           <input
             ref={inputRef}
+            id={inputId}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={open ? listId : undefined}
+            aria-autocomplete="list"
+            aria-required={required}
+            aria-activedescendant={
+              open && filtered[activeIndex] ? `${listId}-${activeIndex}` : undefined
+            }
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
+              setActiveIndex(0);
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') setOpen(false);
-              if (e.key === 'Enter' && filtered[0]) {
+              if (e.key === 'Escape' && open) {
+                e.stopPropagation();
+                setOpen(false);
+              }
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
-                handleSelect(filtered[0]);
+                setOpen(true);
+                setActiveIndex((index) =>
+                  Math.max(
+                    0,
+                    Math.min(filtered.length - 1, index + (e.key === 'ArrowDown' ? 1 : -1))
+                  )
+                );
+              }
+              if (e.key === 'Enter' && open && filtered[activeIndex]) {
+                e.preventDefault();
+                handleSelect(filtered[activeIndex]);
               }
             }}
             placeholder={placeholder}
@@ -108,7 +135,12 @@ export default function Combobox({
           />
 
           {open && (
-            <ul className="fade-in absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl">
+            <ul
+              id={listId}
+              role="listbox"
+              aria-label={label}
+              className="fade-in absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl"
+            >
               {allowEmpty && (
                 <li
                   onMouseDown={() =>
@@ -122,10 +154,17 @@ export default function Combobox({
                   - None
                 </li>
               )}
-              {filtered.map((opt) => (
+              {filtered.map((opt, index) => (
                 <li
                   key={opt.id}
-                  onMouseDown={() => handleSelect(opt)}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={activeIndex === index}
+                  style={
+                    activeIndex === index ? { background: 'rgb(var(--accent-soft))' } : undefined
+                  }
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelect(opt)}
                   className="cursor-pointer px-3 py-2 text-sm hover:bg-[rgb(var(--stroke))]/30"
                 >
                   <span>{opt.label}</span>

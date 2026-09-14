@@ -1,3 +1,5 @@
+import { useModalDismiss } from '../hooks/useModalDismiss';
+import Modal from './Modal';
 import { FormEvent, useState } from 'react';
 
 import { submitRating, type WorkflowTransaction } from '../lib/authClient';
@@ -32,9 +34,10 @@ function StarSelector({ value, onChange }: { value: number; onChange: (v: number
 export default function RatingModal({
   transaction,
   alreadyRatedTargets,
-  onClose,
+  onClose: onDismiss,
   onRated,
 }: RatingModalProps) {
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const hasLogist = Boolean(transaction.logistic_offer_id);
   const canRateLogist = hasLogist && !alreadyRatedTargets.has('LOGIST');
   const canRateFactory = !alreadyRatedTargets.has('FACTORY');
@@ -89,11 +92,11 @@ export default function RatingModal({
     'focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm';
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      busy={submitting}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up w-full max-w-md rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -105,6 +108,7 @@ export default function RatingModal({
           </div>
           <button
             type="button"
+            disabled={submitting}
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
             aria-label="Close"
@@ -193,7 +197,12 @@ export default function RatingModal({
           )}
 
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="btn btn-ghost flex-1 text-sm">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={onClose}
+              className="btn btn-ghost flex-1 text-sm"
+            >
               Cancel
             </button>
             <button
@@ -206,6 +215,6 @@ export default function RatingModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

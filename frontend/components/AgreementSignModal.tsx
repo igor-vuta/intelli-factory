@@ -1,3 +1,5 @@
+import { useModalDismiss } from '../hooks/useModalDismiss';
+import Modal from './Modal';
 import { useMemo, useState } from 'react';
 
 import { type ContractSigningPayload, type WorkflowTransaction } from '../lib/authClient';
@@ -21,9 +23,10 @@ function formatDate(value: string) {
 export default function AgreementSignModal({
   transaction,
   busy,
-  onClose,
+  onClose: onDismiss,
   onConfirm,
 }: AgreementSignModalProps) {
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [jurisdiction, setJurisdiction] = useState('');
   const [negotiationDays, setNegotiationDays] = useState('10');
   const [disputeWindowDays, setDisputeWindowDays] = useState('5');
@@ -164,11 +167,11 @@ Date: ${contractDate}
   }, [transaction, jurisdiction, negotiationDays, disputeWindowDays, signerName, contractDate]);
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      busy={busy}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -180,6 +183,7 @@ Date: ${contractDate}
           </div>
           <button
             type="button"
+            disabled={busy}
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
           >
@@ -236,6 +240,7 @@ Date: ${contractDate}
           <input
             value={signerName}
             onChange={(e) => setSignerName(e.target.value)}
+            aria-label="Full name"
             placeholder="Type your full name to sign"
             className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
           />
@@ -246,7 +251,12 @@ Date: ${contractDate}
         </div>
 
         <div className="mt-4 flex gap-3">
-          <button type="button" onClick={onClose} className="btn btn-ghost flex-1 text-sm">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="btn btn-ghost flex-1 text-sm"
+          >
             Cancel
           </button>
           <button
@@ -268,6 +278,6 @@ Date: ${contractDate}
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,12 +1,13 @@
-import PresetIcon from '../../components/PresetIcon';
-import Link from 'next/link';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
+import WorkspaceExperience from '../../components/WorkspaceExperience';
+import { workspacePath } from '../../lib/navigation';
+import Modal from '../../components/Modal';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../../lib/authClient';
 
 import AgreementSignModal from '../../components/AgreementSignModal';
 import Combobox, { type ComboboxOption } from '../../components/Combobox';
-import LocaleSwitcher from '../../components/LocaleSwitcher';
 import SearchableInput from '../../components/SearchableInput';
 import {
   advanceTransactionFulfillment,
@@ -34,9 +35,6 @@ import {
 } from '../../lib/authClient';
 import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
-import { useTheme } from '../../hooks/useTheme';
-import { THEME_CLASSES } from '../../styles/themePresets';
 
 const TABLE_PAGE_SIZE = 5;
 
@@ -48,7 +46,8 @@ type BidModalProps = {
   onBidPlaced: () => Promise<void>;
 };
 
-function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalProps) {
+function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }: BidModalProps) {
+  const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -97,11 +96,10 @@ function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalPr
   }
 
   return (
-    <div
+    <Modal
+      id={dialogId}
+      onClose={onClose}
       className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div className="slide-up w-full max-w-lg rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] p-6 shadow-2xl sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -161,10 +159,15 @@ function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalPr
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+            <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              {error}
+            </p>
           )}
           {success && (
-            <p className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+            <p
+              role="status"
+              className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+            >
               {success}
             </p>
           )}
@@ -179,7 +182,7 @@ function BidModal({ request, inventory, copy, onClose, onBidPlaced }: BidModalPr
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -188,7 +191,6 @@ export default function FactoryWorkspacePage() {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme, setTheme] = useTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -408,7 +410,7 @@ export default function FactoryWorkspacePage() {
       try {
         const auth = await me();
         if (auth.user.role !== 'FACTORY') {
-          await router.replace(`/login?lang=${locale}`);
+          await router.replace(workspacePath(auth.user.role, locale));
           return;
         }
         const [bootstrap, entries, open, bids, txRows] = await Promise.all([
@@ -460,8 +462,12 @@ export default function FactoryWorkspacePage() {
   }, [locale, router]);
 
   async function handleLogout() {
-    await logout();
-    await router.push(`/login?lang=${locale}`);
+    try {
+      await logout();
+      await router.push(`/login?lang=${locale}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not log out. Please try again.');
+    }
   }
 
   async function handleCreateInventory(event: FormEvent) {
@@ -711,41 +717,32 @@ export default function FactoryWorkspacePage() {
   }
 
   return (
-    <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+    <WorkspaceExperience
+      role="factory"
+      loading={loading}
+      error={error}
+      counts={[
+        openRequests.length,
+        inventory.length,
+        transactions.filter((tx) => tx.status !== 'COMPLETED').length,
+      ]}
+      items={openRequests.map((row) => ({
+        id: row.id,
+        title: row.item_name ?? row.requested_name_text ?? 'Supply request',
+        status: row.status,
+        detail: `${row.quantity} ${row.quantity_unit} · ${row.preferred_currency_code}`,
+        action: () => setBidTarget(row),
+        actionLabel: 'Place a bid',
+      }))}
+      onLogout={handleLogout}
     >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
-          >
-            <PresetIcon
-              src="/presets/factory.svg"
-              alt="Factory workspace"
-              size={32}
-              className="rounded-md"
-            />
-            <span>{copy.brand}</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher currentLocale={locale} basePath="/app/factory" />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} />
-            <button type="button" onClick={handleLogout} className="btn btn-ghost text-sm">
-              {copy.logout}
-            </button>
-          </div>
-        </header>
-
+      <div className="workspace-panels">
         {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>}
-        {error && (
-          <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
-        )}
 
         {!loading && (
           <>
             {/* Open Requests (PENDING) */}
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
+            <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
               <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
                 {copy.factoryWorkspaceTitle}
               </h1>
@@ -753,7 +750,9 @@ export default function FactoryWorkspacePage() {
                 {copy.factoryWorkspaceSubtitle}
               </p>
 
-              <h2 className="mt-6 text-lg font-semibold">{copy.openRequestsTitle}</h2>
+              <h2 id="requests" className="mt-6 text-lg font-semibold">
+                {copy.openRequestsTitle}
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.openRequestsSubtitle}</p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -895,8 +894,10 @@ export default function FactoryWorkspacePage() {
             </section>
 
             {/* My Bids  */}
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 className="text-lg font-semibold">{copy.myBidsTitle}</h2>
+            <section data-section="bids" className="surface-1 rounded-2xl p-6 sm:p-8">
+              <h2 id="bids" className="text-lg font-semibold">
+                {copy.myBidsTitle}
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.myBidsSubtitle}</p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-4">
@@ -1029,8 +1030,10 @@ export default function FactoryWorkspacePage() {
               )}
             </section>
 
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 className="text-lg font-semibold">Contract & Fulfillment Workflow</h2>
+            <section data-section="workflow" className="surface-1 rounded-2xl p-6 sm:p-8">
+              <h2 id="workflow" className="text-lg font-semibold">
+                Contract & Fulfillment Workflow
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
                 Sign selected contracts, then start and progress fulfillment after payment is
                 confirmed.
@@ -1191,8 +1194,10 @@ export default function FactoryWorkspacePage() {
             </section>
 
             {/* Add Inventory */}
-            <section className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h2 className="text-lg font-semibold">{copy.addInventoryTitle}</h2>
+            <section data-section="inventory" className="surface-1 rounded-2xl p-6 sm:p-8">
+              <h2 id="inventory" className="text-lg font-semibold">
+                {copy.addInventoryTitle}
+              </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.addInventorySubtitle}</p>
               {success && (
                 <p className="mt-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
@@ -1533,6 +1538,6 @@ export default function FactoryWorkspacePage() {
           onConfirm={handleConfirmSignFromAgreement}
         />
       )}
-    </main>
+    </WorkspaceExperience>
   );
 }

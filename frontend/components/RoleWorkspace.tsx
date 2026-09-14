@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { logout, me, type AuthUser } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import { THEME_CLASSES, type Theme } from '../styles/themePresets';
+import { useTheme } from '../hooks/useTheme';
 
 type RoleWorkspaceProps = {
   expectedRole: AuthUser['role'];
@@ -16,7 +16,7 @@ export default function RoleWorkspace({ expectedRole }: RoleWorkspaceProps) {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  const [theme] = useState<Theme>('midnightCore');
+  useTheme();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,22 +53,24 @@ export default function RoleWorkspace({ expectedRole }: RoleWorkspaceProps) {
   }, [expectedRole, locale, router]);
 
   async function handleLogout() {
-    await logout();
-    await router.push(`/login?lang=${locale}`);
+    try {
+      await logout();
+      await router.push(`/login?lang=${locale}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not log out. Please try again.');
+    }
   }
 
   return (
-    <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
-    >
+    <main className={`min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
         <header className="flex items-center justify-between">
           <Link
-            href="/"
+            href={`/?lang=${locale}`}
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
             <Image
-              src="/favicon/favicon.svg"
+              src="/presets/brand.svg"
               alt="Intelli-Factory logo"
               width={32}
               height={32}

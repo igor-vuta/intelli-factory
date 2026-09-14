@@ -1,5 +1,5 @@
 // Free-text input with autocomplete suggestion dropdown.
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 
 import { type ComboboxOption } from './Combobox';
 
@@ -25,6 +25,9 @@ export default function SearchableInput({
   disabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputId = useId();
+  const listId = `${inputId}-options`;
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -36,7 +39,6 @@ export default function SearchableInput({
   function pickSuggestion(opt: ComboboxOption) {
     onChange(opt.label, opt.id);
     setOpen(false);
-    inputRef.current?.blur();
   }
 
   const base =
@@ -46,22 +48,45 @@ export default function SearchableInput({
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm text-[rgb(var(--muted))]">
+      <label htmlFor={inputId} className="text-sm text-[rgb(var(--muted))]">
         {label}
         {required && <span className="ml-1 text-red-400">*</span>}
       </label>
       <div className="relative">
         <input
           ref={inputRef}
+          id={inputId}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={open ? listId : undefined}
+          aria-autocomplete="list"
+          aria-required={required}
+          aria-activedescendant={
+            open && filtered[activeIndex] ? `${listId}-${activeIndex}` : undefined
+          }
           value={text}
-          onChange={(e) => onChange(e.target.value, '')}
+          onChange={(e) => {
+            onChange(e.target.value, '');
+            setActiveIndex(0);
+            setOpen(true);
+          }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={(e) => {
-            if (e.key === 'Escape') setOpen(false);
-            if (e.key === 'Enter' && filtered[0]) {
+            if (e.key === 'Escape' && open) {
+              e.stopPropagation();
+              setOpen(false);
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
               e.preventDefault();
-              pickSuggestion(filtered[0]);
+              setOpen(true);
+              setActiveIndex((index) =>
+                Math.max(0, Math.min(filtered.length - 1, index + (e.key === 'ArrowDown' ? 1 : -1)))
+              );
+            }
+            if (e.key === 'Enter' && open && filtered[activeIndex]) {
+              e.preventDefault();
+              pickSuggestion(filtered[activeIndex]);
             }
           }}
           placeholder={placeholder}
@@ -77,11 +102,23 @@ export default function SearchableInput({
         )}
 
         {open && (
-          <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl">
-            {filtered.map((opt) => (
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label={label}
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] shadow-xl"
+          >
+            {filtered.map((opt, index) => (
               <li
                 key={opt.id}
-                onMouseDown={() => pickSuggestion(opt)}
+                id={`${listId}-${index}`}
+                role="option"
+                aria-selected={activeIndex === index}
+                style={
+                  activeIndex === index ? { background: 'rgb(var(--accent-soft))' } : undefined
+                }
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => pickSuggestion(opt)}
                 className={`cursor-pointer px-3 py-2 text-sm hover:bg-[rgb(var(--stroke))]/30 ${
                   opt.id === selectedId ? 'font-medium text-emerald-300' : ''
                 }`}

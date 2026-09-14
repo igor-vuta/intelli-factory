@@ -1,3 +1,4 @@
+import AuthStory from '../components/AuthStory';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -7,7 +8,6 @@ import { resendVerificationEmail, verifyEmail } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import { useTheme } from '../hooks/useTheme';
-import { THEME_CLASSES } from '../styles/themePresets';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -39,9 +39,7 @@ export default function VerifyEmailPage() {
     try {
       await verifyEmail(token.trim());
       setSuccess(copy.verifyEmailSuccess);
-      setTimeout(() => {
-        void router.push(`/login?lang=${locale}`);
-      }, 900);
+      await router.push(`/login?lang=${locale}`);
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : copy.verifyEmailFailed);
     } finally {
@@ -67,16 +65,17 @@ export default function VerifyEmailPage() {
 
   return (
     <main
-      className={`${THEME_CLASSES[theme]} min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+      className={`auth-screen min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
     >
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+      <AuthStory />
+      <div className="auth-form-column mx-auto flex w-full max-w-xl flex-col gap-5">
         <header className="flex items-center justify-between">
           <Link
-            href="/"
+            href={`/?lang=${locale}`}
             className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
           >
             <PresetIcon
-              src="/favicon/favicon.svg"
+              src="/presets/brand.svg"
               alt="Intelli-Factory"
               size={32}
               className="rounded-md"
@@ -107,10 +106,15 @@ export default function VerifyEmailPage() {
             </div>
 
             {error && (
-              <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+              <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {error}
+              </p>
             )}
             {success && (
-              <p className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+              <p
+                role="status"
+                className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+              >
                 {success}
               </p>
             )}
