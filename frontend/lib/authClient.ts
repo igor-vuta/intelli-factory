@@ -286,7 +286,7 @@ export function register(input: {
   // Legacy flat address
   address?: string;
   preferred_currency_code: string;
-  phone?: string;
+  phone: string;
   contact_name?: string;
   // Logist-only: seed first logistic offer
   initial_offer_base_price?: number;

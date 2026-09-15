@@ -1,5 +1,8 @@
 import { ProfileSettingsButton } from './Preferences';
 import { useExperienceCopy } from '../hooks/useExperienceCopy';
+import GettingStarted from './GettingStarted';
+import GuidanceHint from './GuidanceHint';
+import { sectionHints } from '../lib/guidance';
 import { useState, type ReactNode } from 'react';
 import Modal from './Modal';
 import ReorderableCards from './ReorderableCards';
@@ -19,6 +22,7 @@ export type WorkItem = {
   moveToRoad?: () => void;
 };
 type Props = {
+  guidance?: { userId: string; completed: boolean[] };
   role: Role;
   children: ReactNode;
   loading: boolean;
@@ -97,6 +101,7 @@ function Arrow() {
 }
 
 export default function WorkspaceExperience({
+  guidance,
   role,
   children,
   loading,
@@ -275,6 +280,16 @@ export default function WorkspaceExperience({
         </header>
         {role !== 'factory' && nav}
         {role === 'factory' && <div className="factory-mobile-nav">{nav}</div>}
+        {role !== 'admin' && !loading && guidance && (
+          <GettingStarted
+            key={`${role}:${guidance.userId}`}
+            role={role}
+            userId={guidance.userId}
+            completed={guidance.completed}
+            onNavigate={navigate}
+          />
+        )}
+        {role !== 'admin' && <GuidanceHint hint={sectionHints[role][view] ?? 'workflow'} />}
         {error && (
           <p role="alert" className="experience-error">
             {error}

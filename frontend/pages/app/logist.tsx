@@ -1,4 +1,6 @@
 import SelectField from '../../components/SelectField';
+import GuidanceHint from '../../components/GuidanceHint';
+import OrderGuidance from '../../components/OrderGuidance';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -157,6 +159,7 @@ function QuoteModal({ bid, currencies, onClose: onDismiss, onQuoted }: QuoteModa
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">Quote Delivery</h2>
+            <GuidanceHint hint="quote" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               Factory: {bid.factory_legal_name ?? 'N/A'} - Item: {bid.item_name ?? 'N/A'} -{' '}
               {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)} @{' '}
@@ -384,6 +387,7 @@ export default function LogistWorkspacePage() {
   const copy = t(locale);
 
   const [loading, setLoading] = useState(true);
+  const [guidanceUserId, setGuidanceUserId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const [currencies, setCurrencies] = useState<BootstrapCurrency[]>([]);
@@ -537,6 +541,7 @@ export default function LogistWorkspacePage() {
         ]);
         if (cancelled) return;
         setCurrencies(bootstrap.currencies);
+        setGuidanceUserId(bootstrap.user.id);
         setFactoryBids(bids);
         setTransactions(txRows);
         setLogisticOffers(offers);
@@ -726,6 +731,23 @@ export default function LogistWorkspacePage() {
   return (
     <WorkspaceExperience
       role="logist"
+      guidance={
+        guidanceUserId
+          ? {
+              userId: guidanceUserId,
+              completed: [
+                logisticOffers.length > 0,
+                factoryBids.some((bid) => bid.has_my_quote) || transactions.length > 0,
+                transactions.some(
+                  (transaction) => transaction.signature_status.LOGIST === 'SIGNED'
+                ),
+                transactions.some((transaction) =>
+                  ['IN_PROGRESS', 'COMPLETED'].includes(transaction.status)
+                ),
+              ],
+            }
+          : undefined
+      }
       loading={loading}
       error={error}
       counts={[
@@ -1226,6 +1248,7 @@ export default function LogistWorkspacePage() {
                               {tx.signature_status.LOGIST}
                             </td>
                             <td className="py-2">
+                              <OrderGuidance transaction={tx} />
                               <div className="flex flex-wrap gap-1">
                                 {tx.can_sign && (
                                   <button

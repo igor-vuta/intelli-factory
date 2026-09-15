@@ -1,4 +1,5 @@
 import { experienceTranslations } from '../lib/experienceI18n';
+import { guidanceText } from '../lib/guidance';
 import { test, expect, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -6,10 +7,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 const roles = ['customer', 'factory', 'logist', 'admin'] as const;
-async function mockApi(page: Page, role = 'CUSTOMER', authorized = true) {
+async function mockApi(page: Page, role = 'CUSTOMER', authorized = true, userId = 'test-user') {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const user = { id: 'test-user', email: 'test@example.com', role, is_email_verified: true };
+    const user = { id: userId, email: 'test@example.com', role, is_email_verified: true };
     if (path === '/api/auth/me' || path === '/api/auth/login') {
       await route.fulfill({
         status: authorized ? 200 : 401,
@@ -699,17 +700,33 @@ test('registration custom controls submit codes and accept a free-text address',
   await page.locator('#email').fill('dropdown@example.test');
   await page.locator('#password').fill('Localtest123!');
   await page.locator('#confirmPassword').fill('Localtest123!');
-  await page.locator('#displayName').fill('Dropdown test');
   await page.locator('#role').click();
   await page.getByRole('option', { name: 'Factory', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.locator('#displayName').fill('Dropdown test');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('#phone')).toBeFocused();
+  await page.locator('#phone').fill('invalid');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('form').getByRole('alert')).toContainText('7–15 digits');
+  expect(payload).toBeUndefined();
+  await page.locator('#phone').fill('+7 700 000 0000');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   const country = page.getByRole('combobox', { name: /Country/ });
   await country.click();
   await page.getByRole('option', { name: 'Kazakhstan', exact: true }).click();
   await page.getByRole('combobox', { name: /Region/ }).fill('My region');
   await page.getByRole('combobox', { name: /City/ }).fill('My city');
+  await expect(page.getByText('City not listed?', { exact: false }).first()).toBeVisible();
   await page.getByRole('textbox', { name: /Street/ }).fill('Test street 10');
   await page.locator('#currency').click();
   await page.getByRole('option', { name: /KZT/ }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('.registration-review')).toContainText('My city');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: /City/ })).toHaveValue('My city');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await noOverflow(page);
   await page
     .locator('form')
     .getByRole('button', { name: /Create account/i })
@@ -720,5 +737,66 @@ test('registration custom controls submit codes and accept a free-text address',
     region_name: 'My region',
     city_name: 'My city',
     preferred_currency_code: 'KZT',
+    phone: '+7 700 000 0000',
+  });
+});
+
+for (const role of ['customer', 'factory', 'logist'] as const) {
+  for (const locale of ['en', 'ru', 'kk'] as const) {
+    test(`${role} ${locale}: onboarding checklist navigates and remembers dismissal per account`, async ({
+      page,
+    }) => {
+      await mockApi(page, role.toUpperCase());
+      await page.goto(`/app/${role}?lang=${locale}`);
+      const checklist = page.getByRole('region', { name: guidanceText(locale, 'checklist') });
+      await expect(checklist).toBeVisible();
+      await checklist.locator('summary').first().click();
+      await checklist
+        .getByRole('button', { name: guidanceText(locale, 'openStep') })
+        .first()
+        .click();
+      await expect(page).toHaveURL(
+        new RegExp(
+          `view=${role === 'customer' ? 'requests' : role === 'factory' ? 'inventory' : 'offers'}`
+        )
+      );
+      await expect(page).toHaveURL(new RegExp(`lang=${locale}`));
+      await noOverflow(page);
+      await checklist.getByRole('button', { name: guidanceText(locale, 'hide') }).click();
+      await page.reload();
+      await expect(
+        checklist.getByRole('button', { name: guidanceText(locale, 'show') })
+      ).toBeVisible();
+      await mockApi(page, role.toUpperCase(), true, 'second-user');
+      await page.reload();
+      await expect(checklist.locator('summary')).toHaveCount(role === 'customer' ? 5 : 4);
+      await checklist.getByRole('button', { name: guidanceText(locale, 'hide') }).click();
+      await checklist.getByRole('button', { name: guidanceText(locale, 'show') }).click();
+      await expect(checklist.locator('summary').first()).toBeVisible();
+    });
+  }
+}
+
+test('registration keeps entered account details when stepping back', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/register?role=FACTORY&lang=en');
+  await page.locator('#email').fill('factory@example.test');
+  await page.locator('#password').fill('Localtest123!');
+  await page.locator('#confirmPassword').fill('different-password');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('form').getByRole('alert')).toContainText('Passwords do not match');
+  await page.locator('#confirmPassword').fill('Localtest123!');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('.registration-step-heading')).toBeFocused();
+  await page.locator('#displayName').fill('Factory name');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.locator('#email')).toHaveValue('factory@example.test');
+  await expect(page.locator('#role')).toHaveValue('Factory');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.locator('#displayName')).toHaveValue('Factory name');
+  await noOverflow(page);
+  await page.screenshot({
+    path: `/private/tmp/intelli-registration-${test.info().project.name}.png`,
+    fullPage: true,
   });
 });

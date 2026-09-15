@@ -1,4 +1,5 @@
 import { useExperienceCopy } from '../hooks/useExperienceCopy';
+import GuidanceHint from '../components/GuidanceHint';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -105,6 +106,7 @@ export default function Home() {
               {copy.openDashboard}
             </Link>
           </div>
+          <GuidanceHint hint="landing" />
 
           <div className="mt-7 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
             <Metric title={e('<1s')} subtitle={copy.matchingReaction} />
@@ -163,6 +165,15 @@ export default function Home() {
             />
             <h3 className="text-xl font-semibold">{role.title}</h3>
             <p className="mt-1 text-[rgb(var(--muted))]">{role.subtitle}</p>
+            <GuidanceHint
+              hint={
+                role.role === 'CUSTOMER'
+                  ? 'customerRole'
+                  : role.role === 'FACTORY'
+                    ? 'factoryRole'
+                    : 'logistRole'
+              }
+            />
             <ul className="mt-3 list-disc space-y-1 pl-5 text-[rgb(var(--text-soft))]">
               {role.bullets.map((bullet) => (
                 <li key={bullet}>{e(bullet)}</li>
