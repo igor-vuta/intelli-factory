@@ -2517,3 +2517,159 @@ a {
     transition: none;
   }
 }
+.guidance-hint {
+  margin: 0.65rem 0 1rem;
+  color: rgb(var(--muted));
+  font-size: 0.875rem;
+  line-height: 1.65;
+  max-width: 75ch;
+  overflow-wrap: anywhere;
+}
+
+td .guidance-hint {
+  min-width: 12rem;
+  max-width: 28rem;
+  font-size: 0.8rem;
+}
+
+.getting-started {
+  margin: 1rem 0;
+  padding: 1.25rem;
+  border: 1px solid rgb(var(--stroke));
+  border-radius: 1rem;
+  background: rgb(var(--panel));
+}
+
+.getting-started-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.getting-started-heading h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.getting-started-heading p {
+  color: rgb(var(--muted));
+  font-size: 0.8rem;
+}
+.getting-started-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+.getting-started-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.getting-started-number {
+  flex-shrink: 0;
+  padding-top: 0.65rem;
+  color: rgb(var(--accent));
+}
+.getting-started-list details {
+  flex: 1;
+  min-width: 0;
+}
+.getting-started-list summary {
+  cursor: pointer;
+  padding: 0.65rem 0;
+  font-weight: 500;
+}
+.getting-started-list details p {
+  color: rgb(var(--muted));
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.getting-started-link {
+  min-height: 44px;
+  text-align: left;
+  color: rgb(var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.getting-started button:focus-visible,
+.getting-started summary:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 3px;
+}
+.registration-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+.registration-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgb(var(--muted));
+  overflow-wrap: anywhere;
+}
+.registration-steps li[aria-current='step'] {
+  color: rgb(var(--text));
+  font-weight: 600;
+}
+.registration-steps li > span {
+  border-top: 3px solid rgb(var(--stroke));
+  padding-top: 0.5rem;
+}
+.registration-steps li[aria-current='step'] > span {
+  border-color: rgb(var(--accent));
+}
+.registration-step-heading {
+  font-size: 1.15rem;
+  font-weight: 600;
+  scroll-margin-top: 1rem;
+}
+.registration-actions {
+  display: flex;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+.registration-actions .btn {
+  min-height: 48px;
+}
+.registration-form fieldset {
+  min-width: 0;
+}
+.registration-form fieldset[hidden] {
+  display: none;
+}
+.registration-review > div {
+  padding: 1rem 0;
+  border-bottom: 1px solid rgb(var(--stroke));
+}
+.registration-review dt {
+  color: rgb(var(--muted));
+  font-size: 0.8rem;
+}
+.registration-review dd {
+  margin: 0.4rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .auth-form-column .registration-form input {
+    min-height: 48px;
+    font-size: 16px;
+  }
+  .auth-form-column:has(.registration-form) > .surface-1 {
+    padding: 1.25rem;
+  }
+  .getting-started {
+    padding: 1rem;
+  }
+  .getting-started-heading .btn {
+    white-space: normal;
+    text-align: left;
+  }
+}

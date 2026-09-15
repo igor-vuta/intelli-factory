@@ -1,4 +1,6 @@
 import SelectField from '../../components/SelectField';
+import GuidanceHint from '../../components/GuidanceHint';
+import OrderGuidance from '../../components/OrderGuidance';
 import { dissolve } from '../../lib/dissolve';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
@@ -156,6 +158,7 @@ function ProposalsModal({
         <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] p-6 sm:p-8">
           <div>
             <h2 className="text-lg font-semibold">Proposals for your request</h2>
+            <GuidanceHint hint="proposals" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               {e('Request')} {requestId.slice(0, 8)}… &mdash; Select the best offer.
             </p>
@@ -609,6 +612,7 @@ function NewRequestModal({
             <span>01</span>
             <h3>{e('What do you need?')}</h3>
           </div>
+          <GuidanceHint hint="request" />
           <SearchableInput
             suggestions={categoryOptions}
             text={categoryText}
@@ -644,6 +648,7 @@ function NewRequestModal({
             <span>02</span>
             <h3>{e('Quantity & budget')}</h3>
           </div>
+          <GuidanceHint hint="quantity" />
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="request-quantity" className="text-sm text-[rgb(var(--muted))]">
@@ -696,6 +701,7 @@ function NewRequestModal({
             <span>03</span>
             <h3>{e('Where should it arrive?')}</h3>
           </div>
+          <GuidanceHint hint="address" />
           <div className="flex flex-col gap-2">
             <label className="text-sm text-[rgb(var(--muted))]">
               {e('Destination address')} <span className="text-red-400">*</span>
@@ -823,6 +829,7 @@ export default function CustomerWorkspacePage() {
   const copy = t(locale);
 
   const [loading, setLoading] = useState(true);
+  const [guidanceUserId, setGuidanceUserId] = useState('');
   const [pageError, setPageError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<BootstrapCategory[]>([]);
@@ -982,6 +989,7 @@ export default function CustomerWorkspacePage() {
         setCategories(bootstrap.categories);
         setItems(bootstrap.items);
         setCurrencies(bootstrap.currencies);
+        setGuidanceUserId(bootstrap.user.id);
         setCountries(bootstrap.countries ?? []);
         setAddresses(bootstrap.addresses);
         setBootstrapUser({
@@ -1135,6 +1143,22 @@ export default function CustomerWorkspacePage() {
   return (
     <WorkspaceExperience
       role="customer"
+      guidance={
+        guidanceUserId
+          ? {
+              userId: guidanceUserId,
+              completed: [
+                requests.length > 0,
+                transactions.length > 0,
+                transactions.some(
+                  (transaction) => transaction.signature_status.CUSTOMER === 'SIGNED'
+                ),
+                transactions.some((transaction) => transaction.payment_status === 'CAPTURED'),
+                transactions.some((transaction) => transaction.status === 'COMPLETED'),
+              ],
+            }
+          : undefined
+      }
       loading={loading}
       error={pageError}
       counts={[
@@ -1436,7 +1460,7 @@ export default function CustomerWorkspacePage() {
                               {e('Status')}{' '}
                             </span>
                             {e(tx.status)}
-                            <OrderProgress status={e(tx.status)} />
+                            <OrderProgress status={tx.status} />
                           </td>
                           <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
                             <span className="record-label" aria-hidden="true">
@@ -1454,6 +1478,7 @@ export default function CustomerWorkspacePage() {
                             {e(tx.payment_status)})
                           </td>
                           <td className="py-2">
+                            <OrderGuidance transaction={tx} />
                             <span className="record-label" aria-hidden="true">
                               {e('Next step')}{' '}
                             </span>

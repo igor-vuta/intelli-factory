@@ -1,4 +1,6 @@
 import SelectField from '../../components/SelectField';
+import GuidanceHint from '../../components/GuidanceHint';
+import OrderGuidance from '../../components/OrderGuidance';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
@@ -107,6 +109,7 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">{copy.placeBidTitle}</h2>
+            <GuidanceHint hint="bid" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               Request: {request.item_name ?? request.requested_name_text ?? 'N/A'}
               {' \u2014 '}
@@ -195,6 +198,7 @@ export default function FactoryWorkspacePage() {
   const copy = t(locale);
 
   const [loading, setLoading] = useState(true);
+  const [guidanceUserId, setGuidanceUserId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -429,6 +433,7 @@ export default function FactoryWorkspacePage() {
         setAddresses(bootstrap.addresses);
         setCountries(bootstrap.countries ?? []);
         setCurrencies(bootstrap.currencies);
+        setGuidanceUserId(bootstrap.user.id);
         setInventory(entries);
         setOpenRequests(open);
         setMyBids(bids);
@@ -727,6 +732,23 @@ export default function FactoryWorkspacePage() {
   return (
     <WorkspaceExperience
       role="factory"
+      guidance={
+        guidanceUserId
+          ? {
+              userId: guidanceUserId,
+              completed: [
+                inventory.length > 0,
+                myBids.length > 0,
+                transactions.some(
+                  (transaction) => transaction.signature_status.FACTORY === 'SIGNED'
+                ),
+                transactions.some((transaction) =>
+                  ['FULFILLMENT_STARTED', 'IN_PROGRESS', 'COMPLETED'].includes(transaction.status)
+                ),
+              ],
+            }
+          : undefined
+      }
       loading={loading}
       error={error}
       counts={[
@@ -1120,6 +1142,7 @@ export default function FactoryWorkspacePage() {
                               {tx.signature_status.LOGIST}
                             </td>
                             <td className="py-2">
+                              <OrderGuidance transaction={tx} />
                               <div className="flex flex-wrap gap-1">
                                 {tx.can_sign && (
                                   <button

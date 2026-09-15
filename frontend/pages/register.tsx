@@ -1,10 +1,12 @@
 import SelectField from '../components/SelectField';
+import GuidanceHint from '../components/GuidanceHint';
+import { guidanceText, type GuidanceKey } from '../lib/guidance';
 import LocaleSwitcher from '../components/LocaleSwitcher';
 import AuthStory from '../components/AuthStory';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 
 import AddressPicker, { type AddressValue } from '../components/AddressPicker';
 import {
@@ -33,6 +35,18 @@ export default function RegisterPage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
+  const guide = (key: GuidanceKey) => guidanceText(locale, key);
+  const [step, setStep] = useState(0);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const stepTitles: GuidanceKey[] = ['accountStep', 'profileStep', 'locationStep', 'reviewStep'];
+  function goToStep(next: number) {
+    setError(null);
+    setStep(next);
+    requestAnimationFrame(() => {
+      stepHeading.current?.focus();
+      stepHeading.current?.scrollIntoView({ block: 'start' });
+    });
+  }
 
   const [theme, setTheme] = useTheme();
 
@@ -122,6 +136,29 @@ export default function RegisterPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (loading || success) return;
+    if (step < 3) {
+      if (step === 0 && password !== confirmPassword) {
+        setError(copy.mismatchPassword);
+        return;
+      }
+      if (step === 1 && !validPhone(phone)) {
+        setError(guide('phoneError'));
+        return;
+      }
+      if (
+        step === 2 &&
+        (!addressValue?.countryCode ||
+          !addressValue.regionName.trim() ||
+          !addressValue.cityName.trim() ||
+          !addressValue.street.trim())
+      ) {
+        setError(copy.addressHint);
+        return;
+      }
+      goToStep(step + 1);
+      return;
+    }
     setError(null);
     setSuccess(null);
 
@@ -149,8 +186,9 @@ export default function RegisterPage() {
       return;
     }
 
-    if (phone.trim() && (phone.trim().length < 7 || phone.trim().length > 15)) {
-      setError('Phone number must be 7–15 characters.');
+    if (!validPhone(phone)) {
+      goToStep(1);
+      setError(guide('phoneError'));
       return;
     }
 
@@ -186,7 +224,7 @@ export default function RegisterPage() {
         role,
         display_name: displayName,
         contact_name: contactName.trim() || undefined,
-        phone: phone.trim() || undefined,
+        phone: phone.trim(),
         country_code: addressValue!.countryCode,
         region_name: addressValue!.regionName,
         city_name: addressValue!.cityName,
@@ -243,232 +281,331 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-semibold sm:text-3xl">{copy.registerTitle}</h1>
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.registerSubtitle}</p>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.email}
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+          <ol className="registration-steps" aria-label={copy.registerTitle}>
+            {stepTitles.map((title, index) => (
+              <li key={title} aria-current={step === index ? 'step' : undefined}>
+                <span aria-hidden>{index < step ? '✓' : index + 1}</span>
+                {guide(title)}
+              </li>
+            ))}
+          </ol>
+          <h2 ref={stepHeading} tabIndex={-1} className="registration-step-heading">
+            {step + 1} / 4 · {guide(stepTitles[step])}
+          </h2>
+          <form onSubmit={handleSubmit} className="registration-form mt-6 space-y-4">
+            <fieldset hidden={step !== 0} disabled={step !== 0 || loading} className="space-y-6">
+              <GuidanceHint hint="account" />
               <div>
-                <label htmlFor="password" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                  {copy.password}
+                <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.email}
                 </label>
                 <input
-                  id="password"
-                  type="password"
+                  id="email"
+                  type="email"
                   required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
                 />
               </div>
+
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="password" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                    {copy.password}
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="confirmPassword"
+                    className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                  >
+                    {copy.confirmPassword}
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="mb-1 block text-sm text-[rgb(var(--muted))]"
-                >
-                  {copy.confirmPassword}
+                <label htmlFor="role" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.role}
                 </label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  required
-                  minLength={8}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                <SelectField
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
                   className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                >
+                  {roles.map((entry) => (
+                    <option key={entry.value} value={entry.value}>
+                      {entry.value === 'CUSTOMER'
+                        ? locale === 'ru'
+                          ? 'Заказчик'
+                          : locale === 'kk'
+                            ? 'Тапсырыс беруші'
+                            : 'Customer'
+                        : entry.value === 'FACTORY'
+                          ? locale === 'ru'
+                            ? 'Производитель'
+                            : locale === 'kk'
+                              ? 'Өндіруші'
+                              : 'Factory'
+                          : locale === 'ru'
+                            ? 'Перевозчик'
+                            : locale === 'kk'
+                              ? 'Тасымалдаушы'
+                              : 'Logist'}
+                    </option>
+                  ))}
+                </SelectField>
+                <GuidanceHint
+                  hint={
+                    role === 'CUSTOMER'
+                      ? 'customerRole'
+                      : role === 'FACTORY'
+                        ? 'factoryRole'
+                        : 'logistRole'
+                  }
                 />
               </div>
-            </div>
-
-            <div>
-              <label htmlFor="role" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.role}
-              </label>
-              <SelectField
-                id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              >
-                {roles.map((entry) => (
-                  <option key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
-
-            <div>
-              <label htmlFor="displayName" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {role === 'FACTORY'
-                  ? copy.legalName
-                  : role === 'LOGIST'
-                    ? copy.companyName
-                    : copy.displayName}
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                required
-                minLength={2}
-                maxLength={120}
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              />
-            </div>
-
-            {role !== 'CUSTOMER' && (
+            </fieldset>
+            <fieldset hidden={step !== 1} disabled={step !== 1 || loading} className="space-y-6">
+              <GuidanceHint hint="identity" />
               <div>
                 <label
-                  htmlFor="contactName"
+                  htmlFor="displayName"
                   className="mb-1 block text-sm text-[rgb(var(--muted))]"
                 >
-                  {copy.contactNameOptional}
+                  {role === 'FACTORY'
+                    ? copy.legalName
+                    : role === 'LOGIST'
+                      ? copy.companyName
+                      : copy.displayName}
                 </label>
                 <input
-                  id="contactName"
+                  id="displayName"
                   type="text"
+                  required
+                  minLength={2}
                   maxLength={120}
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="e.g. Jane Smith"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
                 />
               </div>
-            )}
 
-            <div>
-              <label className="mb-1 block text-sm text-[rgb(var(--muted))]">{copy.address}</label>
-              <AddressPicker
-                value={addressValue}
-                onChange={setAddressValue}
-                countries={countries}
-                countriesLoading={countriesLoading}
-                required
-              />
-            </div>
+              {role !== 'CUSTOMER' && (
+                <div>
+                  <label
+                    htmlFor="contactName"
+                    className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                  >
+                    {copy.contactNameOptional}
+                  </label>
+                  <input
+                    id="contactName"
+                    type="text"
+                    maxLength={120}
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="e.g. Jane Smith"
+                    className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                  />
+                </div>
+              )}
 
-            <div>
-              <label htmlFor="currency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.currency}
-              </label>
-              <SelectField
-                id="currency"
-                value={currencyCode}
-                onChange={(e) => setCurrencyCode(e.target.value)}
-                required
-                disabled={currenciesLoading || currencies.length === 0}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              >
-                {currencies.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {formatCurrencyOptionLabel(item.code, item.name)}
-                  </option>
-                ))}
-              </SelectField>
-              <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.currencyHint}</p>
-            </div>
+              <div>
+                <label htmlFor="phone" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.phone} *
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  maxLength={30}
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  aria-describedby="registration-phone-hint"
+                  placeholder="+7 700 000 0000"
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                />
+                <GuidanceHint id="registration-phone-hint" hint="phoneHint" />
+              </div>
+            </fieldset>
+            <fieldset hidden={step !== 2} disabled={step !== 2 || loading} className="space-y-6">
+              <GuidanceHint hint="address" />
+              <div>
+                <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.address}
+                </label>
+                <AddressPicker
+                  value={addressValue}
+                  onChange={setAddressValue}
+                  countries={countries}
+                  countriesLoading={countriesLoading}
+                  required
+                />
+              </div>
 
-            <div>
-              <label htmlFor="phone" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.phoneOptional}
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                maxLength={15}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+7 700 000 0000"
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              />
-            </div>
+              <div>
+                <label htmlFor="currency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.currency}
+                </label>
+                <SelectField
+                  id="currency"
+                  value={currencyCode}
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  required
+                  disabled={currenciesLoading || currencies.length === 0}
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                >
+                  {currencies.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {formatCurrencyOptionLabel(item.code, item.name)}
+                    </option>
+                  ))}
+                </SelectField>
+                <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.currencyHint}</p>
+              </div>
 
-            {/* Logist seed initial delivery offer */}
-            {role === 'LOGIST' && (
-              <details
-                open={showLogistOffer}
-                onToggle={(e) => setShowLogistOffer((e.currentTarget as HTMLDetailsElement).open)}
-                className="rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-4 py-3"
-              >
-                <summary className="cursor-pointer select-none text-sm font-medium text-[rgb(var(--muted))]">
-                  {copy.setupDeliveryProfile}
-                </summary>
+              {/* Logist seed initial delivery offer */}
+              {role === 'LOGIST' && (
+                <details
+                  open={showLogistOffer}
+                  onToggle={(e) => setShowLogistOffer((e.currentTarget as HTMLDetailsElement).open)}
+                  className="rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-4 py-3"
+                >
+                  <summary className="cursor-pointer select-none text-sm font-medium text-[rgb(var(--muted))]">
+                    {copy.setupDeliveryProfile}
+                  </summary>
 
-                <div className="mt-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="mt-4 space-y-4">
+                    <GuidanceHint hint="optionalService" />
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="initialOfferBasePrice"
+                          className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                        >
+                          {copy.initialOfferBasePrice}
+                        </label>
+                        <input
+                          id="initialOfferBasePrice"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={initialOfferBasePrice}
+                          onChange={(e) => setInitialOfferBasePrice(e.target.value)}
+                          className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="initialOfferCurrency"
+                          className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                        >
+                          {copy.initialOfferCurrency}
+                        </label>
+                        <SelectField
+                          id="initialOfferCurrency"
+                          value={initialOfferCurrency}
+                          onChange={(e) => setInitialOfferCurrency(e.target.value)}
+                          disabled={currenciesLoading || currencies.length === 0}
+                          className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
+                        >
+                          <option value="">-</option>
+                          {currencies.map((item) => (
+                            <option key={item.code} value={item.code}>
+                              {formatCurrencyOptionLabel(item.code, item.name)}
+                            </option>
+                          ))}
+                        </SelectField>
+                      </div>
+                    </div>
+
                     <div>
                       <label
-                        htmlFor="initialOfferBasePrice"
+                        htmlFor="initialOfferDescription"
                         className="mb-1 block text-sm text-[rgb(var(--muted))]"
                       >
-                        {copy.initialOfferBasePrice}
+                        {copy.initialOfferDescription}
                       </label>
-                      <input
-                        id="initialOfferBasePrice"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={initialOfferBasePrice}
-                        onChange={(e) => setInitialOfferBasePrice(e.target.value)}
-                        className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
+                      <textarea
+                        id="initialOfferDescription"
+                        rows={3}
+                        maxLength={500}
+                        value={initialOfferDescription}
+                        onChange={(e) => setInitialOfferDescription(e.target.value)}
+                        className="focus-theme w-full resize-none rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2 text-sm"
                       />
                     </div>
-                    <div>
-                      <label
-                        htmlFor="initialOfferCurrency"
-                        className="mb-1 block text-sm text-[rgb(var(--muted))]"
-                      >
-                        {copy.initialOfferCurrency}
-                      </label>
-                      <SelectField
-                        id="initialOfferCurrency"
-                        value={initialOfferCurrency}
-                        onChange={(e) => setInitialOfferCurrency(e.target.value)}
-                        disabled={currenciesLoading || currencies.length === 0}
-                        className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2"
-                      >
-                        <option value="">-</option>
-                        {currencies.map((item) => (
-                          <option key={item.code} value={item.code}>
-                            {formatCurrencyOptionLabel(item.code, item.name)}
-                          </option>
-                        ))}
-                      </SelectField>
+                  </div>
+                </details>
+              )}
+            </fieldset>
+            {step === 3 && (
+              <section aria-label={guide('reviewStep')}>
+                <GuidanceHint hint="review" />
+                <dl className="registration-review">
+                  {[
+                    [copy.email, email],
+                    [
+                      copy.role,
+                      guide(
+                        role === 'CUSTOMER'
+                          ? 'customerRole'
+                          : role === 'FACTORY'
+                            ? 'factoryRole'
+                            : 'logistRole'
+                      ),
+                    ],
+                    [
+                      role === 'FACTORY'
+                        ? copy.legalName
+                        : role === 'LOGIST'
+                          ? copy.companyName
+                          : copy.displayName,
+                      displayName,
+                    ],
+                    [copy.phone, phone],
+                    [
+                      copy.address,
+                      [
+                        addressValue?.street,
+                        addressValue?.cityName,
+                        addressValue?.regionName,
+                        addressValue?.countryCode,
+                      ]
+                        .filter(Boolean)
+                        .join(', '),
+                    ],
+                    [copy.currency, currencyCode],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt>{label}</dt>
+                      <dd>{value}</dd>
                     </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="initialOfferDescription"
-                      className="mb-1 block text-sm text-[rgb(var(--muted))]"
-                    >
-                      {copy.initialOfferDescription}
-                    </label>
-                    <textarea
-                      id="initialOfferDescription"
-                      rows={3}
-                      maxLength={500}
-                      value={initialOfferDescription}
-                      onChange={(e) => setInitialOfferDescription(e.target.value)}
-                      className="focus-theme w-full resize-none rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-              </details>
+                  ))}
+                </dl>
+              </section>
             )}
 
             {error && (
@@ -485,13 +622,25 @@ export default function RegisterPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full justify-center"
-            >
-              {loading ? '...' : copy.register}
-            </button>
+            <div className="registration-actions">
+              {step > 0 && (
+                <button
+                  type="button"
+                  disabled={loading || !!success}
+                  className="btn btn-ghost"
+                  onClick={() => goToStep(step - 1)}
+                >
+                  {guide('back')}
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={loading || !!success}
+                className="btn btn-primary w-full justify-center"
+              >
+                {loading ? '...' : step < 3 ? guide('continue') : copy.register}
+              </button>
+            </div>
           </form>
 
           <div className="mt-5 flex items-center justify-between text-sm text-[rgb(var(--muted))]">
@@ -514,4 +663,9 @@ export default function RegisterPage() {
       </div>
     </main>
   );
+}
+
+function validPhone(value: string) {
+  const digits = value.replace(/\D/g, '');
+  return /^\+?[\d().\s-]+$/.test(value.trim()) && digits.length >= 7 && digits.length <= 15;
 }
