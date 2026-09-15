@@ -106,6 +106,7 @@ export default function PaymentMockupModal({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">Payment Mockup Checkout</h2>
+            <GuidanceHint hint="payment" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               Demo payment UI for transaction {transaction.id.slice(0, 8)}... This is a mock flow.
             </p>
@@ -281,3 +282,4 @@ export default function PaymentMockupModal({
     </Modal>
   );
 }
+import GuidanceHint from './GuidanceHint';

@@ -177,6 +177,7 @@ Date: ${contractDate}
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">Contract Review & Signature</h2>
+            <GuidanceHint hint="sign" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               Review the agreement, complete remaining blanks, then sign as {transaction.my_role}.
             </p>
@@ -281,3 +282,4 @@ Date: ${contractDate}
     </Modal>
   );
 }
+import GuidanceHint from './GuidanceHint';

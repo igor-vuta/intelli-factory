@@ -18,6 +18,9 @@ const labels = {
     city: 'City',
     selectCity: 'Select or type a city…',
     cityExample: 'e.g. Almaty',
+    customCity:
+      'City not listed? Type its full name and continue. You do not need to choose a suggestion.',
+    customRegion: 'Region not listed? Type its full name and continue.',
     street: 'Street',
     streetExample: 'Abay Ave 10',
     postal: 'Postal code',
@@ -33,6 +36,9 @@ const labels = {
     city: 'Город',
     selectCity: 'Выберите или введите город…',
     cityExample: 'Например, Алматы',
+    customCity:
+      'Нет вашего города? Введите полное название и продолжайте. Выбирать подсказку необязательно.',
+    customRegion: 'Нет вашего региона? Введите полное название и продолжайте.',
     street: 'Улица и дом',
     streetExample: 'Проспект Абая, 10',
     postal: 'Почтовый индекс',
@@ -48,6 +54,9 @@ const labels = {
     city: 'Қала',
     selectCity: 'Қаланы таңдаңыз немесе енгізіңіз…',
     cityExample: 'Мысалы, Алматы',
+    customCity:
+      'Қалаңыз тізімде жоқ па? Толық атауын жазып, жалғастырыңыз. Ұсынылған нұсқаны таңдау міндетті емес.',
+    customRegion: 'Өңіріңіз тізімде жоқ па? Толық атауын жазып, жалғастырыңыз.',
     street: 'Көше және үй',
     streetExample: 'Абай даңғылы, 10',
     postal: 'Пошта индексі',
@@ -204,8 +213,13 @@ export default function AddressPicker({
                 onTextChange={(value) => update({ regionName: value, cityName: '' })}
                 required={required}
                 placeholder={hasRegionData ? copy.selectRegion : copy.regionExample}
+                emptyMessage={copy.customRegion}
+                aria-describedby={`${fieldId}-region-hint`}
                 className={INPUT_CLS}
               />
+              <p id={`${fieldId}-region-hint`} className="guidance-hint">
+                {copy.customRegion}
+              </p>
             </>
           )}
         </div>
@@ -230,8 +244,13 @@ export default function AddressPicker({
               onTextChange={(value) => update({ cityName: value })}
               required={required}
               placeholder={hasCityData ? copy.selectCity : copy.cityExample}
+              emptyMessage={copy.customCity}
+              aria-describedby={`${fieldId}-city-hint`}
               className={INPUT_CLS}
             />
+            <p id={`${fieldId}-city-hint`} className="guidance-hint">
+              {copy.customCity}
+            </p>
           </>
         </div>
       )}

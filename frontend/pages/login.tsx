@@ -1,4 +1,5 @@
 import { rememberLocale } from '../lib/localePreference';
+import GuidanceHint from '../components/GuidanceHint';
 import AuthStory from '../components/AuthStory';
 import { workspacePath } from '../lib/navigation';
 import PresetIcon from '../components/PresetIcon';
@@ -74,6 +75,7 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.loginSubtitle}</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <GuidanceHint hint="login" />
             <div>
               <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.email}

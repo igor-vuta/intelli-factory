@@ -21,7 +21,7 @@ export default function OrderProgress({ status }: { status: string }) {
           aria-current={index === current ? 'step' : undefined}
         >
           <i aria-hidden>{index < current ? '✓' : index + 1}</i>
-          <span>{step}</span>
+          <span>{e(step)}</span>
         </li>
       ))}
     </ol>

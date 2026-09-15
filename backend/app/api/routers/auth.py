@@ -84,7 +84,7 @@ class RegisterRequest(BaseModel):
     street: str | None = Field(None, max_length=300)
     postal_code: str | None = Field(None, max_length=20)
     preferred_currency_code: str = Field(..., min_length=3, max_length=3)
-    phone: str | None = Field(None, max_length=30)
+    phone: str = Field(..., min_length=7, max_length=30)
     contact_name: str | None = Field(None, max_length=120)
     # Logist-only
     initial_offer_base_price: float | None = Field(None, ge=0)
@@ -95,6 +95,15 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_email_field(cls, value: str) -> str:
         return _validate_auth_email(value)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone_field(cls, value: str) -> str:
+        phone = value.strip()
+        digits = re.sub(r"\D", "", phone)
+        if not re.fullmatch(r"\+?[0-9().\s-]+", phone) or not 7 <= len(digits) <= 15:
+            raise ValueError("Phone number must contain 7–15 digits with optional formatting")
+        return phone
 
 
 class RegisterResponse(BaseModel):
