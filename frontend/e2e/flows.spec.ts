@@ -133,7 +133,7 @@ test('role entry links preselect registration and public routes fit viewport', a
   await mockApi(page);
   await page.goto('/');
   await page.locator('a[href="/register?role=FACTORY&lang=en"]').click();
-  await expect(page.locator('#role')).toHaveValue('FACTORY');
+  await expect(page.locator('#role')).toHaveValue('Factory');
   await noOverflow(page);
   await page.goto('/verify-email');
   await expect(page.locator('h1:visible')).toBeVisible();
@@ -232,6 +232,7 @@ test('failed cancellation is visible and the action can be retried', async ({ pa
   await page.getByRole('button', { name: 'My requests', exact: false }).click();
   const cancel = page.getByRole('button', { name: /cancel/i });
   await cancel.click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(page.getByText('This request has already been matched.')).toBeVisible();
   await expect(cancel).toBeEnabled();
 });
@@ -456,4 +457,233 @@ test('language survives bare URLs and reloads while explicit links override it',
   await page.goto('/?lang=en');
   await page.goto('/login');
   await expect(page).toHaveURL(/lang=en/);
+});
+
+test('card ordering persists and the left navigation sheet works', async ({ page }) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: ['Steel', 'Copper', 'Aluminium'].map((name, index) => ({
+        id: `request-${index}`,
+        item_name: name,
+        quantity: '10',
+        quantity_unit: 'kg',
+        status: 'PENDING',
+        created_at: '2026-09-14T00:00:00Z',
+      })),
+    })
+  );
+  await page.goto('/app/customer?lang=en');
+  const cards = page.locator('.reorder-card');
+  await expect(cards).toHaveCount(3);
+  await cards
+    .first()
+    .getByRole('button', { name: /Rearrange/ })
+    .press('ArrowRight');
+  await expect(cards.first()).toContainText('Copper');
+  await page.reload();
+  await expect(cards.first()).toContainText('Copper');
+  await page.getByRole('button', { name: 'Workspace sections', exact: true }).click();
+  const drawer = page.getByRole('dialog');
+  await expect(drawer).toHaveAttribute('data-side', 'left');
+  await drawer.getByRole('button', { name: /My requests/ }).click();
+  await expect(drawer).toHaveCount(0);
+  await expect(page).toHaveURL(/view=requests/);
+});
+
+test('request sheet is translated and fits the viewport', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/app/customer?lang=kk');
+  await page.locator('.customer-hero button').click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Сізге не қажет?');
+  await expect(dialog).toContainText('Қайда жеткізу керек?');
+  await expect(dialog).not.toContainText('Choose a category');
+  await noOverflow(page);
+  await dialog.evaluate(async (node) => {
+    await Promise.all(
+      node
+        .getAnimations({ subtree: true })
+        .map((animation) => animation.finished.catch(() => undefined))
+    );
+  });
+  await page.screenshot({ path: `/private/tmp/intelli-request-${test.info().project.name}.png` });
+});
+
+test('dragging between delivery lanes requires confirmation and a failed update preserves status', async ({
+  page,
+}) => {
+  await mockApi(page, 'LOGIST');
+  await page.route('**/api/transactions/mine', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'delivery-1',
+          request_id: 'request-1',
+          item_name: 'Steel',
+          status: 'PAYMENT_CONFIRMED',
+          can_start_fulfillment: true,
+          total_cost: '1000',
+          currency_code: 'KZT',
+          signature_status: { CUSTOMER: 'SIGNED', FACTORY: 'SIGNED', LOGIST: 'SIGNED' },
+        },
+      ],
+    })
+  );
+  let mutations = 0;
+  await page.route('**/api/transactions/delivery-1/**', (route) => {
+    mutations += 1;
+    return route.fulfill({ status: 409, json: { detail: 'Delivery cannot start yet.' } });
+  });
+  await page.goto('/app/logist?lang=en');
+  const card = page.locator('.lane-0 .reorder-card');
+  await expect(card).toBeVisible();
+  const grip = card.getByRole('button', { name: /Rearrange/ });
+  const target = page.locator('.lane-1');
+  if (test.info().project.name === 'desktop') {
+    await grip.scrollIntoViewIfNeeded();
+    await page.locator('.experience-overview').evaluate(async (node) => {
+      await Promise.all(
+        node
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => undefined))
+      );
+    });
+    const start = await grip.boundingBox();
+    const end = await target.boundingBox();
+    if (!start || !end) throw new Error('Missing drag geometry');
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(end.x + end.width / 2, end.y + 80, { steps: 12 });
+    await page.mouse.up();
+  } else {
+    await card.getByRole('button', { name: 'Start delivery' }).click();
+  }
+  const confirmation = page.getByRole('dialog');
+  await expect(confirmation).toBeVisible();
+  expect(mutations).toBe(0);
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(card).toBeVisible();
+  expect(mutations).toBe(0);
+  await card.getByRole('button', { name: 'Start delivery' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(page.getByText('Delivery cannot start yet.')).toBeVisible();
+  await expect(card).toContainText('payment confirmed');
+  expect(mutations).toBe(1);
+});
+
+test('custom filters search, select and restore values without native dropdowns', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: ['PENDING', 'CANCELLED'].map((status, index) => ({
+        id: `choice-${index}`,
+        item_name: index ? 'Copper' : 'Steel',
+        quantity: '10',
+        quantity_unit: 'kg',
+        status,
+        created_at: '2026-09-14T00:00:00Z',
+      })),
+    })
+  );
+  await page.goto('/app/customer?view=requests&lang=en');
+  expect(await page.locator('select, datalist').count()).toBe(0);
+  const status = page.getByRole('combobox', { name: 'Status', exact: true });
+  await status.click();
+  await status.fill('cancel');
+  await page.getByRole('option', { name: 'CANCELLED', exact: true }).click();
+  await expect(status).toHaveValue('CANCELLED');
+  await expect(page.locator('tbody')).toContainText('Copper');
+  await expect(page.locator('tbody')).not.toContainText('Steel');
+  await status.click();
+  await status.fill('not a status');
+  await expect(page.getByText('No matches found')).toBeVisible();
+  await status.press('Escape');
+  await expect(status).toHaveValue('CANCELLED');
+  await status.click();
+  await status.press('Home');
+  await status.press('Enter');
+  await expect(page.locator('tbody')).toContainText('Steel');
+});
+
+test('custom selector stays inside the viewport and Escape keeps its sheet open', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto('/app/customer?lang=en');
+  await page.locator('.customer-hero button').click();
+  const dialog = page.getByRole('dialog');
+  const currency = dialog.getByRole('combobox', { name: 'Currency', exact: true });
+  await currency.click();
+  const list = page.getByRole('listbox');
+  await expect(list).toBeVisible();
+  const bounds = await list.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(bounds).toBeTruthy();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+  await list.evaluate(async (node) => {
+    await Promise.all(node.getAnimations().map((a) => a.finished));
+  });
+  await page.screenshot({ path: `/private/tmp/intelli-popup-${test.info().project.name}.png` });
+  await currency.press('Escape');
+  await expect(list).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(currency).toBeFocused();
+  await currency.click();
+  await page.getByRole('option', { name: /KZT/ }).click();
+  await expect(currency).toHaveValue(/KZT/);
+  await dialog.screenshot({
+    path: `/private/tmp/intelli-custom-dropdown-${test.info().project.name}.png`,
+  });
+});
+
+for (const role of roles) {
+  test(`${role}: all workspace filters are custom controls`, async ({ page }) => {
+    await mockApi(page, role.toUpperCase());
+    await page.goto(`/app/${role}?lang=en`);
+    expect(await page.locator('select, datalist').count()).toBe(0);
+  });
+}
+
+test('registration custom controls submit codes and accept a free-text address', async ({
+  page,
+}) => {
+  await mockApi(page);
+  let payload: Record<string, unknown> | undefined;
+  await page.route('**/api/auth/register', async (route) => {
+    payload = route.request().postDataJSON();
+    await route.fulfill({ json: { status: 'success', message: 'Check your email' } });
+  });
+  await page.goto('/register?lang=en');
+  await page.locator('#email').fill('dropdown@example.test');
+  await page.locator('#password').fill('Localtest123!');
+  await page.locator('#confirmPassword').fill('Localtest123!');
+  await page.locator('#displayName').fill('Dropdown test');
+  await page.locator('#role').click();
+  await page.getByRole('option', { name: 'Factory', exact: true }).click();
+  const country = page.getByRole('combobox', { name: /Country/ });
+  await country.click();
+  await page.getByRole('option', { name: 'Kazakhstan', exact: true }).click();
+  await page.getByRole('combobox', { name: /Region/ }).fill('My region');
+  await page.getByRole('combobox', { name: /City/ }).fill('My city');
+  await page.getByRole('textbox', { name: /Street/ }).fill('Test street 10');
+  await page.locator('#currency').click();
+  await page.getByRole('option', { name: /KZT/ }).click();
+  await page
+    .locator('form')
+    .getByRole('button', { name: /Create account/i })
+    .click();
+  await expect.poll(() => payload?.role).toBe('FACTORY');
+  expect(payload).toMatchObject({
+    country_code: 'KZ',
+    region_name: 'My region',
+    city_name: 'My city',
+    preferred_currency_code: 'KZT',
+  });
 });

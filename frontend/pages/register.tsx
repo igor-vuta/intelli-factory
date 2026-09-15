@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField';
 import LocaleSwitcher from '../components/LocaleSwitcher';
 import AuthStory from '../components/AuthStory';
 import PresetIcon from '../components/PresetIcon';
@@ -295,7 +296,7 @@ export default function RegisterPage() {
               <label htmlFor="role" className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.role}
               </label>
-              <select
+              <SelectField
                 id="role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as UserRole)}
@@ -306,7 +307,7 @@ export default function RegisterPage() {
                     {entry.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
 
             <div>
@@ -364,7 +365,7 @@ export default function RegisterPage() {
               <label htmlFor="currency" className="mb-1 block text-sm text-[rgb(var(--muted))]">
                 {copy.currency}
               </label>
-              <select
+              <SelectField
                 id="currency"
                 value={currencyCode}
                 onChange={(e) => setCurrencyCode(e.target.value)}
@@ -377,7 +378,7 @@ export default function RegisterPage() {
                     {formatCurrencyOptionLabel(item.code, item.name)}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               <p className="mt-1 text-xs text-[rgb(var(--muted))]">{copy.currencyHint}</p>
             </div>
 
@@ -433,7 +434,7 @@ export default function RegisterPage() {
                       >
                         {copy.initialOfferCurrency}
                       </label>
-                      <select
+                      <SelectField
                         id="initialOfferCurrency"
                         value={initialOfferCurrency}
                         onChange={(e) => setInitialOfferCurrency(e.target.value)}
@@ -446,7 +447,7 @@ export default function RegisterPage() {
                             {formatCurrencyOptionLabel(item.code, item.name)}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </div>
                   </div>
 
