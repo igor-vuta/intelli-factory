@@ -3,14 +3,17 @@
 import logging
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from routers.auth import _ensure_db_connection
+from routers.requests import require_roles
 from services.optimization_engine import OptimizationEngine
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# Optimisation runs, comparisons and demo seeding are admin operations.
+router = APIRouter(dependencies=[Depends(_ensure_db_connection), Depends(require_roles("ADMIN"))])
 
 class OptimizeRequest(BaseModel):
     request_id: str = Field(..., description="DB Request UUID")
@@ -109,6 +112,12 @@ async def optimize_compare(request: OptimizeRequest):
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
 
+    # Scored candidates carry their ORM record for persistence; never serialise it.
+    for strategy in ("greedy", "fast", "deep"):
+        result[strategy] = [
+            {key: value for key, value in item.items() if key != "_orm"}
+            for item in result.get(strategy, [])
+        ]
     return result
 
 
