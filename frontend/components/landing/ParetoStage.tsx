@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useColorMode } from '../../hooks/useColorMode';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import type { Scenario } from '../../lib/benchmarkShowcase';
@@ -6,7 +6,17 @@ import { DEFAULT_CAMERA, FLOOR, TOP, type Vec3, project, worldPoints } from '../
 import type { StageHandles } from '../../lib/paretoStage3d';
 import ParetoStill from './ParetoStill';
 
-type Marker = { key: string; text: string; point: Vec3; kind: 'axis' | 'marker' };
+type MarkerKey = 'cost' | 'days' | 'reliability' | 'pick' | 'cheapest' | 'knee';
+type Marker = { key: MarkerKey; point: Vec3; kind: 'axis' | 'marker' };
+
+const MARKER_TEXT: Record<MarkerKey, string> = {
+  cost: 'cost',
+  days: 'days',
+  reliability: 'reliability',
+  pick: 'weighted pick',
+  cheapest: 'cheapest',
+  knee: 'knee',
+};
 
 function webglAvailable() {
   try {
@@ -47,18 +57,21 @@ export default function ParetoStage({
   const stage = useRef<StageHandles | null>(null);
   const [live, setLive] = useState(false);
   const pick = scenario.picks.fast;
-  const points = worldPoints(scenario.pool);
 
-  const markers: Marker[] = [
-    { key: 'cost', text: e('cost'), point: [0, FLOOR, 1.28], kind: 'axis' },
-    { key: 'days', text: e('days'), point: [-1.3, FLOOR, 0], kind: 'axis' },
-    { key: 'reliability', text: e('reliability'), point: [-1, TOP + 0.14, -1], kind: 'axis' },
-    { key: 'pick', text: e('weighted pick'), point: points[pick], kind: 'marker' },
-    { key: 'cheapest', text: e('cheapest'), point: points[scenario.picks.greedy], kind: 'marker' },
-    ...(scenario.knee !== null && scenario.knee !== pick
-      ? [{ key: 'knee', text: e('knee'), point: points[scenario.knee], kind: 'marker' as const }]
-      : []),
-  ];
+  // Where each label sits depends only on the scenario; its text follows the locale.
+  const markers = useMemo<Marker[]>(() => {
+    const points = worldPoints(scenario.pool);
+    return [
+      { key: 'cost', point: [0, FLOOR, 1.28], kind: 'axis' },
+      { key: 'days', point: [-1.3, FLOOR, 0], kind: 'axis' },
+      { key: 'reliability', point: [-1, TOP + 0.14, -1], kind: 'axis' },
+      { key: 'pick', point: points[pick], kind: 'marker' },
+      { key: 'cheapest', point: points[scenario.picks.greedy], kind: 'marker' },
+      ...(scenario.knee !== null && scenario.knee !== pick
+        ? [{ key: 'knee' as const, point: points[scenario.knee], kind: 'marker' as const }]
+        : []),
+    ];
+  }, [scenario, pick]);
 
   // Place labels for the still; the WebGL stage takes over their transforms when live.
   useLayoutEffect(() => {
@@ -81,7 +94,7 @@ export default function ParetoStage({
     const observer = new ResizeObserver(place);
     observer.observe(element);
     return () => observer.disconnect();
-  });
+  }, [markers, live]);
 
   useEffect(() => {
     const element = host.current;
@@ -121,9 +134,7 @@ export default function ParetoStage({
       stage.current?.destroy();
       stage.current = null;
     };
-    // The scene is built once per scenario; markers derive from it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenario, pick]);
+  }, [scenario, pick, markers]);
 
   useEffect(() => {
     if (host.current) stage.current?.setPalette(readPalette(host.current));
@@ -178,7 +189,7 @@ export default function ParetoStage({
               }}
               className={`pareto-label pareto-label-${marker.kind} pareto-label-${marker.key}`}
             >
-              {marker.text}
+              {e(MARKER_TEXT[marker.key])}
             </span>
           ))}
         </div>

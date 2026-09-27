@@ -163,13 +163,13 @@ export function mountStage(
   const position = new THREE.Vector3();
 
   // Offers rise from the floor in order of cost, then the surface and markers fade in.
+  const byCost = points.map((p, i) => [p[0], i]).sort((a, b) => a[0] - b[0]);
+  const costRank = new Map(byCost.map(([, i], r) => [i, r / Math.max(1, byCost.length - 1)]));
   function layout(progress: number) {
     const positions = surfaceGeometry.attributes.position as THREE.BufferAttribute;
     const drops = dropGeometry.attributes.position as THREE.BufferAttribute;
-    const order = points.map((p, i) => [p[0], i]).sort((a, b) => a[0] - b[0]);
-    const rank = new Map(order.map(([, i], r) => [i, r / Math.max(1, order.length - 1)]));
     const heightAt = (i: number) => {
-      const local = Math.min(1, Math.max(0, (progress - (rank.get(i) ?? 0) * 0.45) / 0.55));
+      const local = Math.min(1, Math.max(0, (progress - (costRank.get(i) ?? 0) * 0.45) / 0.55));
       return FLOOR + (points[i][1] - FLOOR) * easeOut(local);
     };
     const place = (mesh: THREE.InstancedMesh, list: number[], size: number) => {

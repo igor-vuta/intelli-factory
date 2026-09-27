@@ -124,6 +124,15 @@ export default function TradeoffExplorer({ initial }: { initial: Scenario }) {
   const scores = useMemo(() => weightedScores(scenario.pool, weights), [scenario, weights]);
   const pick = useMemo(() => weightedPick(scenario.pool, weights), [scenario, weights]);
   const cheapest = greedyPick(scenario.pool);
+  // Arrow keys walk the offers from cheapest to most expensive.
+  const byCost = useMemo(
+    () =>
+      scenario.pool
+        .map((c, i) => [c.cost, i])
+        .sort((a, b) => a[0] - b[0])
+        .map(([, i]) => i),
+    [scenario]
+  );
   const front = useMemo(() => new Set(scenario.front), [scenario]);
   const isEngineDefault = WEIGHT_KEYS.every(
     (k) => Math.abs(weights[k] - benchmark.weights[k]) < 0.005
@@ -203,22 +212,23 @@ export default function TradeoffExplorer({ initial }: { initial: Scenario }) {
               'Offers by total cost and delivery days. Use the arrow keys to move between offers.'
             )}
             onKeyDown={(event) => {
-              const order = scenario.pool
-                .map((c, i) => [c.cost, i])
-                .sort((a, b) => a[0] - b[0])
-                .map(([, i]) => i);
-              const at = order.indexOf(active ?? order[0]);
-              const next =
-                event.key === 'ArrowRight' || event.key === 'ArrowDown'
-                  ? order[Math.min(order.length - 1, at + (active === null ? 0 : 1))]
-                  : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-                    ? order[Math.max(0, at - 1)]
-                    : event.key === 'Escape'
-                      ? null
-                      : undefined;
-              if (next === undefined) return;
+              if (event.key === 'Escape') {
+                setActive(null);
+                return;
+              }
+              const steps: Record<string, number> = {
+                ArrowRight: 1,
+                ArrowDown: 1,
+                ArrowLeft: -1,
+                ArrowUp: -1,
+              };
+              const step = steps[event.key];
+              if (step === undefined) return;
               event.preventDefault();
-              setActive(next);
+              // The first press selects the cheapest offer; later presses move along.
+              const at = active === null ? -step : byCost.indexOf(active);
+              const next = Math.min(byCost.length - 1, Math.max(0, at + step));
+              setActive(byCost[next]);
             }}
             onBlur={() => setActive(null)}
           >

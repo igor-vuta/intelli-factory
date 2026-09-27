@@ -891,13 +891,8 @@
   }
 }
 
+/* identity.css already collapses animations and transitions; these change layout and state. */
 @media (prefers-reduced-motion: reduce) {
-  .landing-hero h1 span,
-  .landing-hero-lead,
-  .landing-actions,
-  .pareto-stage {
-    animation: none;
-  }
   .lifecycle-track::after {
     transform: none;
   }
@@ -905,9 +900,6 @@
     transition: none;
     background: var(--if-text);
     border-color: var(--if-text);
-  }
-  .offer {
-    transition: none;
   }
   .tradeoffs-steps li {
     min-height: 0;
