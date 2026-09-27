@@ -164,6 +164,7 @@ test('real registration and verification link complete through the UI', async ({
     password: 'Localtest123!',
     role: 'CUSTOMER',
     display_name: 'Local UX Customer',
+    phone: '+7 700 000 0000',
     country_code: 'KZ',
     region_name: 'Almaty Region',
     city_name: 'Almaty',

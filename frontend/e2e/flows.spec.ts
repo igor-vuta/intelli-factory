@@ -445,6 +445,7 @@ test('language survives bare URLs and reloads while explicit links override it',
 }) => {
   await mockApi(page);
   await page.goto('/?lang=kk');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'kk');
   await page.goto('/login');
   await expect(page).toHaveURL(/lang=kk/);
   await page.reload();
@@ -456,6 +457,7 @@ test('language survives bare URLs and reloads while explicit links override it',
   await page.goto('/verify-email?token=sample');
   await expect(page).toHaveURL(/token=sample&lang=ru/);
   await page.goto('/?lang=en');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await page.goto('/login');
   await expect(page).toHaveURL(/lang=en/);
 });
