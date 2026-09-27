@@ -188,10 +188,6 @@ body {
   background: rgba(0, 0, 0, 0.08);
 }
 
-.theme-modern-light .orb {
-  opacity: 0.05;
-}
-
 .theme-modern-light .surface-1 {
   box-shadow:
     0 1px 3px rgb(0 0 0 / 0.06),
@@ -308,41 +304,6 @@ body {
 
 .btn-lg {
   @apply px-5 py-2.5;
-}
-
-.orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(34px);
-  opacity: 0.34;
-  pointer-events: none;
-  animation: float 11s ease-in-out infinite;
-}
-
-.orb-1 {
-  width: 280px;
-  height: 280px;
-  background: rgb(var(--accent));
-  left: -80px;
-  top: 50px;
-}
-
-.orb-2 {
-  width: 240px;
-  height: 240px;
-  background: color-mix(in srgb, rgb(var(--accent)) 55%, cyan);
-  right: -50px;
-  top: 120px;
-  animation-delay: -2.5s;
-}
-
-.orb-3 {
-  width: 200px;
-  height: 200px;
-  background: color-mix(in srgb, rgb(var(--accent)) 65%, violet);
-  right: 20%;
-  bottom: -60px;
-  animation-delay: -4.2s;
 }
 
 .ticker {
@@ -479,16 +440,6 @@ tbody tr:hover {
   }
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, -16px, 0);
-  }
-}
-
 @keyframes pulse {
   0%,
   100% {
@@ -615,7 +566,6 @@ tbody tr:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orb,
   .ticker,
   .pulse,
   .btn,
@@ -717,11 +667,6 @@ header {
   gap: 1rem;
   flex-wrap: wrap;
 }
-.orb {
-  opacity: 0.1;
-  animation: none;
-  filter: blur(70px);
-}
 .stat-card {
   animation: none;
 }
@@ -773,10 +718,6 @@ header {
 .theme-menu button:hover {
   background: rgb(var(--panel));
 }
-.landing {
-  max-width: 1600px;
-  margin: 0 auto;
-}
 .modal-backdrop {
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -786,9 +727,6 @@ header {
   overflow-y: auto;
 }
 @media (max-width: 640px) {
-  .landing header > div:first-child {
-    font-size: 14px;
-  }
   input:not([type='checkbox']):not([type='radio']),
   select,
   textarea {

@@ -1,4 +1,5 @@
 import InteractionMotion from '../components/InteractionMotion';
+import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
@@ -8,6 +9,22 @@ import { rememberLocale, rememberedLocale, validLocale } from '../lib/localePref
 import { me } from '../lib/authClient';
 import '../styles/globals.css';
 import '../styles/experience.css';
+import '../styles/identity.css';
+import '../styles/landing.css';
+
+// Latin + Cyrillic (Russian and Kazakh letters live in both Cyrillic subsets).
+const plexSans = IBM_Plex_Sans({
+  subsets: ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext'],
+  weight: ['400', '500', '600'],
+  variable: '--font-plex-sans',
+  display: 'swap',
+});
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin', 'cyrillic', 'cyrillic-ext'],
+  weight: ['400', '500'],
+  variable: '--font-plex-mono',
+  display: 'swap',
+});
 
 export default function App({ Component, pageProps }: AppProps) {
   useTheme();
@@ -49,8 +66,10 @@ export default function App({ Component, pageProps }: AppProps) {
   if (!router.isReady || !validLocale(router.query.lang)) return null;
   return (
     <ErrorBoundary>
-      <InteractionMotion />
-      <Component {...pageProps} />
+      <div className={`contents ${plexSans.variable} ${plexMono.variable}`}>
+        <InteractionMotion />
+        <Component {...pageProps} />
+      </div>
     </ErrorBoundary>
   );
 }

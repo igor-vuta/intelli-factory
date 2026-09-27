@@ -60,7 +60,11 @@ async function chooseTheme(page: Page, name: string) {
 
 test('themes persist across navigation and reload; language is retained', async ({ page }) => {
   await mockApi(page);
+  // The landing moved to the single light/dark identity (M1); the legacy theme picker still
+  // lives on the other pages until M2, so the persistence check starts from the landing's login link.
   await page.goto('/?lang=ru');
+  await page.locator('nav a[href="/login?lang=ru"]').click();
+  await expect(page).toHaveURL(/login\?lang=ru/);
   for (const [name, css] of [
     ['Pearl', 'modern-light'],
     ['Grove', 'whatsapp-emerald'],
@@ -71,8 +75,7 @@ test('themes persist across navigation and reload; language is retained', async 
     await noOverflow(page);
   }
   await chooseTheme(page, 'Pearl');
-  await page.locator('nav a[href="/login?lang=ru"]').click();
-  await expect(page).toHaveURL(/login\?lang=ru/);
+  await page.goto('/register?lang=ru');
   await page.reload();
   await expect(page.locator('html')).toHaveClass('theme-modern-light');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
@@ -248,8 +251,16 @@ test('unavailable storage and reduced motion do not break public routes', async 
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
+  await expect(page.locator('h1:visible')).toBeVisible();
+  // Reduced motion never loads the WebGL stage; the still is the scene.
+  await expect(page.locator('.pareto-still')).toBeVisible();
+  await expect(page.locator('.pareto-canvas')).toHaveCount(0);
+  await page.getByRole('radio', { name: 'Light' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await noOverflow(page);
+  await page.goto('/login');
   await chooseTheme(page, 'Pearl');
-  await expect(page.locator('html')).toHaveClass('theme-modern-light');
+  await expect(page.locator('html')).toHaveClass(/theme-modern-light/);
   expect(await page.locator('html').evaluate((el) => getComputedStyle(el).scrollBehavior)).toBe(
     'auto'
   );
@@ -417,14 +428,14 @@ for (const locale of ['ru', 'kk'] as const) {
   });
 }
 
-test('landing feed and role features translate every entry when switching languages', async ({
+test('landing lifecycle and role features translate every entry when switching languages', async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto('/?lang=en');
-  const rows = page.locator('.landing-hero li');
+  const rows = page.locator('.lifecycle-track strong');
   const features = page.locator('.landing-role-grid li');
-  await expect(rows).toHaveCount(6);
+  await expect(rows).toHaveCount(8);
   await expect(features).toHaveCount(9);
   const englishRows = await rows.allTextContents();
   const englishFeatures = await features.allTextContents();
@@ -766,4 +777,29 @@ test('registration keeps entered account details when stepping back', async ({ p
     path: `/private/tmp/intelli-registration-${test.info().project.name}.png`,
     fullPage: true,
   });
+});
+
+test('landing colour mode persists and the trade-off explorer works from the keyboard', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto('/?lang=en');
+  await page.getByRole('radio', { name: 'Light' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await expect(page.getByRole('radio', { name: 'Light' })).toBeChecked();
+
+  await page.getByRole('button', { name: 'Weighted choice' }).click();
+  const chart = page.getByRole('group', { name: /Offers by total cost/ });
+  await chart.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.tradeoffs-readout')).toContainText('Offer');
+  await expect(page.getByText('engine default', { exact: true })).toBeVisible();
+  await page.getByRole('slider', { name: /Cost/ }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByText('engine default', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reset to engine default' }).click();
+  await expect(page.getByText('engine default', { exact: true })).toBeVisible();
+  await noOverflow(page);
 });

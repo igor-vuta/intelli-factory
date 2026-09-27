@@ -1,0 +1,202 @@
+/* The single Intelli-Factory identity (DESIGN.md §3): graphite surfaces, one amber accent,
+   IBM Plex. Scoped to .identity while M1 ships only the landing page; old theme classes still
+   drive the workspaces until M2. Inside the scope the legacy tokens (--bg, --card, --stroke…)
+   are redefined, so shared components render in the new identity unchanged. */
+
+.identity {
+  --if-bg: #0e1214;
+  --if-surface: #151b1e;
+  --if-raised: #1c2428;
+  --if-line: #2b353a;
+  --if-text: #e9edef;
+  --if-muted: #9ba7ad;
+  --if-accent: #f0a43a;
+  --if-accent-ink: #1b1206;
+  --if-success: #5dbb8e;
+  --if-danger: #ee7066;
+  --if-obj-cost: #6fa8dc;
+  --if-obj-time: #c792d8;
+  --if-obj-rel: #7cc4a4;
+  --if-dominated: #6a777e;
+  --if-glow: 240 164 58;
+
+  /* Legacy tokens as RGB triplets for rgb(var(--token) / alpha). */
+  --bg: 14 18 20;
+  --card: 21 27 30;
+  --panel: 28 36 40;
+  --stroke: 43 53 58;
+  --stroke-muted: 43 53 58;
+  --text: 233 237 239;
+  --text-soft: 233 237 239;
+  --muted: 155 167 173;
+  --accent: 240 164 58;
+  --accent-soft: 28 36 40;
+
+  --if-font: var(--font-plex-sans), 'IBM Plex Sans', system-ui, sans-serif;
+  --if-font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
+  --if-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --if-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --if-radius-sm: 6px;
+  --if-radius-button: 10px;
+  --if-radius-card: 14px;
+  --if-radius-sheet: 20px;
+
+  color-scheme: dark;
+  background: var(--if-bg);
+  color: var(--if-text);
+  font-family: var(--if-font);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.6;
+}
+
+:root[data-mode='light'] .identity {
+  --if-bg: #f3f5f6;
+  --if-surface: #ffffff;
+  --if-raised: #e9edef;
+  --if-line: #cfd7db;
+  --if-text: #101619;
+  --if-muted: #526069;
+  --if-accent: #9a5a00;
+  --if-accent-ink: #ffffff;
+  --if-success: #1f7a4f;
+  --if-danger: #b8352b;
+  --if-obj-cost: #2f6da8;
+  --if-obj-time: #86509c;
+  --if-obj-rel: #2e7d5b;
+  --if-dominated: #8a979e;
+  --if-glow: 154 90 0;
+
+  --bg: 243 245 246;
+  --card: 255 255 255;
+  --panel: 233 237 239;
+  --stroke: 207 215 219;
+  --stroke-muted: 207 215 219;
+  --text: 16 22 25;
+  --text-soft: 16 22 25;
+  --muted: 82 96 105;
+  --accent: 154 90 0;
+  --accent-soft: 233 237 239;
+
+  color-scheme: light;
+}
+
+/* The page itself (overscroll, body) follows the identity on identity pages. */
+:root[data-mode='dark']:has(.identity),
+:root[data-mode='dark']:has(.identity) body {
+  background: #0e1214;
+}
+:root[data-mode='light']:has(.identity),
+:root[data-mode='light']:has(.identity) body {
+  background: #f3f5f6;
+}
+
+.identity :where(h1, h2, h3) {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.identity :where(p) {
+  text-wrap: pretty;
+}
+.identity :where(.num, td, th) {
+  font-variant-numeric: tabular-nums;
+}
+.identity :where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--if-accent);
+  outline-offset: 3px;
+  border-radius: var(--if-radius-sm);
+}
+
+.identity .if-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border-radius: var(--if-radius-button);
+  border: 1px solid var(--if-line);
+  color: var(--if-text);
+  background: transparent;
+  font-weight: 500;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition:
+    background-color 200ms var(--if-ease),
+    border-color 200ms var(--if-ease),
+    transform 120ms var(--if-ease);
+}
+.identity .if-button:hover {
+  background: var(--if-raised);
+  border-color: var(--if-muted);
+}
+.identity .if-button:active {
+  transform: translateY(1px);
+}
+.identity .if-button-primary {
+  background: var(--if-accent);
+  border-color: var(--if-accent);
+  color: var(--if-accent-ink);
+}
+.identity .if-button-primary:hover {
+  background: var(--if-accent);
+  border-color: var(--if-accent);
+  filter: brightness(1.08);
+}
+.identity .if-button-lg {
+  min-height: 3.25rem;
+  padding: 0 1.75rem;
+  font-size: 1.0625rem;
+}
+
+.mode-switcher {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid rgb(var(--stroke));
+  border-radius: var(--if-radius-button, 10px);
+}
+.mode-switcher-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 7px;
+  color: rgb(var(--muted));
+  cursor: pointer;
+  transition:
+    color 200ms ease,
+    background-color 200ms ease;
+}
+.mode-switcher-option:hover {
+  color: rgb(var(--text));
+}
+.mode-switcher-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.mode-switcher-option:has(input:checked) {
+  background: rgb(var(--panel));
+  color: rgb(var(--text));
+}
+.mode-switcher-option:has(input:focus-visible) {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .identity *,
+  .identity *::before,
+  .identity *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

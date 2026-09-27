@@ -1,4 +1,5 @@
 import { Html, Head, Main, NextScript } from 'next/document';
+import { COLOR_MODE_SCRIPT } from '../lib/colorMode';
 
 export default function Document() {
   return (
@@ -10,6 +11,9 @@ export default function Document() {
             __html: `(function(){var p=location.pathname;var t=p==='/app/customer'?'modernLight':(p==='/app/factory')?'whatsappEmerald':'modernDark';try{var s=localStorage.getItem('if-theme');if(s)t=(s==='modernLight'||s==='whatsappEmerald')?s:'modernDark';}catch(e){}var m={modernLight:'theme-modern-light',modernDark:'theme-modern-dark',whatsappEmerald:'theme-whatsapp-emerald'};document.documentElement.classList.add(m[t]);})();`,
           }}
         />
+
+        {/* Apply the light/dark preference of the new identity before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_SCRIPT }} />
 
         {/* Standard favicons */}
         <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />

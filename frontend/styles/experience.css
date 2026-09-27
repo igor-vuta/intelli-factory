@@ -1773,57 +1773,6 @@ a {
 .auth-form-column header .btn {
   min-height: 40px;
 }
-.landing {
-  padding-top: 28px !important;
-}
-.landing > header {
-  border-bottom: 1px solid rgb(var(--stroke));
-  padding-bottom: 25px;
-  margin-bottom: 60px;
-}
-.landing-hero h1 {
-  font-family: Georgia, serif;
-  font-size: clamp(58px, 6.8vw, 100px);
-  letter-spacing: -4px;
-  line-height: 1.02;
-  max-width: 11ch;
-}
-.landing-hero > div:first-child > p:first-child {
-  font-size: 9px;
-  letter-spacing: 2px;
-}
-.landing-hero .btn {
-  border-radius: 100px;
-  padding: 14px 25px;
-}
-.landing-hero > div[aria-label] {
-  background: rgb(var(--card));
-  border-radius: 26px;
-  padding: 28px;
-  transform: rotate(2deg);
-  box-shadow: 12px 16px 0 rgb(var(--accent) / 0.08);
-}
-.landing-role-grid article {
-  padding: 28px;
-  border-radius: 18px;
-}
-.landing-role-grid article:nth-child(1) {
-  border-top: 3px solid #ed9b7a;
-}
-.landing-role-grid article:nth-child(2) {
-  border-top: 3px solid #c8ea70;
-}
-.landing-role-grid article:nth-child(3) {
-  border-top: 3px solid #81d1f8;
-}
-.landing-role-grid h3 {
-  font-size: 27px;
-  font-weight: 500;
-  letter-spacing: -1px;
-}
-.landing-role-grid .btn {
-  border-radius: 100px;
-}
 @media (max-width: 1050px) {
   .auth-screen {
     gap: 35px;
@@ -1861,25 +1810,6 @@ a {
   }
   .auth-form-column h1 {
     font-size: 34px;
-  }
-  .landing-hero h1 {
-    font-size: 62px;
-    letter-spacing: -3px;
-  }
-  .landing-hero > div[aria-label] {
-    transform: none;
-    padding: 20px;
-    border-radius: 20px;
-    margin: 20px 0;
-  }
-  .landing > header {
-    margin-bottom: 36px;
-  }
-  .landing-role-grid article {
-    padding: 24px;
-  }
-  .landing-role-grid h3 {
-    font-size: 25px;
   }
 }
 .record-label {
