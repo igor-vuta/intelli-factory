@@ -214,6 +214,7 @@ export function mountStage(
 
   let width = 0;
   let height = 0;
+  let dirty = true;
   function resize() {
     const box = host.getBoundingClientRect();
     width = box.width;
@@ -221,6 +222,8 @@ export function mountStage(
     renderer.setSize(width, height, false);
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();
+    // setSize clears the canvas, so the next frame must redraw even after the intro.
+    dirty = true;
   }
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(host);
@@ -243,7 +246,6 @@ export function mountStage(
   let running = false;
   let start = 0;
   let introDone = false;
-  let dirty = true;
   const frameTimes: number[] = [];
   let last = 0;
 
