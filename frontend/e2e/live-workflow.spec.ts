@@ -138,7 +138,7 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
       .getByRole('dialog')
       .getByRole('button', { name: 'Confirm', exact: true })
       .click();
-    await expect(txRow(customer)).toContainText('COMPLETED');
+    await expect(txRow(customer).locator('[data-status="COMPLETED"]')).toBeVisible();
     await txRow(customer).getByRole('button', { name: 'Rate', exact: true }).click();
     await customer.getByRole('dialog').getByRole('button', { name: 'Submit rating' }).click();
     await expect(customer.getByText('Rating submitted. Thank you!')).toBeVisible();

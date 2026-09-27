@@ -388,14 +388,14 @@ for (const locale of ['ru', 'kk'] as const) {
     }
     const headings =
       locale === 'ru'
-        ? ['Большие дела', 'От запасов', 'Каждая доставка', 'Полная картина']
-        : ['Үлкен істер', 'Қоймадағы тауардан', 'Әр жеткізу', 'Толық көрініс'];
+        ? ['Ваши заявки', 'От запасов', 'Каждая доставка', 'Полная картина']
+        : ['Сіздің өтінімдеріңіз', 'Қоймадағы тауардан', 'Әр жеткізу', 'Толық көрініс'];
     for (const [index, role] of roles.entries()) {
       await mockApi(page, role.toUpperCase());
       await page.goto(`/app/${role}?lang=${locale}`);
       await expect(page.locator('h1:visible')).toContainText(headings[index]);
       await expect(page.locator('.experience-overview')).not.toContainText(
-        /New Request|Open details|Your next|Ready when|Loading your|Latest activity/
+        /New [Rr]equest|Open details|Your next|Ready when|Loading your|Latest activity/
       );
       await noOverflow(page);
       await page.screenshot({
@@ -496,7 +496,7 @@ test('card ordering persists and the left navigation sheet works', async ({ page
 test('request sheet is translated and fits the viewport', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/customer?lang=kk');
-  await page.locator('.customer-hero button').click();
+  await page.locator('.overview-head .if-button-primary').click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Сізге не қажет?');
   await expect(dialog).toContainText('Қайда жеткізу керек?');
@@ -571,7 +571,8 @@ test('dragging between delivery lanes requires confirmation and a failed update 
   await card.getByRole('button', { name: 'Start delivery' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(page.getByText('Delivery cannot start yet.')).toBeVisible();
-  await expect(card).toContainText('payment confirmed');
+  // A failed update keeps the order where it was (statuses render as translated badges).
+  await expect(card.locator('[data-status="PAYMENT_CONFIRMED"]')).toBeVisible();
   expect(mutations).toBe(1);
 });
 
@@ -616,7 +617,7 @@ test('custom selector stays inside the viewport and Escape keeps its sheet open'
 }) => {
   await mockApi(page);
   await page.goto('/app/customer?lang=en');
-  await page.locator('.customer-hero button').click();
+  await page.locator('.overview-head .if-button-primary').click();
   const dialog = page.getByRole('dialog');
   const currency = dialog.getByRole('combobox', { name: 'Currency', exact: true });
   await currency.click();
@@ -790,4 +791,187 @@ test('landing colour mode persists and the trade-off explorer works from the key
   await page.getByRole('button', { name: 'Reset to engine default' }).click();
   await expect(page.getByText('engine default', { exact: true })).toBeVisible();
   await noOverflow(page);
+});
+
+function offer(
+  id: string,
+  factory: string,
+  cost: number | null,
+  days: number | null,
+  reliability: number | null,
+  currency = 'EUR'
+) {
+  return {
+    id,
+    request_id: 'request-1',
+    status: 'PENDING',
+    quoted_quantity: '250',
+    quantity_unit: 'tons',
+    factory_note: null,
+    currency_code: currency,
+    inventory_entry_id: `inv-${id}`,
+    item_name: 'Coal',
+    inventory_price_per_unit: '100',
+    factory_legal_name: factory,
+    factory_avg_rating: 4.5,
+    source_address_label: null,
+    destination_address_label: null,
+    logistic_offer_id: `route-${id}`,
+    logistic_title: null,
+    logist_legal_name: 'Steppe Freight',
+    logist_avg_rating: 4.2,
+    delivery_price: '5000',
+    delivery_days: days,
+    total_cost: cost == null ? null : String(cost),
+    reliability_score: reliability,
+    fitness_score: null,
+    created_at: '2026-09-14T00:00:00Z',
+  };
+}
+
+test('customer compares proposals by priority and chooses one', async ({ page }) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'request-1',
+          item_name: 'Coal',
+          category_name: 'Energy',
+          quantity: '250',
+          quantity_unit: 'tons',
+          preferred_currency_code: 'EUR',
+          status: 'PAIRING_IN_PROGRESS',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/candidates/**', (route) =>
+    route.fulfill({
+      json: [
+        offer('a', 'Balanced Mills', 100000, 2, 0.95),
+        offer('b', 'Budget Works', 80000, 6, 0.85),
+        offer('c', 'Express Plant', 120000, 1, 0.97),
+      ],
+    })
+  );
+  let chosen: string | null = null;
+  await page.route('**/api/pairing/select-candidate', async (route) => {
+    chosen = route.request().postDataJSON().candidate_id;
+    await route.fulfill({ json: { status: 'success', transaction_id: 'tx-1' } });
+  });
+
+  await page.goto('/app/customer?view=home&lang=en');
+  await page.getByRole('button', { name: /Compare proposals/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compare proposals' });
+  await expect(dialog.locator('.proposal-table tbody tr')).toHaveCount(3);
+  const detail = dialog.getByRole('complementary', { name: 'Selected offer' });
+  // Engine weights 0.4/0.3/0.3 favour the balanced offer; 0.7/0.2/0.1 the cheapest.
+  await expect(detail).toContainText('Balanced Mills');
+  await expect(detail).toContainText('Recommended for you');
+  await dialog.getByRole('radio', { name: 'Lowest cost' }).check();
+  await expect(detail).toContainText('Budget Works');
+
+  const chart = dialog.getByRole('group', { name: /Offers by total cost/ });
+  await chart.focus();
+  // Arrow keys walk the offers by cost, starting from the selected (cheapest) one.
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.locator('.proposal-readout')).toContainText('Balanced Mills');
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.locator('.proposal-readout')).toContainText('Budget Works');
+
+  await dialog.getByRole('radio', { name: /Express Plant/ }).check();
+  await expect(detail).toContainText('Express Plant');
+  await detail.getByRole('button', { name: 'Choose this proposal' }).click();
+  await expect.poll(() => chosen).toBe('c');
+  await noOverflow(page);
+});
+
+test('proposals compare like with like across currencies and incomplete offers stay choosable', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'request-1',
+          item_name: 'Coal',
+          category_name: 'Energy',
+          quantity: '250',
+          quantity_unit: 'tons',
+          preferred_currency_code: 'EUR',
+          status: 'PAIRING_IN_PROGRESS',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/candidates/**', (route) =>
+    route.fulfill({
+      json: [
+        offer('a', 'Euro Mills', 100000, 2, 0.95),
+        offer('b', 'Euro Works', 90000, 4, 0.9),
+        offer('k', 'Steppe Plant', 5000000, 1, 0.99, 'KZT'),
+        offer('x', 'Pending Quote Co', 70000, null, null),
+      ],
+    })
+  );
+  let chosen: string | null = null;
+  await page.route('**/api/pairing/select-candidate', async (route) => {
+    chosen = route.request().postDataJSON().candidate_id;
+    await route.fulfill({ json: { status: 'success', transaction_id: 'tx-1' } });
+  });
+  await page.goto('/app/customer?view=home&lang=en');
+  await page.getByRole('button', { name: /Compare proposals/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compare proposals' });
+  const table = dialog.locator('.proposal-table');
+  // The most common currency is compared first; the KZT offer is kept apart, never ranked in EUR.
+  await expect(dialog.getByRole('radiogroup', { name: 'Currency' })).toBeVisible();
+  await expect(table).not.toContainText('Steppe Plant');
+  await expect(dialog.getByText('Recommended for you')).toBeVisible();
+  // The incomplete offer is listed and can still be chosen.
+  await expect(table.getByRole('row', { name: /Pending Quote Co/ })).toContainText('—');
+  await expect(dialog).toContainText('Not scored, figures incomplete: 1');
+  await dialog.getByRole('radio', { name: /Pending Quote Co/ }).check();
+  await dialog.getByRole('button', { name: 'Choose this proposal' }).click();
+  await expect.poll(() => chosen).toBe('x');
+});
+
+test('switching proposal currency shows that currency only', async ({ page }) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'request-1',
+          item_name: 'Coal',
+          quantity: '250',
+          quantity_unit: 'tons',
+          preferred_currency_code: 'EUR',
+          status: 'PAIRING_IN_PROGRESS',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/candidates/**', (route) =>
+    route.fulfill({
+      json: [
+        offer('a', 'Euro Mills', 100000, 2, 0.95),
+        offer('b', 'Euro Works', 90000, 4, 0.9),
+        offer('k', 'Steppe Plant', 5000000, 1, 0.99, 'KZT'),
+      ],
+    })
+  );
+  await page.goto('/app/customer?view=home&lang=en');
+  await page.getByRole('button', { name: /Compare proposals/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compare proposals' });
+  await dialog.getByRole('radio', { name: 'KZT' }).check();
+  const table = dialog.locator('.proposal-table');
+  await expect(table).toContainText('Steppe Plant');
+  await expect(table).not.toContainText('Euro Mills');
+  await expect(table).toContainText('KZT');
+  await expect(table).not.toContainText('€');
 });

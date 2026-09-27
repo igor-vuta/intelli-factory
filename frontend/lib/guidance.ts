@@ -82,6 +82,11 @@ export const guidanceCopy = {
   hide: ['Hide checklist', 'Скрыть список шагов', 'Қадамдар тізімін жасыру'],
   show: ['Show getting-started checklist', 'Показать первые шаги', 'Алғашқы қадамдарды көрсету'],
   done: ['Done', 'Готово', 'Дайын'],
+  allDone: [
+    'Setup complete: all first steps are done.',
+    'Настройка завершена: все первые шаги выполнены.',
+    'Баптау аяқталды: барлық алғашқы қадамдар орындалды.',
+  ],
   progress: ['steps completed', 'шагов выполнено', 'қадам орындалды'],
   next: ['What happens next', 'Что дальше', 'Әрі қарай не болады'],
   requestTitle: ['Create a supply request', 'Создайте заявку', 'Өтінім жасаңыз'],

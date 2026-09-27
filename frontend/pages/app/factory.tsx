@@ -39,6 +39,7 @@ import {
 } from '../../lib/authClient';
 import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
+import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 
 const TABLE_PAGE_SIZE = 5;
 
@@ -193,6 +194,7 @@ export default function FactoryWorkspacePage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
+  const e = useExperienceCopy();
 
   const [loading, setLoading] = useState(true);
   const [guidanceUserId, setGuidanceUserId] = useState('');
@@ -1196,7 +1198,7 @@ export default function FactoryWorkspacePage() {
                                   !tx.can_start_fulfillment &&
                                   !tx.can_mark_in_progress && (
                                     <span className="text-xs text-[rgb(var(--muted))]">
-                                      Awaiting others
+                                      {e('Awaiting others')}
                                     </span>
                                   )}
                               </div>

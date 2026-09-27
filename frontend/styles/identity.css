@@ -245,3 +245,49 @@
   color: var(--if-accent);
   font-family: var(--if-font-mono);
 }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.55rem 0.15rem 0.45rem;
+  border: 1px solid var(--badge-line);
+  border-radius: var(--if-radius-sm);
+  background: var(--badge-fill);
+  color: var(--badge-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.status-badge-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-badge-neutral {
+  --badge-text: rgb(var(--muted));
+  --badge-line: rgb(var(--stroke));
+  --badge-fill: transparent;
+}
+.status-badge-info,
+.status-badge-warning,
+.status-badge-success,
+.status-badge-danger {
+  --badge-line: rgb(var(--tone) / 0.4);
+  --badge-fill: rgb(var(--tone) / 0.1);
+  --badge-text: rgb(var(--tone));
+}
+.status-badge-info {
+  --tone: var(--info);
+}
+.status-badge-warning {
+  --tone: var(--warning);
+}
+.status-badge-success {
+  --tone: var(--success);
+}
+.status-badge-danger {
+  --tone: var(--danger);
+}

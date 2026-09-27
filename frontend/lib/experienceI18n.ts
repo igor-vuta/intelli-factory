@@ -1114,6 +1114,73 @@ export const experienceTranslations = {
     ru: 'Предложения по вашей заявке',
     kk: 'Өтініміңіз бойынша ұсыныстар',
   },
+  'Your requests': { ru: 'Ваши заявки', kk: 'Сіздің өтінімдеріңіз' },
+  'Review and sign': { ru: 'Проверить и подписать', kk: 'Тексеріп, қол қою' },
+  // Customer proposals (M3)
+  'A proposal is already selected for this request.': {
+    ru: 'Для этой заявки предложение уже выбрано.',
+    kk: 'Бұл өтінім үшін ұсыныс таңдалып қойған.',
+  },
+  'All complete offers': { ru: 'Все полные предложения', kk: 'Барлық толық ұсыныстар' },
+  Balanced: { ru: 'Сбалансированно', kk: 'Теңгерімді' },
+  'Bigger dot: more reliable': {
+    ru: 'Крупнее точка — надёжнее',
+    kk: 'Нүкте үлкен болса — сенімдірек',
+  },
+  Carrier: { ru: 'Перевозчик', kk: 'Тасымалдаушы' },
+  'Choose this proposal': { ru: 'Выбрать это предложение', kk: 'Осы ұсынысты таңдау' },
+  'Choosing…': { ru: 'Выбираем…', kk: 'Таңдалуда…' },
+  Chosen: { ru: 'Выбрано', kk: 'Таңдалды' },
+  Fastest: { ru: 'Быстрее всего', kk: 'Ең жылдам' },
+  'Loading proposals…': { ru: 'Загружаем предложения…', kk: 'Ұсыныстар жүктелуде…' },
+  'Lowest cost': { ru: 'Дешевле всего', kk: 'Ең арзан' },
+  'Most reliable': { ru: 'Надёжнее всего', kk: 'Ең сенімді' },
+  'No complete proposals yet. Factories have bid but logistics quotes are pending.': {
+    ru: 'Полных предложений пока нет: заводы откликнулись, перевозчики ещё не прислали цены.',
+    kk: 'Толық ұсыныстар әзірге жоқ: зауыттар жауап берді, тасымалдаушылар бағасын әлі жіберген жоқ.',
+  },
+  'Not beaten on all three': { ru: 'Не уступает по всем трём', kk: 'Үшеуі бойынша да озылмаған' },
+  Recommended: { ru: 'Рекомендуем', kk: 'Ұсынылады' },
+  'Recommended for you': { ru: 'Рекомендуем вам', kk: 'Сізге ұсынылады' },
+  Refresh: { ru: 'Обновить', kk: 'Жаңарту' },
+  'Request is matched, but no proposal rows were returned. Try refresh.': {
+    ru: 'Заявка сопоставлена, но предложения не загрузились. Обновите.',
+    kk: 'Өтінім сәйкестендірілді, бірақ ұсыныстар жүктелмеді. Жаңартыңыз.',
+  },
+  Score: { ru: 'Оценка', kk: 'Баға' },
+  'Scores use the platform’s matching formula for the priority above. You sign the contract next.':
+    {
+      ru: 'Оценки считаются по формуле подбора платформы для выбранного приоритета. Далее вы подписываете договор.',
+      kk: 'Бағалар платформаның іріктеу формуласы бойынша таңдалған басымдыққа есептеледі. Келесі қадам — шартқа қол қою.',
+    },
+  Select: { ru: 'Выбрать', kk: 'Таңдау' },
+  'Selected offer': { ru: 'Выбранное предложение', kk: 'Таңдалған ұсыныс' },
+  Total: { ru: 'Итого', kk: 'Барлығы' },
+  'Total cost': { ru: 'Общая стоимость', kk: 'Жалпы құны' },
+  'What matters most': { ru: 'Что важнее всего', kk: 'Ең маңыздысы' },
+  'offers are not shown: they are still missing a price, delivery time or reliability.': {
+    ru: 'предложений не показано: у них ещё нет цены, срока или надёжности.',
+    kk: 'ұсыныс көрсетілмеген: оларда әлі баға, мерзім немесе сенімділік жоқ.',
+  },
+  'New request': { ru: 'Новая заявка', kk: 'Жаңа өтінім' },
+  'Awaiting others': { ru: 'Ждём других участников', kk: 'Басқа тараптар күтілуде' },
+  'Recent requests': { ru: 'Последние заявки', kk: 'Соңғы өтінімдер' },
+  'Offers in different currencies are compared separately.': {
+    ru: 'Предложения в разных валютах сравниваются отдельно.',
+    kk: 'Әр түрлі валютадағы ұсыныстар бөлек салыстырылады.',
+  },
+  'figures incomplete': { ru: 'данные неполные', kk: 'деректер толық емес' },
+  'Not scored, figures incomplete': {
+    ru: 'Без оценки, данные неполные',
+    kk: 'Бағаланбады, деректер толық емес',
+  },
+  // Status labels (M3)
+  DISPUTED: { ru: 'Спор', kk: 'Дау' },
+  ACCEPTED: { ru: 'Выбрано', kk: 'Таңдалды' },
+  REJECTED: { ru: 'Не выбрано', kk: 'Таңдалмады' },
+  EXPIRED: { ru: 'Истекло', kk: 'Мерзімі өтті' },
+  ACTIVE: { ru: 'Активно', kk: 'Белсенді' },
+  DECLINED: { ru: 'Отклонено', kk: 'Қабылданбады' },
 } as const;
 
 export function experienceText(locale: Locale, source: string): string {

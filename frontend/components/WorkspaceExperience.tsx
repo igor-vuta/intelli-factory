@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import PresetIcon from './PresetIcon';
 import ModeSwitcher from './ModeSwitcher';
+import StatusBadge from './StatusBadge';
 import LocaleSwitcher from './LocaleSwitcher';
 import { getLocaleFromQuery, t } from '../lib/i18n';
 
@@ -21,6 +22,8 @@ export type WorkItem = {
   detail?: string;
   action?: () => void;
   actionLabel?: string;
+  /** Workspace view the card's action opens when it has no custom action. */
+  actionView?: string;
   moveToRoad?: () => void;
 };
 type Props = {
@@ -38,7 +41,7 @@ const config = {
   customer: {
     name: 'Purchasing studio',
     eyebrow: 'YOUR NEXT POSSIBILITY',
-    title: 'Good things,\nset in motion.',
+    title: 'Your requests',
     description: 'Find the right supply. Choose your partners. Follow every step.',
     nav: [
       ['home', 'For you'],
@@ -46,7 +49,7 @@ const config = {
       ['workflow', 'Orders & delivery'],
     ],
     stats: ['Requests', 'Active orders', 'Completed'],
-    primary: 'New Request',
+    primary: 'New request',
   },
   factory: {
     name: 'Factory floor',
@@ -91,9 +94,6 @@ const config = {
   },
 } as const;
 
-function label(status: string) {
-  return status.toLowerCase().replace(/_/g, ' ');
-}
 function Arrow() {
   return (
     <span aria-hidden className="experience-arrow">
@@ -179,8 +179,7 @@ export default function WorkspaceExperience({
             style={{ '--order': index } as React.CSSProperties}
           >
             <div className="work-card-top">
-              <span className={`status-dot status-${item.status.toLowerCase()}`} />{' '}
-              <span>{locale === 'en' ? label(item.status) : e(item.status)}</span>
+              <StatusBadge status={item.status} />
               <span className="work-reference">{item.id.slice(0, 6)}</span>
             </div>
             <h3>{item.title}</h3>
@@ -192,13 +191,14 @@ export default function WorkspaceExperience({
                 item.action ??
                 (() =>
                   navigate(
-                    role === 'customer'
-                      ? 'requests'
-                      : role === 'factory'
+                    item.actionView ??
+                      (role === 'customer'
                         ? 'requests'
-                        : role === 'logist'
-                          ? 'workflow'
-                          : 'operations'
+                        : role === 'factory'
+                          ? 'requests'
+                          : role === 'logist'
+                            ? 'workflow'
+                            : 'operations')
                   ))
               }
             >
@@ -291,6 +291,35 @@ export default function WorkspaceExperience({
         {role !== 'factory' && nav}
         {role === 'factory' && <div className="factory-mobile-nav">{nav}</div>}
         <main id="main" className="experience-main" data-view={view} tabIndex={-1}>
+          {view === 'home' && role === 'customer' && (
+            <section className="overview-head" aria-labelledby="overview-title">
+              <div>
+                <h1 id="overview-title">{e(c.title)}</h1>
+                <p className="overview-counts num">
+                  {c.stats
+                    .map((text, i) => `${loading ? '—' : (counts[i] ?? 0)} ${e(text)}`)
+                    .join(' · ')}
+                </p>
+              </div>
+              <div className="overview-actions">
+                <button
+                  type="button"
+                  className="overview-more"
+                  onClick={() => navigate('requests')}
+                >
+                  {e('All requests')} <Arrow />
+                </button>
+                <button
+                  type="button"
+                  className="if-button if-button-primary"
+                  disabled={loading}
+                  onClick={primary}
+                >
+                  {e(c.primary)}
+                </button>
+              </div>
+            </section>
+          )}
           {role !== 'admin' && !loading && guidance && (
             <GettingStarted
               key={`${role}:${guidance.userId}`}
@@ -310,65 +339,11 @@ export default function WorkspaceExperience({
             <div className="experience-overview" key="home">
               {role === 'customer' && (
                 <>
-                  <section className="customer-hero">
-                    <div>
-                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                      <h1>{e(c.title)}</h1>
-                      <p className="hero-description">{e(c.description)}</p>
-                      <button
-                        type="button"
-                        className="experience-primary"
-                        disabled={loading}
-                        onClick={primary}
-                      >
-                        {e('Start a new request')} <Arrow />
-                      </button>
-                      <div className="customer-proof">
-                        <span className="proof-circles" aria-hidden>
-                          <i />
-                          <i />
-                          <i />
-                        </span>
-                        <span>{e('One request. Three partners. One clear journey.')}</span>
-                      </div>
-                    </div>
-                    <div className="supply-sculpture" aria-hidden>
-                      <span className="sculpture-orbit orbit-a" />
-                      <span className="sculpture-orbit orbit-b" />
-                      <div className="sculpture-core">
-                        <PresetIcon src="/presets/brand.svg" alt="" size={100} />
-                      </div>
-                      <span className="sculpture-label sculpture-one">{e('01 / Your idea')}</span>
-                      <span className="sculpture-label sculpture-two">
-                        {e('02 / The right match')}
-                      </span>
-                      <span className="sculpture-label sculpture-three">{e('03 / Delivered')}</span>
-                    </div>
-                  </section>
-                  <section className="customer-summary">
-                    {c.stats.map((text, i) => (
-                      <div key={e(text)}>
-                        <strong>{loading ? '—' : (counts[i] ?? 0)}</strong>
-                        <span>{e(text)}</span>
-                      </div>
-                    ))}
-                    <p>
-                      {e('Less chasing.')} <br />
-                      <strong>{e('More moving forward.')}</strong>
-                    </p>
-                  </section>
-                  <div className="experience-section-heading">
-                    <div>
-                      <p className="experience-eyebrow">{e('MADE FOR YOUR NEXT STEP')}</p>
-                      <h2>{e('Your supply, in progress')}</h2>
-                    </div>
-                    <button type="button" onClick={() => navigate('requests')}>
-                      {e('All requests')} <Arrow />
-                    </button>
-                  </div>
+                  <h2 className="sr-only">{e('Recent requests')}</h2>
                   <section className="customer-order-grid">
                     {cards(items, 'Your next order starts here.')}
                   </section>
+
                   <section className="journey-strip">
                     <span>{e('THE WAY FORWARD')}</span>
                     {['Make a request', 'Compare proposals', 'Sign together', 'Track delivery'].map(
@@ -664,7 +639,7 @@ export default function WorkspaceExperience({
                       <button type="button" key={item.id} onClick={() => navigate('operations')}>
                         <span className="activity-number">0{i + 1}</span>
                         <strong>{item.title}</strong>
-                        <span>{locale === 'en' ? label(item.status) : e(item.status)}</span>
+                        <StatusBadge status={item.status} />
                         <Arrow />
                       </button>
                     ))}

@@ -1311,7 +1311,7 @@ export default function LogistWorkspacePage() {
                                   !tx.can_start_fulfillment &&
                                   !tx.can_mark_in_progress && (
                                     <span className="text-xs text-[rgb(var(--muted))]">
-                                      Awaiting others
+                                      {e('Awaiting others')}
                                     </span>
                                   )}
                               </div>

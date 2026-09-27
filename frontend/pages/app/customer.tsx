@@ -3,6 +3,8 @@ import GuidanceHint from '../../components/GuidanceHint';
 import OrderGuidance from '../../components/OrderGuidance';
 import { dissolve } from '../../lib/dissolve';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
+import ProposalExplorer from '../../components/ProposalExplorer';
+import StatusBadge from '../../components/StatusBadge';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import OrderProgress from '../../components/OrderProgress';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -43,24 +45,27 @@ import {
   type RequestSummary,
   type WorkflowTransaction,
 } from '../../lib/authClient';
-import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
+import {
+  formatCurrencyOptionLabel,
+  formatDateTime,
+  formatQuantityWithUnit,
+} from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 
-const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'text-warning',
-  PAIRING_IN_PROGRESS: 'text-info',
-  MATCHED: 'text-success',
-  CONTRACT_DRAFTED: 'text-info',
-  CONTRACT_SIGNING: 'text-info',
-  FULLY_SIGNED: 'text-info',
-  PAYMENT_CONFIRMED: 'text-success',
-  FULFILLMENT_STARTED: 'text-warning',
-  IN_PROGRESS: 'text-info',
-  COMPLETED: 'text-success',
-  CANCELLED: 'text-danger',
-};
-
 const REQUESTS_PAGE_SIZE = 5;
+
+/** The one action a request card offers, matching where the order is in its lifecycle. */
+function nextStep(status: string): { actionLabel: string; actionView?: string } {
+  if (['PAIRING_IN_PROGRESS', 'MATCHED'].includes(status))
+    return { actionLabel: 'Compare proposals' };
+  if (['CONTRACT_DRAFTED', 'CONTRACT_SIGNING'].includes(status))
+    return { actionLabel: 'Review and sign', actionView: 'workflow' };
+  if (['FULLY_SIGNED', 'AWAITING_PAYMENT'].includes(status))
+    return { actionLabel: 'Pay', actionView: 'workflow' };
+  if (['PAYMENT_CONFIRMED', 'FULFILLMENT_STARTED', 'IN_PROGRESS'].includes(status))
+    return { actionLabel: 'Track delivery', actionView: 'workflow' };
+  return { actionLabel: 'View request' };
+}
 
 type ProposalsModalProps = {
   requestId: string;
@@ -72,14 +77,6 @@ type ProposalsModalProps = {
   onClose: () => void;
   onSelected: () => Promise<void>;
 };
-
-type RecommendationGoal = 'RELIABILITY' | 'COST' | 'TIME';
-
-function _toNum(value: string | number | null | undefined): number | null {
-  if (value == null) return null;
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function ProposalsModal({
   requestId,
@@ -95,44 +92,10 @@ function ProposalsModal({
   const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [selecting, setSelecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [recommendationGoal, setRecommendationGoal] = useState<RecommendationGoal>('RELIABILITY');
   const acceptedCandidate = useMemo(
     () => candidates.find((c) => c.status === 'ACCEPTED'),
     [candidates]
   );
-
-  const recommendedCandidate = useMemo(() => {
-    const available = candidates.filter((c) => c.status === 'PENDING' || c.status === 'ACCEPTED');
-    if (available.length === 0) return null;
-
-    const byReliability = available
-      .filter((c) => _toNum(c.reliability_score) != null)
-      .sort((a, b) => (_toNum(b.reliability_score) ?? -1) - (_toNum(a.reliability_score) ?? -1));
-    const byCost = available
-      .filter((c) => _toNum(c.total_cost) != null)
-      .sort(
-        (a, b) =>
-          (_toNum(a.total_cost) ?? Number.MAX_SAFE_INTEGER) -
-          (_toNum(b.total_cost) ?? Number.MAX_SAFE_INTEGER)
-      );
-    const byTime = available
-      .filter((c) => _toNum(c.delivery_days) != null)
-      .sort(
-        (a, b) =>
-          (_toNum(a.delivery_days) ?? Number.MAX_SAFE_INTEGER) -
-          (_toNum(b.delivery_days) ?? Number.MAX_SAFE_INTEGER)
-      );
-
-    if (recommendationGoal === 'RELIABILITY') return byReliability[0] ?? null;
-    if (recommendationGoal === 'COST') return byCost[0] ?? null;
-    return byTime[0] ?? null;
-  }, [candidates, recommendationGoal]);
-
-  const sortedCandidates = useMemo(() => {
-    if (!recommendedCandidate) return candidates;
-    const rest = candidates.filter((c) => c.id !== recommendedCandidate.id);
-    return [recommendedCandidate, ...rest];
-  }, [candidates, recommendedCandidate]);
 
   async function handleSelect(candidateId: string) {
     setError(null);
@@ -149,18 +112,14 @@ function ProposalsModal({
   }
 
   return (
-    <Modal
-      id={dialogId}
-      onClose={onClose}
-      className="fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-8 backdrop-blur-sm"
-    >
-      <div className="slide-up my-auto flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] p-6 sm:p-8">
+    <Modal id={dialogId} onClose={onClose} className="modal-wide">
+      <div className="flex flex-col">
+        <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] pb-6">
           <div>
-            <h2 className="text-lg font-semibold">Proposals for your request</h2>
+            <h2 className="text-lg font-semibold">{e('Compare proposals')}</h2>
             <GuidanceHint hint="proposals" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              {e('Request')} {requestId.slice(0, 8)}… &mdash; Select the best offer.
+              {e('Request')} {requestId.slice(0, 8)}…
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -169,11 +128,12 @@ function ProposalsModal({
               onClick={() => void onRefresh()}
               className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 text-xs text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/20"
             >
-              Refresh
+              {e('Refresh')}
             </button>
             <button
               type="button"
               onClick={onClose}
+              aria-label={e('Close')}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
             >
               ×
@@ -181,7 +141,7 @@ function ProposalsModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+        <div className="pt-6">
           {error && (
             <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
@@ -194,212 +154,26 @@ function ProposalsModal({
 
           {acceptedCandidate && (
             <p className="mb-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
-              A proposal is already selected for this request.
+              {e('A proposal is already selected for this request.')}
             </p>
-          )}
-
-          {!loadingCandidates && candidates.length > 0 && (
-            <div className="mb-4 rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-3">
-              <p className="mb-2 text-xs text-[rgb(var(--muted))]">Recommendation engine</p>
-              <div className="mb-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRecommendationGoal('RELIABILITY')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs ${
-                    recommendationGoal === 'RELIABILITY'
-                      ? 'border-success/40 text-success'
-                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                  }`}
-                >
-                  [R] Reliability
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRecommendationGoal('COST')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs ${
-                    recommendationGoal === 'COST'
-                      ? 'border-warning/40 text-warning'
-                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                  }`}
-                >
-                  [$] Cost
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRecommendationGoal('TIME')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs ${
-                    recommendationGoal === 'TIME'
-                      ? 'border-info/40 text-info'
-                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                  }`}
-                >
-                  [T] Time
-                </button>
-              </div>
-
-              {recommendedCandidate ? (
-                <div className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm">
-                  <div className="font-medium text-info">Recommended proposal</div>
-                  <div className="mt-1 text-xs text-[rgb(var(--muted))]">
-                    Factory: {recommendedCandidate.factory_legal_name ?? '-'} | Total:{' '}
-                    {recommendedCandidate.total_cost ?? '-'} {recommendedCandidate.currency_code} |
-                    Days: {recommendedCandidate.delivery_days ?? '-'} | Reliability:{' '}
-                    {recommendedCandidate.reliability_score != null
-                      ? `${Math.round(recommendedCandidate.reliability_score * 100)}%`
-                      : '-'}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-[rgb(var(--muted))]">
-                  No recommendation can be computed because required fields are missing.
-                </p>
-              )}
-            </div>
           )}
 
           {loadingCandidates ? (
-            <p className="text-sm text-[rgb(var(--muted))]">Loading proposals…</p>
+            <p className="text-sm text-[rgb(var(--muted))]">{e('Loading proposals…')}</p>
           ) : candidates.length === 0 ? (
             <p className="text-sm text-[rgb(var(--muted))]">
               {requestStatus === 'MATCHED'
-                ? 'Request is matched, but no proposal rows were returned. Try refresh.'
-                : 'No complete proposals yet. Factories have bid but logistics quotes are pending.'}
+                ? e('Request is matched, but no proposal rows were returned. Try refresh.')
+                : e(
+                    'No complete proposals yet. Factories have bid but logistics quotes are pending.'
+                  )}
             </p>
           ) : (
-            <div
-              className="overflow-x-auto"
-              tabIndex={0}
-              role="region"
-              aria-label={e('Proposals for your request')}
-            >
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                    <th className="py-2 pr-3">Factory</th>
-                    <th className="py-2 pr-3">From</th>
-                    <th className="py-2 pr-3">{e('Item')}</th>
-                    <th className="py-2 pr-3">Qty</th>
-                    <th className="py-2 pr-3">Logist</th>
-                    <th className="py-2 pr-3">Goods cost</th>
-                    <th className="py-2 pr-3">{e('Delivery')}</th>
-                    <th className="py-2 pr-3">Total</th>
-                    <th className="py-2 pr-3">Days</th>
-                    <th className="py-2 pr-3">Score</th>
-                    <th className="py-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCandidates.map((c) => {
-                    const goodsCost =
-                      c.quoted_quantity && c.inventory_price_per_unit
-                        ? (
-                            parseFloat(c.quoted_quantity) * parseFloat(c.inventory_price_per_unit)
-                          ).toFixed(2)
-                        : '-';
-                    return (
-                      <tr
-                        key={c.id}
-                        className={`border-b border-[rgb(var(--stroke))]/40 ${
-                          recommendedCandidate?.id === c.id ? 'bg-info/10' : ''
-                        }`}
-                      >
-                        <td className="py-2 pr-3 text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            <span>{c.factory_legal_name ?? '-'}</span>
-                            {c.factory_avg_rating != null && (
-                              <span
-                                className={`text-[10px] font-medium ${
-                                  c.factory_avg_rating >= 4.25
-                                    ? 'text-success'
-                                    : c.factory_avg_rating >= 3.25
-                                      ? 'text-warning'
-                                      : 'text-danger'
-                                }`}
-                              >
-                                ★ {c.factory_avg_rating.toFixed(1)}/5
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td
-                          className="py-2 pr-3 text-xs text-[rgb(var(--muted))]"
-                          title={c.source_address_label ?? undefined}
-                        >
-                          {c.source_address_label
-                            ? c.source_address_label.split(',').slice(1, 3).join(',').trim() ||
-                              c.source_address_label
-                            : '-'}
-                        </td>
-                        <td className="py-2 pr-3">{c.item_name ?? '-'}</td>
-                        <td className="py-2 pr-3">
-                          {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
-                        </td>
-                        <td className="py-2 pr-3 text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            <span>{c.logist_legal_name ?? '-'}</span>
-                            {c.logistic_title && c.logistic_title !== c.logist_legal_name && (
-                              <span className="text-[10px] text-[rgb(var(--muted))]">
-                                {c.logistic_title}
-                              </span>
-                            )}
-                            {c.logist_avg_rating != null && (
-                              <span
-                                className={`text-[10px] font-medium ${
-                                  c.logist_avg_rating >= 4.25
-                                    ? 'text-success'
-                                    : c.logist_avg_rating >= 3.25
-                                      ? 'text-warning'
-                                      : 'text-danger'
-                                }`}
-                              >
-                                ★ {c.logist_avg_rating.toFixed(1)}/5
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 pr-3">
-                          {goodsCost} {c.currency_code}
-                        </td>
-                        <td className="py-2 pr-3">
-                          {c.delivery_price ?? '-'} {c.currency_code}
-                        </td>
-                        <td className="py-2 pr-3 font-medium">
-                          {c.total_cost ?? '-'} {c.currency_code}
-                        </td>
-                        <td className="py-2 pr-3">{c.delivery_days ?? '-'}d</td>
-                        <td className="py-2 pr-3 text-xs text-info">
-                          {c.fitness_score != null ? c.fitness_score.toFixed(4) : '-'}
-                        </td>
-                        <td className="py-2">
-                          <div className="flex items-center gap-2">
-                            {recommendedCandidate?.id === c.id && (
-                              <span className="rounded-md border border-info/40 px-2 py-1 text-[10px] text-info">
-                                Recommended
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              disabled={
-                                selecting === c.id ||
-                                (acceptedCandidate != null && acceptedCandidate.id !== c.id)
-                              }
-                              onClick={() => void handleSelect(c.id)}
-                              className="rounded-md border border-success/40 px-3 py-1 text-xs text-success hover:bg-success/10 disabled:opacity-50"
-                            >
-                              {c.status === 'ACCEPTED'
-                                ? 'Selected'
-                                : selecting === c.id
-                                  ? 'Selecting…'
-                                  : 'Select'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ProposalExplorer
+              candidates={candidates}
+              selecting={selecting}
+              onChoose={(candidateId) => void handleSelect(candidateId)}
+            />
           )}
         </div>
       </div>
@@ -1176,9 +950,7 @@ export default function CustomerWorkspacePage() {
         action: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
           ? () => void openProposals(row.id)
           : undefined,
-        actionLabel: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
-          ? 'Compare proposals'
-          : 'View request',
+        ...nextStep(row.status),
       }))}
       onLogout={handleLogout}
       onCreate={() => setShowModal(true)}
@@ -1328,11 +1100,11 @@ export default function CustomerWorkspacePage() {
                               </span>
                               {row.preferred_currency_code}
                             </td>
-                            <td className={`py-2 pr-4 ${STATUS_COLOR[row.status] ?? ''}`}>
+                            <td className="py-2 pr-4">
                               <span className="record-label" aria-hidden="true">
                                 {e('Status')}{' '}
                               </span>
-                              {e(row.status)}
+                              <StatusBadge status={row.status} />
                             </td>
                             <td className="py-2 pr-4">
                               <span className="record-label" aria-hidden="true">
@@ -1370,9 +1142,7 @@ export default function CustomerWorkspacePage() {
                               <span className="record-label" aria-hidden="true">
                                 {e('Created')}{' '}
                               </span>
-                              {new Date(row.created_at).toLocaleString('en-GB', {
-                                timeZone: 'UTC',
-                              })}
+                              {formatDateTime(locale, row.created_at)}
                             </td>
                           </tr>
                         ))}
@@ -1464,11 +1234,11 @@ export default function CustomerWorkspacePage() {
                             </span>
                             {tx.item_name ?? '-'}
                           </td>
-                          <td className={`py-2 pr-4 ${STATUS_COLOR[tx.status] ?? ''}`}>
+                          <td className="py-2 pr-4">
                             <span className="record-label" aria-hidden="true">
                               {e('Status')}{' '}
                             </span>
-                            {e(tx.status)}
+                            <StatusBadge status={tx.status} />
                             <OrderProgress status={tx.status} />
                           </td>
                           <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
@@ -1540,7 +1310,7 @@ export default function CustomerWorkspacePage() {
                                 !tx.can_accept_completion &&
                                 tx.status !== 'COMPLETED' && (
                                   <span className="text-xs text-[rgb(var(--muted))]">
-                                    Awaiting others
+                                    {e('Awaiting others')}
                                   </span>
                                 )}
                             </div>
