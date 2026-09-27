@@ -1,7 +1,6 @@
 /* The single Intelli-Factory identity (DESIGN.md §3): graphite surfaces, one amber accent,
-   IBM Plex. Scoped to .identity while M1 ships only the landing page; old theme classes still
-   drive the workspaces until M2. Inside the scope the legacy tokens (--bg, --card, --stroke…)
-   are redefined, so shared components render in the new identity unchanged. */
+   IBM Plex, in light and dark. Applied on <html> (_document.tsx). The legacy tokens (--bg,
+   --card, --stroke…) are defined from it, so older components render in the identity too. */
 
 .identity {
   --if-bg: #0e1214;
@@ -31,6 +30,12 @@
   --muted: 155 167 173;
   --accent: 240 164 58;
   --accent-soft: 28 36 40;
+  --accent-ink: 27 18 6;
+  /* Semantic colours as RGB triplets for Tailwind (text-danger, bg-success/10, …). */
+  --danger: 238 112 102;
+  --success: 93 187 142;
+  --warning: 240 164 58;
+  --info: 111 168 220;
 
   --if-font: var(--font-plex-sans), 'IBM Plex Sans', system-ui, sans-serif;
   --if-font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
@@ -50,7 +55,8 @@
   line-height: 1.6;
 }
 
-:root[data-mode='light'] .identity {
+[data-mode='light'].identity,
+[data-mode='light'] .identity {
   --if-bg: #f3f5f6;
   --if-surface: #ffffff;
   --if-raised: #e9edef;
@@ -77,18 +83,13 @@
   --muted: 82 96 105;
   --accent: 154 90 0;
   --accent-soft: 233 237 239;
+  --accent-ink: 255 255 255;
+  --danger: 184 53 43;
+  --success: 31 122 79;
+  --warning: 154 90 0;
+  --info: 47 109 168;
 
   color-scheme: light;
-}
-
-/* The page itself (overscroll, body) follows the identity on identity pages. */
-:root[data-mode='dark']:has(.identity),
-:root[data-mode='dark']:has(.identity) body {
-  background: #0e1214;
-}
-:root[data-mode='light']:has(.identity),
-:root[data-mode='light']:has(.identity) body {
-  background: #f3f5f6;
 }
 
 .identity :where(h1, h2, h3) {
@@ -103,10 +104,29 @@
 .identity :where(.num, td, th) {
   font-variant-numeric: tabular-nums;
 }
-.identity :where(a, button, input, [tabindex]):focus-visible {
+.identity
+  :where(a, button, input, [tabindex]:not([tabindex='-1'])):not(.focus-theme, .btn):focus-visible {
   outline: 2px solid var(--if-accent);
   outline-offset: 3px;
   border-radius: var(--if-radius-sm);
+}
+
+/* Visible only when focused, so keyboard users can jump past the header. */
+.skip-link {
+  position: absolute;
+  left: clamp(1rem, 4vw, 3rem);
+  top: 0.5rem;
+  z-index: 50;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--if-radius-button);
+  background: var(--if-accent);
+  color: var(--if-accent-ink);
+  font-weight: 500;
+  transform: translateY(-160%);
+  transition: transform 200ms var(--if-ease-out);
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 
 .identity .if-button {
@@ -201,4 +221,27 @@
     animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+.not-found {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 1rem;
+  min-height: 100dvh;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+.not-found h1 {
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+}
+.not-found p {
+  margin: 0;
+  color: var(--if-muted);
+}
+.not-found .not-found-code {
+  color: var(--if-accent);
+  font-family: var(--if-font-mono);
 }

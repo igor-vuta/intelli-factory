@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { useTheme } from '../hooks/useTheme';
+import { useColorMode } from '../hooks/useColorMode';
 import { rememberLocale, rememberedLocale, validLocale } from '../lib/localePreference';
 import { me } from '../lib/authClient';
 import '../styles/globals.css';
@@ -16,19 +16,17 @@ import '../styles/landing.css';
 const plexSans = IBM_Plex_Sans({
   subsets: ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext'],
   weight: ['400', '500', '600'],
-  variable: '--font-plex-sans',
   display: 'swap',
 });
 const plexMono = IBM_Plex_Mono({
   subsets: ['latin', 'cyrillic', 'cyrillic-ext'],
   weight: ['400', '500'],
-  variable: '--font-plex-mono',
   display: 'swap',
 });
 
 export default function App({ Component, pageProps }: AppProps) {
-  useTheme();
   const router = useRouter();
+  useColorMode();
   useEffect(() => {
     if (!router.isReady) return;
     if (validLocale(router.query.lang)) {
@@ -47,16 +45,16 @@ export default function App({ Component, pageProps }: AppProps) {
           /* The workspace handles authentication errors. */
         }
       }
-      if (!cancelled)
-        await router.replace(
-          {
-            pathname: router.pathname,
-            query: { ...router.query, lang: locale },
-            hash: window.location.hash,
-          },
-          undefined,
-          { shallow: true }
-        );
+      if (cancelled) return;
+      // Keep the address as typed (a 404 must still show the mistyped path), adding only ?lang.
+      const [path, search = ''] = router.asPath.split('#')[0].split('?');
+      const params = new URLSearchParams(search);
+      params.set('lang', locale);
+      await router.replace(
+        { pathname: router.pathname, query: { ...router.query, lang: locale } },
+        `${path}?${params}${window.location.hash}`,
+        { shallow: true }
+      );
     }
     void restore();
     return () => {
@@ -66,10 +64,15 @@ export default function App({ Component, pageProps }: AppProps) {
   if (!router.isReady || !validLocale(router.query.lang)) return null;
   return (
     <ErrorBoundary>
-      <div className={`contents ${plexSans.variable} ${plexMono.variable}`}>
-        <InteractionMotion />
-        <Component {...pageProps} />
-      </div>
+      {/* The identity reads these on <html>, so they must be defined at the root. */}
+      <style jsx global>{`
+        :root {
+          --font-plex-sans: ${plexSans.style.fontFamily};
+          --font-plex-mono: ${plexMono.style.fontFamily};
+        }
+      `}</style>
+      <InteractionMotion />
+      <Component {...pageProps} />
     </ErrorBoundary>
   );
 }

@@ -382,9 +382,9 @@ export default function AdminWorkspacePage() {
     >
       <div className="workspace-panels">
         <section data-section="operations" className="surface-1 rounded-2xl p-6 sm:p-8">
-          <h1 id="overview" className="slide-up text-2xl font-semibold sm:text-3xl">
+          <h2 id="overview" className="slide-up text-2xl font-semibold sm:text-3xl">
             {copy.adminTitle}
-          </h1>
+          </h2>
           <p className="mt-2 text-sm text-[rgb(var(--muted))]">
             Track request pipeline and status distribution.
           </p>
@@ -406,39 +406,44 @@ export default function AdminWorkspacePage() {
                   style={{ '--gc': '245 158 11' } as React.CSSProperties}
                 >
                   <p className="text-xs text-[rgb(var(--muted))]">Pending</p>
-                  <p className="text-xl font-semibold text-amber-300">{statusStats.pending}</p>
+                  <p className="text-xl font-semibold text-warning">{statusStats.pending}</p>
                 </div>
                 <div
                   className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
                   style={{ '--gc': '56 189 248' } as React.CSSProperties}
                 >
                   <p className="text-xs text-[rgb(var(--muted))]">Pairing</p>
-                  <p className="text-xl font-semibold text-sky-300">{statusStats.pairing}</p>
+                  <p className="text-xl font-semibold text-info">{statusStats.pairing}</p>
                 </div>
                 <div
                   className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
                   style={{ '--gc': '52 211 153' } as React.CSSProperties}
                 >
                   <p className="text-xs text-[rgb(var(--muted))]">Matched</p>
-                  <p className="text-xl font-semibold text-emerald-300">{statusStats.matched}</p>
+                  <p className="text-xl font-semibold text-success">{statusStats.matched}</p>
                 </div>
                 <div
                   className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
                   style={{ '--gc': '248 113 113' } as React.CSSProperties}
                 >
                   <p className="text-xs text-[rgb(var(--muted))]">Cancelled</p>
-                  <p className="text-xl font-semibold text-red-300">{statusStats.cancelled}</p>
+                  <p className="text-xl font-semibold text-danger">{statusStats.cancelled}</p>
                 </div>
                 <div
                   className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
                   style={{ '--gc': '52 211 153' } as React.CSSProperties}
                 >
                   <p className="text-xs text-[rgb(var(--muted))]">Completed</p>
-                  <p className="text-xl font-semibold text-emerald-300">{statusStats.completed}</p>
+                  <p className="text-xl font-semibold text-success">{statusStats.completed}</p>
                 </div>
               </div>
 
-              <div className="mt-6 overflow-x-auto">
+              <div
+                className="mt-6 overflow-x-auto"
+                tabIndex={0}
+                role="region"
+                aria-label={copy.adminTitle}
+              >
                 <div className="mb-3 grid gap-2 sm:grid-cols-4">
                   <input
                     type="text"
@@ -595,8 +600,8 @@ export default function AdminWorkspacePage() {
                   <p
                     className={`mt-2 rounded-lg px-3 py-2 text-xs ${
                       seedMessage.startsWith('Error')
-                        ? 'bg-red-950/40 text-red-300'
-                        : 'bg-emerald-950/40 text-emerald-300'
+                        ? 'bg-danger/10 text-danger'
+                        : 'bg-success/10 text-success'
                     }`}
                   >
                     {seedMessage}
@@ -661,7 +666,7 @@ export default function AdminWorkspacePage() {
                 </div>
 
                 {compareError && (
-                  <p className="mt-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                  <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                     {compareError}
                   </p>
                 )}
@@ -980,7 +985,12 @@ export default function AdminWorkspacePage() {
                         ))}
                       </div>
 
-                      <div className="mt-3 overflow-x-auto">
+                      <div
+                        className="mt-3 overflow-x-auto"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Optimization Engine Comparison"
+                      >
                         {compareData[activeTab].length === 0 ? (
                           <p className="px-3 py-6 text-sm text-[rgb(var(--muted))]">
                             No solutions returned for this strategy.

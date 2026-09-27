@@ -139,7 +139,7 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
 
           <div className="flex flex-col gap-1">
             <label className="text-sm text-[rgb(var(--muted))]">
-              {copy.offeredQty} <span className="text-red-400">*</span>
+              {copy.offeredQty} <span className="text-danger">*</span>
             </label>
             <input
               type="number"
@@ -164,15 +164,12 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
           {success && (
-            <p
-              role="status"
-              className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
-            >
+            <p role="status" className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
               {success}
             </p>
           )}
@@ -662,9 +659,9 @@ export default function FactoryWorkspacePage() {
   }
 
   const BID_STATUS: Record<string, string> = {
-    PENDING: 'text-amber-300',
-    ACCEPTED: 'text-emerald-300',
-    REJECTED: 'text-red-400',
+    PENDING: 'text-warning',
+    ACCEPTED: 'text-success',
+    REJECTED: 'text-danger',
     EXPIRED: 'text-[rgb(var(--muted))]',
   };
 
@@ -767,15 +764,15 @@ export default function FactoryWorkspacePage() {
       onLogout={handleLogout}
     >
       <div className="workspace-panels">
-        {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>}
+        {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
 
         {!loading && (
           <>
             {/* Open Requests (PENDING) */}
             <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
+              <h2 className="slide-up text-2xl font-semibold sm:text-3xl">
                 {copy.factoryWorkspaceTitle}
-              </h1>
+              </h2>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
                 {copy.factoryWorkspaceSubtitle}
               </p>
@@ -829,7 +826,12 @@ export default function FactoryWorkspacePage() {
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
+                  <div
+                    className="mt-3 overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.openRequestsTitle}
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -858,7 +860,7 @@ export default function FactoryWorkspacePage() {
                               </td>
                               <td className="py-2 pr-4">{row.preferred_currency_code}</td>
                               <td
-                                className={`py-2 pr-4 ${row.status === 'PAIRING_IN_PROGRESS' ? 'text-sky-300' : ''}`}
+                                className={`py-2 pr-4 ${row.status === 'PAIRING_IN_PROGRESS' ? 'text-info' : ''}`}
                               >
                                 {row.status}
                               </td>
@@ -872,7 +874,7 @@ export default function FactoryWorkspacePage() {
                                   <button
                                     type="button"
                                     onClick={() => setBidTarget(row)}
-                                    className="rounded-md border border-sky-700/60 px-3 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
+                                    className="rounded-md border border-info/40 px-3 py-1 text-xs text-info hover:bg-info/10"
                                   >
                                     {hasBid ? copy.actionBid : copy.actionBid}
                                   </button>
@@ -984,7 +986,12 @@ export default function FactoryWorkspacePage() {
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
+                  <div
+                    className="mt-3 overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.myBidsTitle}
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -1013,7 +1020,7 @@ export default function FactoryWorkspacePage() {
                               {bid.logistic_offer_id ? (
                                 `${bid.delivery_days}d \u2022 ${bid.delivery_price} ${bid.currency_code}`
                               ) : (
-                                <span className="text-xs text-amber-300">awaiting logistics</span>
+                                <span className="text-xs text-warning">awaiting logistics</span>
                               )}
                             </td>
                             <td className="py-2 pr-4">
@@ -1118,7 +1125,12 @@ export default function FactoryWorkspacePage() {
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
+                  <div
+                    className="mt-3 overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Contract & Fulfillment Workflow"
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -1149,7 +1161,7 @@ export default function FactoryWorkspacePage() {
                                     type="button"
                                     onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
                                     disabled={workflowBusyId === tx.id + 'SIGN'}
-                                    className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
+                                    className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
                                   >
                                     {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
                                   </button>
@@ -1159,7 +1171,7 @@ export default function FactoryWorkspacePage() {
                                     type="button"
                                     onClick={() => void handleWorkflowAction(tx.id, 'START')}
                                     disabled={workflowBusyId === tx.id + 'START'}
-                                    className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
+                                    className="rounded-md border border-warning/40 px-2 py-1 text-xs text-warning hover:bg-warning/10 disabled:opacity-60"
                                   >
                                     {workflowBusyId === tx.id + 'START'
                                       ? 'Submitting...'
@@ -1173,7 +1185,7 @@ export default function FactoryWorkspacePage() {
                                       void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
                                     }
                                     disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
+                                    className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
                                   >
                                     {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
                                       ? 'Updating...'
@@ -1238,7 +1250,7 @@ export default function FactoryWorkspacePage() {
               </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.addInventorySubtitle}</p>
               {success && (
-                <p className="mt-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+                <p className="mt-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
                   {success}
                 </p>
               )}
@@ -1299,7 +1311,7 @@ export default function FactoryWorkspacePage() {
                       onClick={() => setUseManualStockAddress(false)}
                       className={`rounded-md border px-2 py-1 text-xs ${
                         !useManualStockAddress
-                          ? 'border-sky-700/80 text-sky-300'
+                          ? 'border-info/40 text-info'
                           : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                       }`}
                     >
@@ -1310,7 +1322,7 @@ export default function FactoryWorkspacePage() {
                       onClick={() => setUseManualStockAddress(true)}
                       className={`rounded-md border px-2 py-1 text-xs ${
                         useManualStockAddress
-                          ? 'border-sky-700/80 text-sky-300'
+                          ? 'border-info/40 text-info'
                           : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                       }`}
                     >
@@ -1373,10 +1385,14 @@ export default function FactoryWorkspacePage() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  <label
+                    htmlFor="inventory-quantity"
+                    className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                  >
                     {copy.qtyAvailableLabel}
                   </label>
                   <input
+                    id="inventory-quantity"
                     type="number"
                     min="1"
                     value={quantityAvailable}
@@ -1387,10 +1403,14 @@ export default function FactoryWorkspacePage() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  <label
+                    htmlFor="inventory-price"
+                    className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                  >
                     {copy.pricePerUnitLabel}
                   </label>
                   <input
+                    id="inventory-price"
                     type="number"
                     min="0.01"
                     step="0.01"
@@ -1472,7 +1492,12 @@ export default function FactoryWorkspacePage() {
                     </p>
                   ) : (
                     <>
-                      <div className="mt-6 overflow-x-auto">
+                      <div
+                        className="mt-6 overflow-x-auto"
+                        tabIndex={0}
+                        role="region"
+                        aria-label={copy.myInventoryTitle}
+                      >
                         <h3 className="mb-2 text-sm font-medium text-[rgb(var(--muted))]">
                           Current inventory
                         </h3>
@@ -1504,8 +1529,8 @@ export default function FactoryWorkspacePage() {
                                     onClick={() => void handleToggleInventoryStatus(e.id, e.status)}
                                     className={`rounded-md border px-2 py-1 text-xs disabled:opacity-50 ${
                                       e.status === 'ACTIVE'
-                                        ? 'border-amber-700/60 text-amber-300 hover:bg-amber-950/30'
-                                        : 'border-emerald-700/60 text-emerald-300 hover:bg-emerald-950/30'
+                                        ? 'border-warning/40 text-warning hover:bg-warning/10'
+                                        : 'border-success/40 text-success hover:bg-success/10'
                                     }`}
                                   >
                                     {inventoryStatusBusyId === e.id

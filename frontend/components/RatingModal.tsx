@@ -20,8 +20,8 @@ function StarSelector({ value, onChange }: { value: number; onChange: (v: number
           type="button"
           onClick={() => onChange(star)}
           className={`text-2xl leading-none transition-colors ${
-            star <= value ? 'text-amber-400' : 'text-[rgb(var(--stroke))]'
-          } hover:text-amber-300`}
+            star <= value ? 'text-warning' : 'text-[rgb(var(--stroke))]'
+          } hover:text-warning`}
           aria-label={`${star} star${star !== 1 ? 's' : ''}`}
         >
           ★
@@ -188,12 +188,10 @@ export default function RatingModal({
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+            <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
           {success && (
-            <p className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
-              {success}
-            </p>
+            <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{success}</p>
           )}
 
           <div className="flex gap-3 pt-1">

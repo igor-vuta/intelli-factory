@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import { useExperienceCopy } from '../hooks/useExperienceCopy';
 import GettingStarted from './GettingStarted';
 import GuidanceHint from './GuidanceHint';
@@ -8,9 +9,8 @@ import ReorderableCards from './ReorderableCards';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import PresetIcon from './PresetIcon';
-import ThemeSwitcher from './ThemeSwitcher';
+import ModeSwitcher from './ModeSwitcher';
 import LocaleSwitcher from './LocaleSwitcher';
-import { useTheme } from '../hooks/useTheme';
 import { getLocaleFromQuery, t } from '../lib/i18n';
 
 type Role = 'customer' | 'factory' | 'logist' | 'admin';
@@ -117,7 +117,6 @@ export default function WorkspaceExperience({
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
-  const [theme, setTheme] = useTheme();
   const c = config[role];
   const [navigationOpen, setNavigationOpen] = useState(false);
   const requestedView = router.query.view;
@@ -125,6 +124,7 @@ export default function WorkspaceExperience({
     typeof requestedView === 'string' && c.nav.some(([id]) => id === requestedView)
       ? requestedView
       : 'home';
+  const sectionName = c.nav.find(([id]) => id === view)?.[1] ?? c.nav[0][1];
   function navigate(next: string) {
     setNavigationOpen(false);
     const query = { ...router.query, view: next };
@@ -220,9 +220,15 @@ export default function WorkspaceExperience({
       </div>
     );
   return (
-    <main className={`experience experience-${role}`} data-view={view}>
+    <div className={`experience experience-${role}`}>
+      <Head>
+        <title>{`${e(sectionName)} · ${e(c.name)} · Intelli-Factory`}</title>
+      </Head>
+      <a className="skip-link" href="#main">
+        {e('Skip to content')}
+      </a>
       {role === 'factory' && (
-        <aside className="factory-sidebar">
+        <aside className="factory-sidebar" aria-label={e('Factory workspace')}>
           <Link href={`/?lang=${locale}`} className="experience-brand">
             <PresetIcon src="/presets/brand.svg" alt="" size={30} />
             <span>
@@ -275,7 +281,7 @@ export default function WorkspaceExperience({
           </Link>
           <div className="experience-settings">
             <LocaleSwitcher currentLocale={locale} basePath={`/app/${role}`} />
-            <ThemeSwitcher currentTheme={theme} onThemeChange={setTheme} compact />
+            <ModeSwitcher />
             <button type="button" className="experience-logout" onClick={onLogout}>
               {copy.logout}
               <span aria-hidden>↗</span>
@@ -284,402 +290,408 @@ export default function WorkspaceExperience({
         </header>
         {role !== 'factory' && nav}
         {role === 'factory' && <div className="factory-mobile-nav">{nav}</div>}
-        {role !== 'admin' && !loading && guidance && (
-          <GettingStarted
-            key={`${role}:${guidance.userId}`}
-            role={role}
-            userId={guidance.userId}
-            completed={guidance.completed}
-            onNavigate={navigate}
-          />
-        )}
-        {role !== 'admin' && <GuidanceHint hint={sectionHints[role][view] ?? 'workflow'} />}
-        {error && (
-          <p role="alert" className="experience-error">
-            {error}
-          </p>
-        )}
-        {view === 'home' ? (
-          <div className="experience-overview" key="home">
-            {role === 'customer' && (
-              <>
-                <section className="customer-hero">
-                  <div>
-                    <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                    <h1>{e(c.title)}</h1>
-                    <p className="hero-description">{e(c.description)}</p>
-                    <button
-                      type="button"
-                      className="experience-primary"
-                      disabled={loading}
-                      onClick={primary}
-                    >
-                      {e('Start a new request')} <Arrow />
-                    </button>
-                    <div className="customer-proof">
-                      <span className="proof-circles" aria-hidden>
-                        <i />
-                        <i />
-                        <i />
+        <main id="main" className="experience-main" data-view={view} tabIndex={-1}>
+          {role !== 'admin' && !loading && guidance && (
+            <GettingStarted
+              key={`${role}:${guidance.userId}`}
+              role={role}
+              userId={guidance.userId}
+              completed={guidance.completed}
+              onNavigate={navigate}
+            />
+          )}
+          {role !== 'admin' && <GuidanceHint hint={sectionHints[role][view] ?? 'workflow'} />}
+          {error && (
+            <p role="alert" className="experience-error">
+              {error}
+            </p>
+          )}
+          {view === 'home' ? (
+            <div className="experience-overview" key="home">
+              {role === 'customer' && (
+                <>
+                  <section className="customer-hero">
+                    <div>
+                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
+                      <h1>{e(c.title)}</h1>
+                      <p className="hero-description">{e(c.description)}</p>
+                      <button
+                        type="button"
+                        className="experience-primary"
+                        disabled={loading}
+                        onClick={primary}
+                      >
+                        {e('Start a new request')} <Arrow />
+                      </button>
+                      <div className="customer-proof">
+                        <span className="proof-circles" aria-hidden>
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                        <span>{e('One request. Three partners. One clear journey.')}</span>
+                      </div>
+                    </div>
+                    <div className="supply-sculpture" aria-hidden>
+                      <span className="sculpture-orbit orbit-a" />
+                      <span className="sculpture-orbit orbit-b" />
+                      <div className="sculpture-core">
+                        <PresetIcon src="/presets/brand.svg" alt="" size={100} />
+                      </div>
+                      <span className="sculpture-label sculpture-one">{e('01 / Your idea')}</span>
+                      <span className="sculpture-label sculpture-two">
+                        {e('02 / The right match')}
                       </span>
-                      <span>{e('One request. Three partners. One clear journey.')}</span>
+                      <span className="sculpture-label sculpture-three">{e('03 / Delivered')}</span>
                     </div>
-                  </div>
-                  <div className="supply-sculpture" aria-hidden>
-                    <span className="sculpture-orbit orbit-a" />
-                    <span className="sculpture-orbit orbit-b" />
-                    <div className="sculpture-core">
-                      <PresetIcon src="/presets/brand.svg" alt="" size={100} />
-                    </div>
-                    <span className="sculpture-label sculpture-one">{e('01 / Your idea')}</span>
-                    <span className="sculpture-label sculpture-two">
-                      {e('02 / The right match')}
-                    </span>
-                    <span className="sculpture-label sculpture-three">{e('03 / Delivered')}</span>
-                  </div>
-                </section>
-                <section className="customer-summary">
-                  {c.stats.map((text, i) => (
-                    <div key={e(text)}>
-                      <strong>{loading ? '—' : (counts[i] ?? 0)}</strong>
-                      <span>{e(text)}</span>
-                    </div>
-                  ))}
-                  <p>
-                    {e('Less chasing.')} <br />
-                    <strong>{e('More moving forward.')}</strong>
-                  </p>
-                </section>
-                <div className="experience-section-heading">
-                  <div>
-                    <p className="experience-eyebrow">{e('MADE FOR YOUR NEXT STEP')}</p>
-                    <h2>{e('Your supply, in progress')}</h2>
-                  </div>
-                  <button type="button" onClick={() => navigate('requests')}>
-                    {e('All requests')} <Arrow />
-                  </button>
-                </div>
-                <section className="customer-order-grid">
-                  {cards(items, 'Your next order starts here.')}
-                </section>
-                <section className="journey-strip">
-                  <span>{e('THE WAY FORWARD')}</span>
-                  {['Make a request', 'Compare proposals', 'Sign together', 'Track delivery'].map(
-                    (text, i) => (
+                  </section>
+                  <section className="customer-summary">
+                    {c.stats.map((text, i) => (
                       <div key={e(text)}>
-                        <b>0{i + 1}</b>
-                        {e(text)}
-                        <span aria-hidden>→</span>
+                        <strong>{loading ? '—' : (counts[i] ?? 0)}</strong>
+                        <span>{e(text)}</span>
                       </div>
-                    )
-                  )}
-                </section>
-              </>
-            )}
-            {role === 'factory' && (
-              <>
-                <section className="factory-intro">
-                  <div>
-                    <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                    <h1>{e(c.title)}</h1>
-                    <p className="hero-description">{e(c.description)}</p>
-                  </div>
-                  <button type="button" className="experience-primary" onClick={primary}>
-                    {e('＋ Add inventory')} <Arrow />
-                  </button>
-                </section>
-                <section className="factory-counters">
-                  {c.stats.map((text, i) => (
-                    <button
-                      type="button"
-                      key={e(text)}
-                      onClick={() => navigate(['requests', 'inventory', 'workflow'][i])}
-                    >
-                      <span>
-                        {e(text)}
-                        <Arrow />
-                      </span>
-                      <strong>
-                        {loading ? '—' : (counts[i] ?? 0)}
-                        <small>{e(['opportunities', 'stock lines', 'in progress'][i])}</small>
-                      </strong>
-                      <div className="counter-track">
-                        <i style={{ width: '100%' }} />
-                      </div>
+                    ))}
+                    <p>
+                      {e('Less chasing.')} <br />
+                      <strong>{e('More moving forward.')}</strong>
+                    </p>
+                  </section>
+                  <div className="experience-section-heading">
+                    <div>
+                      <p className="experience-eyebrow">{e('MADE FOR YOUR NEXT STEP')}</p>
+                      <h2>{e('Your supply, in progress')}</h2>
+                    </div>
+                    <button type="button" onClick={() => navigate('requests')}>
+                      {e('All requests')} <Arrow />
                     </button>
-                  ))}
-                </section>
-                <div className="factory-work-grid">
-                  <section>
-                    <div className="experience-section-heading">
-                      <div>
-                        <p className="experience-eyebrow">{e('DEMAND SIGNAL')}</p>
-                        <h2>{e('Ready for your expertise')}</h2>
+                  </div>
+                  <section className="customer-order-grid">
+                    {cards(items, 'Your next order starts here.')}
+                  </section>
+                  <section className="journey-strip">
+                    <span>{e('THE WAY FORWARD')}</span>
+                    {['Make a request', 'Compare proposals', 'Sign together', 'Track delivery'].map(
+                      (text, i) => (
+                        <div key={e(text)}>
+                          <b>0{i + 1}</b>
+                          {e(text)}
+                          <span aria-hidden>→</span>
+                        </div>
+                      )
+                    )}
+                  </section>
+                </>
+              )}
+              {role === 'factory' && (
+                <>
+                  <section className="factory-intro">
+                    <div>
+                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
+                      <h1>{e(c.title)}</h1>
+                      <p className="hero-description">{e(c.description)}</p>
+                    </div>
+                    <button type="button" className="experience-primary" onClick={primary}>
+                      {e('＋ Add inventory')} <Arrow />
+                    </button>
+                  </section>
+                  <section className="factory-counters">
+                    {c.stats.map((text, i) => (
+                      <button
+                        type="button"
+                        key={e(text)}
+                        onClick={() => navigate(['requests', 'inventory', 'workflow'][i])}
+                      >
+                        <span>
+                          {e(text)}
+                          <Arrow />
+                        </span>
+                        <strong>
+                          {loading ? '—' : (counts[i] ?? 0)}
+                          <small>{e(['opportunities', 'stock lines', 'in progress'][i])}</small>
+                        </strong>
+                        <div className="counter-track">
+                          <i style={{ width: '100%' }} />
+                        </div>
+                      </button>
+                    ))}
+                  </section>
+                  <div className="factory-work-grid">
+                    <section>
+                      <div className="experience-section-heading">
+                        <div>
+                          <p className="experience-eyebrow">{e('DEMAND SIGNAL')}</p>
+                          <h2>{e('Ready for your expertise')}</h2>
+                        </div>
+                        <button type="button" onClick={() => navigate('requests')}>
+                          {e('View board')} <Arrow />
+                        </button>
                       </div>
-                      <button type="button" onClick={() => navigate('requests')}>
-                        {e('View board')} <Arrow />
+                      <div className="factory-demand-list">
+                        {cards(items, 'Your next opportunity is on its way.')}
+                      </div>
+                    </section>
+                    <aside className="factory-capacity" aria-label={e('Your production cycle')}>
+                      <span className="experience-eyebrow">{e('YOUR PRODUCTION CYCLE')}</span>
+                      <div className="machine-drawing" aria-hidden>
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                      </div>
+                      <h2>
+                        {e('Stock.')} <br />
+                        {e('Bid.')} <br />
+                        {e('Build.')}{' '}
+                      </h2>
+                      <p>{e('A focused workspace for turning inventory into confirmed orders.')}</p>
+                      <button type="button" onClick={() => navigate('bids')}>
+                        {e('Review your bids')} <Arrow />
+                      </button>
+                      <div className="factory-cycle">
+                        <span>{e('01 Inventory')}</span>
+                        <span>{e('02 Proposal')}</span>
+                        <span>{e('03 Handover')}</span>
+                      </div>
+                    </aside>
+                  </div>
+                </>
+              )}
+              {role === 'logist' && (
+                <>
+                  <section className="dispatch-heading">
+                    <div>
+                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
+                      <h1>{e(c.title)}</h1>
+                    </div>
+                    <div className="dispatch-counter">
+                      <strong>{loading ? '—' : (counts[1] ?? 0)}</strong>
+                      <span>{e('active shipments')}</span>
+                    </div>
+                  </section>
+                  <section className="dispatch-route">
+                    <div className="route-caption">
+                      <span>{e('THE DELIVERY JOURNEY')}</span>
+                      <span>{e('FACTORY → CUSTOMER')}</span>
+                    </div>
+                    <div className="route-line" aria-hidden>
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                    <div className="route-stops">
+                      <div>
+                        <b>01</b>
+                        <strong>{e('Quote')}</strong>
+                        <span>{e('Set the terms')}</span>
+                      </div>
+                      <div>
+                        <b>02</b>
+                        <strong>{e('Collect')}</strong>
+                        <span>{e('Factory handover')}</span>
+                      </div>
+                      <div>
+                        <b>03</b>
+                        <strong>{e('Deliver')}</strong>
+                        <span>{e('Keep it moving')}</span>
+                      </div>
+                      <div>
+                        <b>04</b>
+                        <strong>{e('Complete')}</strong>
+                        <span>{e('Customer acceptance')}</span>
+                      </div>
+                    </div>
+                    <button type="button" className="experience-primary" onClick={primary}>
+                      {e('Find your next delivery')} <Arrow />
+                    </button>
+                  </section>
+                  <section className="dispatch-toolbar">
+                    <h2>{e('Dispatch board')}</h2>
+                    <div>
+                      <button type="button" onClick={() => navigate('quotes')}>
+                        {e('Quote requests')} <b>{counts[0] ?? 0}</b>
+                      </button>
+                      <button type="button" onClick={() => navigate('offers')}>
+                        {e('Delivery services')} <b>{counts[2] ?? 0}</b>
                       </button>
                     </div>
-                    <div className="factory-demand-list">
-                      {cards(items, 'Your next opportunity is on its way.')}
-                    </div>
                   </section>
-                  <aside className="factory-capacity">
-                    <span className="experience-eyebrow">{e('YOUR PRODUCTION CYCLE')}</span>
-                    <div className="machine-drawing" aria-hidden>
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                    <h2>
-                      {e('Stock.')} <br />
-                      {e('Bid.')} <br />
-                      {e('Build.')}{' '}
-                    </h2>
-                    <p>{e('A focused workspace for turning inventory into confirmed orders.')}</p>
-                    <button type="button" onClick={() => navigate('bids')}>
-                      {e('Review your bids')} <Arrow />
-                    </button>
-                    <div className="factory-cycle">
-                      <span>{e('01 Inventory')}</span>
-                      <span>{e('02 Proposal')}</span>
-                      <span>{e('03 Handover')}</span>
-                    </div>
-                  </aside>
-                </div>
-              </>
-            )}
-            {role === 'logist' && (
-              <>
-                <section className="dispatch-heading">
-                  <div>
-                    <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                    <h1>{e(c.title)}</h1>
-                  </div>
-                  <div className="dispatch-counter">
-                    <strong>{loading ? '—' : (counts[1] ?? 0)}</strong>
-                    <span>{e('active shipments')}</span>
-                  </div>
-                </section>
-                <section className="dispatch-route">
-                  <div className="route-caption">
-                    <span>{e('THE DELIVERY JOURNEY')}</span>
-                    <span>{e('FACTORY → CUSTOMER')}</span>
-                  </div>
-                  <div className="route-line" aria-hidden>
-                    <i />
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                  <div className="route-stops">
-                    <div>
-                      <b>01</b>
-                      <strong>{e('Quote')}</strong>
-                      <span>{e('Set the terms')}</span>
-                    </div>
-                    <div>
-                      <b>02</b>
-                      <strong>{e('Collect')}</strong>
-                      <span>{e('Factory handover')}</span>
-                    </div>
-                    <div>
-                      <b>03</b>
-                      <strong>{e('Deliver')}</strong>
-                      <span>{e('Keep it moving')}</span>
-                    </div>
-                    <div>
-                      <b>04</b>
-                      <strong>{e('Complete')}</strong>
-                      <span>{e('Customer acceptance')}</span>
-                    </div>
-                  </div>
-                  <button type="button" className="experience-primary" onClick={primary}>
-                    {e('Find your next delivery')} <Arrow />
-                  </button>
-                </section>
-                <section className="dispatch-toolbar">
-                  <h2>{e('Dispatch board')}</h2>
-                  <div>
-                    <button type="button" onClick={() => navigate('quotes')}>
-                      {e('Quote requests')} <b>{counts[0] ?? 0}</b>
-                    </button>
-                    <button type="button" onClick={() => navigate('offers')}>
-                      {e('Delivery services')} <b>{counts[2] ?? 0}</b>
-                    </button>
-                  </div>
-                </section>
-                <section className="dispatch-lanes">
-                  {[
-                    [
-                      'Before departure',
-                      [
-                        'PAYMENT_CONFIRMED',
-                        'FULLY_SIGNED',
-                        'AWAITING_PAYMENT',
-                        'CONTRACT_SIGNING',
-                        'CONTRACT_DRAFTED',
-                      ],
-                    ],
-                    ['On the road', ['FULFILLMENT_STARTED', 'IN_PROGRESS']],
-                    ['Delivered', ['COMPLETED']],
-                  ].map(([name, statuses], i) => (
-                    <div
-                      data-delivery-lane={i}
-                      className={`dispatch-lane lane-${i}`}
-                      key={String(name)}
-                    >
-                      <div className="lane-heading">
-                        <span className="status-dot" />
-                        <h3>{e(String(name))}</h3>
-                        <b>
-                          {
-                            items.filter((item) => (statuses as string[]).includes(item.status))
-                              .length
-                          }
-                        </b>
-                      </div>
-                      {cards(
-                        items.filter((item) => (statuses as string[]).includes(item.status)),
-                        i === 0
-                          ? 'Ready when you are.'
-                          : i === 1
-                            ? 'A clear road ahead.'
-                            : 'The final stop.'
-                      )}
-                    </div>
-                  ))}
-                </section>
-              </>
-            )}
-            {role === 'admin' && (
-              <>
-                <section className="control-intro">
-                  <div>
-                    <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                    <h1>{e(c.title)}</h1>
-                    <p className="hero-description">{e(c.description)}</p>
-                  </div>
-                  <div className="control-emblem" aria-hidden>
-                    <span />
-                    <span />
-                    <span />
-                    <PresetIcon src="/presets/admin.svg" alt="" size={52} />
-                  </div>
-                </section>
-                <section className="control-metrics">
-                  {c.stats.map((text, i) => (
-                    <div key={e(text)}>
-                      <span>
-                        0{i + 1} / {e(text)}
-                      </span>
-                      <strong>{loading ? '—' : (counts[i] ?? 0)}</strong>
-                      <div className="metric-bars" aria-hidden>
-                        {Array.from({ length: 18 }, (_, n) => (
-                          <i key={n} style={{ height: '3px' }} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </section>
-                <div className="control-grid">
-                  <section className="control-pipeline">
-                    <div className="experience-section-heading">
-                      <div>
-                        <p className="experience-eyebrow">{e('REQUEST DISTRIBUTION')}</p>
-                        <h2>{e('Inside the network')}</h2>
-                      </div>
-                      <span>
-                        {counts[0] ?? 0} {e('requests')}
-                      </span>
-                    </div>
+                  <section className="dispatch-lanes">
                     {[
-                      ['Pending', ['PENDING']],
-                      ['Matching', ['PAIRING_IN_PROGRESS', 'MATCHED']],
                       [
-                        'Execution',
+                        'Before departure',
                         [
-                          'CONTRACT_SIGNING',
+                          'PAYMENT_CONFIRMED',
                           'FULLY_SIGNED',
                           'AWAITING_PAYMENT',
-                          'PAYMENT_CONFIRMED',
-                          'FULFILLMENT_STARTED',
-                          'IN_PROGRESS',
+                          'CONTRACT_SIGNING',
+                          'CONTRACT_DRAFTED',
                         ],
                       ],
-                      ['Completed', ['COMPLETED']],
-                    ].map(([name, statuses]) => {
-                      const total = items.filter((item) =>
-                        (statuses as string[]).includes(item.status)
-                      ).length;
-                      return (
-                        <div className="pipeline-row" key={String(name)}>
-                          <span>{e(String(name))}</span>
-                          <div>
-                            <i style={{ width: `${counts[0] ? (total / counts[0]) * 100 : 0}%` }} />
-                          </div>
-                          <strong>{total}</strong>
+                      ['On the road', ['FULFILLMENT_STARTED', 'IN_PROGRESS']],
+                      ['Delivered', ['COMPLETED']],
+                    ].map(([name, statuses], i) => (
+                      <div
+                        data-delivery-lane={i}
+                        className={`dispatch-lane lane-${i}`}
+                        key={String(name)}
+                      >
+                        <div className="lane-heading">
+                          <span className="status-dot" />
+                          <h3>{e(String(name))}</h3>
+                          <b>
+                            {
+                              items.filter((item) => (statuses as string[]).includes(item.status))
+                                .length
+                            }
+                          </b>
                         </div>
-                      );
-                    })}
+                        {cards(
+                          items.filter((item) => (statuses as string[]).includes(item.status)),
+                          i === 0
+                            ? 'Ready when you are.'
+                            : i === 1
+                              ? 'A clear road ahead.'
+                              : 'The final stop.'
+                        )}
+                      </div>
+                    ))}
                   </section>
-                  <section className="control-optimizer">
-                    <span className="experience-eyebrow">{e('DECISION ENGINE')}</span>
-                    <div className="optimizer-nodes" aria-hidden>
-                      <i>01</i>
-                      <i>02</i>
-                      <i>03</i>
+                </>
+              )}
+              {role === 'admin' && (
+                <>
+                  <section className="control-intro">
+                    <div>
+                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
+                      <h1>{e(c.title)}</h1>
+                      <p className="hero-description">{e(c.description)}</p>
                     </div>
-                    <h2>
-                      {e('One pool.')} <br />
-                      {e('Three perspectives.')}{' '}
-                    </h2>
-                    <p>{e('Compare Greedy, Fast and Deep strategies against the same request.')}</p>
-                    <button type="button" className="experience-primary" onClick={primary}>
-                      {e('Explore optimisation')} <Arrow />
-                    </button>
+                    <div className="control-emblem" aria-hidden>
+                      <span />
+                      <span />
+                      <span />
+                      <PresetIcon src="/presets/admin.svg" alt="" size={52} />
+                    </div>
                   </section>
-                </div>
-                <div className="experience-section-heading">
-                  <h2>{e('Latest activity in the pipeline')}</h2>
-                  <button type="button" onClick={() => navigate('operations')}>
-                    {e('Open operations')} <Arrow />
-                  </button>
-                </div>
-                <section className="control-activity">
-                  {items.slice(0, 5).map((item, i) => (
-                    <button type="button" key={item.id} onClick={() => navigate('operations')}>
-                      <span className="activity-number">0{i + 1}</span>
-                      <strong>{item.title}</strong>
-                      <span>{locale === 'en' ? label(item.status) : e(item.status)}</span>
-                      <Arrow />
+                  <section className="control-metrics">
+                    {c.stats.map((text, i) => (
+                      <div key={e(text)}>
+                        <span>
+                          0{i + 1} / {e(text)}
+                        </span>
+                        <strong>{loading ? '—' : (counts[i] ?? 0)}</strong>
+                        <div className="metric-bars" aria-hidden>
+                          {Array.from({ length: 18 }, (_, n) => (
+                            <i key={n} style={{ height: '3px' }} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                  <div className="control-grid">
+                    <section className="control-pipeline">
+                      <div className="experience-section-heading">
+                        <div>
+                          <p className="experience-eyebrow">{e('REQUEST DISTRIBUTION')}</p>
+                          <h2>{e('Inside the network')}</h2>
+                        </div>
+                        <span>
+                          {counts[0] ?? 0} {e('requests')}
+                        </span>
+                      </div>
+                      {[
+                        ['Pending', ['PENDING']],
+                        ['Matching', ['PAIRING_IN_PROGRESS', 'MATCHED']],
+                        [
+                          'Execution',
+                          [
+                            'CONTRACT_SIGNING',
+                            'FULLY_SIGNED',
+                            'AWAITING_PAYMENT',
+                            'PAYMENT_CONFIRMED',
+                            'FULFILLMENT_STARTED',
+                            'IN_PROGRESS',
+                          ],
+                        ],
+                        ['Completed', ['COMPLETED']],
+                      ].map(([name, statuses]) => {
+                        const total = items.filter((item) =>
+                          (statuses as string[]).includes(item.status)
+                        ).length;
+                        return (
+                          <div className="pipeline-row" key={String(name)}>
+                            <span>{e(String(name))}</span>
+                            <div>
+                              <i
+                                style={{ width: `${counts[0] ? (total / counts[0]) * 100 : 0}%` }}
+                              />
+                            </div>
+                            <strong>{total}</strong>
+                          </div>
+                        );
+                      })}
+                    </section>
+                    <section className="control-optimizer">
+                      <span className="experience-eyebrow">{e('DECISION ENGINE')}</span>
+                      <div className="optimizer-nodes" aria-hidden>
+                        <i>01</i>
+                        <i>02</i>
+                        <i>03</i>
+                      </div>
+                      <h2>
+                        {e('One pool.')} <br />
+                        {e('Three perspectives.')}{' '}
+                      </h2>
+                      <p>
+                        {e('Compare Greedy, Fast and Deep strategies against the same request.')}
+                      </p>
+                      <button type="button" className="experience-primary" onClick={primary}>
+                        {e('Explore optimisation')} <Arrow />
+                      </button>
+                    </section>
+                  </div>
+                  <div className="experience-section-heading">
+                    <h2>{e('Latest activity in the pipeline')}</h2>
+                    <button type="button" onClick={() => navigate('operations')}>
+                      {e('Open operations')} <Arrow />
                     </button>
-                  ))}
-                  {!items.length && <p>{e('No requests yet. New activity will appear here.')}</p>}
-                </section>
-              </>
-            )}
+                  </div>
+                  <section className="control-activity">
+                    {items.slice(0, 5).map((item, i) => (
+                      <button type="button" key={item.id} onClick={() => navigate('operations')}>
+                        <span className="activity-number">0{i + 1}</span>
+                        <strong>{item.title}</strong>
+                        <span>{locale === 'en' ? label(item.status) : e(item.status)}</span>
+                        <Arrow />
+                      </button>
+                    ))}
+                    {!items.length && <p>{e('No requests yet. New activity will appear here.')}</p>}
+                  </section>
+                </>
+              )}
+            </div>
+          ) : null}
+          <div key={`detail-${view}`} className="experience-detail" hidden={view === 'home'}>
+            <div className="detail-heading">
+              <button type="button" onClick={() => navigate('home')}>
+                {e('← Overview')}{' '}
+              </button>
+              <span>{e(c.name)}</span>
+            </div>
+            {/* Names the view for assistive tech; each page still shows its own visible heading. */}
+            {view !== 'home' && <h1 className="sr-only">{e(sectionName)}</h1>}
+            {children}
           </div>
-        ) : null}
-        <div key={`detail-${view}`} className="experience-detail" hidden={view === 'home'}>
-          <div className="detail-heading">
-            <button type="button" onClick={() => navigate('home')}>
-              {e('← Overview')}{' '}
-            </button>
-            <span>
-              {e(c.name)} / {e(c.nav.find(([id]) => id === view)?.[1] ?? '')}
-            </span>
-          </div>
-          {children}
-        </div>
+        </main>
         <footer className="experience-footer">
           <span>INTELLI–FACTORY</span>
           <span>{e('Connected work. Considered design.')}</span>
           <span>{e(c.name)}</span>
         </footer>
       </div>
-    </main>
+    </div>
   );
 }

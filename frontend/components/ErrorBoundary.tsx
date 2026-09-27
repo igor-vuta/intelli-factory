@@ -36,16 +36,16 @@ export default class ErrorBoundary extends Component<Props, State> {
     }
 
     return (
-      <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-100">
-        <div className="mx-auto max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-6">
+      <main className="min-h-dvh bg-[rgb(var(--bg))] px-6 py-12 text-[rgb(var(--text))]">
+        <div className="mx-auto max-w-xl rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--card))] p-6">
           <h1 className="text-2xl font-semibold">Something went wrong</h1>
-          <p className="mt-2 text-sm text-slate-300">
+          <p className="mt-2 text-sm text-[rgb(var(--muted))]">
             The page crashed unexpectedly. Reload to continue.
           </p>
           <button
             type="button"
             onClick={this.handleReload}
-            className="mt-5 rounded-lg border border-slate-500 px-4 py-2 text-sm hover:bg-slate-800"
+            className="mt-5 rounded-lg border border-[rgb(var(--stroke))] px-4 py-2 text-sm hover:bg-[rgb(var(--panel))]"
           >
             Reload page
           </button>

@@ -44,4 +44,4 @@ export function savePreference(preference: ColorModePreference) {
 }
 
 /** Inline, dependency-free version of readPreference + resolveMode + applyMode for _document. */
-export const COLOR_MODE_SCRIPT = `(function(){var p='system';try{var s=localStorage.getItem('${COLOR_MODE_KEY}');if(s==='light'||s==='dark')p=s;}catch(e){}var m=p==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):p;document.documentElement.dataset.mode=m;})();`;
+export const COLOR_MODE_SCRIPT = `(function(){var p='system';try{var s=localStorage.getItem('${COLOR_MODE_KEY}');if(s==='light'||s==='dark')p=s;}catch(e){}var m=p==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):p;document.documentElement.dataset.mode=m;var t=document.querySelector('meta[name="theme-color"]');if(t)t.setAttribute('content',m==='light'?'${THEME_COLOR.light}':'${THEME_COLOR.dark}');})();`;

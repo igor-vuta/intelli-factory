@@ -47,17 +47,17 @@ import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/for
 import { getLocaleFromQuery, t } from '../../lib/i18n';
 
 const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'text-amber-300',
-  PAIRING_IN_PROGRESS: 'text-sky-300',
-  MATCHED: 'text-emerald-300',
-  CONTRACT_DRAFTED: 'text-indigo-300',
-  CONTRACT_SIGNING: 'text-indigo-300',
-  FULLY_SIGNED: 'text-violet-300',
-  PAYMENT_CONFIRMED: 'text-emerald-300',
-  FULFILLMENT_STARTED: 'text-amber-300',
-  IN_PROGRESS: 'text-sky-300',
-  COMPLETED: 'text-emerald-300',
-  CANCELLED: 'text-red-400',
+  PENDING: 'text-warning',
+  PAIRING_IN_PROGRESS: 'text-info',
+  MATCHED: 'text-success',
+  CONTRACT_DRAFTED: 'text-info',
+  CONTRACT_SIGNING: 'text-info',
+  FULLY_SIGNED: 'text-info',
+  PAYMENT_CONFIRMED: 'text-success',
+  FULFILLMENT_STARTED: 'text-warning',
+  IN_PROGRESS: 'text-info',
+  COMPLETED: 'text-success',
+  CANCELLED: 'text-danger',
 };
 
 const REQUESTS_PAGE_SIZE = 5;
@@ -183,17 +183,17 @@ function ProposalsModal({
 
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
           {error && (
-            <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+            <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
 
           {loadError && (
-            <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {loadError}
             </p>
           )}
 
           {acceptedCandidate && (
-            <p className="mb-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+            <p className="mb-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
               A proposal is already selected for this request.
             </p>
           )}
@@ -207,7 +207,7 @@ function ProposalsModal({
                   onClick={() => setRecommendationGoal('RELIABILITY')}
                   className={`rounded-lg border px-3 py-1.5 text-xs ${
                     recommendationGoal === 'RELIABILITY'
-                      ? 'border-emerald-700/80 text-emerald-300'
+                      ? 'border-success/40 text-success'
                       : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                   }`}
                 >
@@ -218,7 +218,7 @@ function ProposalsModal({
                   onClick={() => setRecommendationGoal('COST')}
                   className={`rounded-lg border px-3 py-1.5 text-xs ${
                     recommendationGoal === 'COST'
-                      ? 'border-amber-700/80 text-amber-300'
+                      ? 'border-warning/40 text-warning'
                       : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                   }`}
                 >
@@ -229,7 +229,7 @@ function ProposalsModal({
                   onClick={() => setRecommendationGoal('TIME')}
                   className={`rounded-lg border px-3 py-1.5 text-xs ${
                     recommendationGoal === 'TIME'
-                      ? 'border-sky-700/80 text-sky-300'
+                      ? 'border-info/40 text-info'
                       : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                   }`}
                 >
@@ -238,8 +238,8 @@ function ProposalsModal({
               </div>
 
               {recommendedCandidate ? (
-                <div className="rounded-lg border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-sm">
-                  <div className="font-medium text-sky-200">Recommended proposal</div>
+                <div className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm">
+                  <div className="font-medium text-info">Recommended proposal</div>
                   <div className="mt-1 text-xs text-[rgb(var(--muted))]">
                     Factory: {recommendedCandidate.factory_legal_name ?? '-'} | Total:{' '}
                     {recommendedCandidate.total_cost ?? '-'} {recommendedCandidate.currency_code} |
@@ -266,7 +266,12 @@ function ProposalsModal({
                 : 'No complete proposals yet. Factories have bid but logistics quotes are pending.'}
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              className="overflow-x-auto"
+              tabIndex={0}
+              role="region"
+              aria-label={e('Proposals for your request')}
+            >
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -295,7 +300,7 @@ function ProposalsModal({
                       <tr
                         key={c.id}
                         className={`border-b border-[rgb(var(--stroke))]/40 ${
-                          recommendedCandidate?.id === c.id ? 'bg-sky-950/20' : ''
+                          recommendedCandidate?.id === c.id ? 'bg-info/10' : ''
                         }`}
                       >
                         <td className="py-2 pr-3 text-xs">
@@ -305,10 +310,10 @@ function ProposalsModal({
                               <span
                                 className={`text-[10px] font-medium ${
                                   c.factory_avg_rating >= 4.25
-                                    ? 'text-emerald-400'
+                                    ? 'text-success'
                                     : c.factory_avg_rating >= 3.25
-                                      ? 'text-amber-400'
-                                      : 'text-red-400'
+                                      ? 'text-warning'
+                                      : 'text-danger'
                                 }`}
                               >
                                 ★ {c.factory_avg_rating.toFixed(1)}/5
@@ -341,10 +346,10 @@ function ProposalsModal({
                               <span
                                 className={`text-[10px] font-medium ${
                                   c.logist_avg_rating >= 4.25
-                                    ? 'text-emerald-400'
+                                    ? 'text-success'
                                     : c.logist_avg_rating >= 3.25
-                                      ? 'text-amber-400'
-                                      : 'text-red-400'
+                                      ? 'text-warning'
+                                      : 'text-danger'
                                 }`}
                               >
                                 ★ {c.logist_avg_rating.toFixed(1)}/5
@@ -362,13 +367,13 @@ function ProposalsModal({
                           {c.total_cost ?? '-'} {c.currency_code}
                         </td>
                         <td className="py-2 pr-3">{c.delivery_days ?? '-'}d</td>
-                        <td className="py-2 pr-3 text-xs text-sky-300">
+                        <td className="py-2 pr-3 text-xs text-info">
                           {c.fitness_score != null ? c.fitness_score.toFixed(4) : '-'}
                         </td>
                         <td className="py-2">
                           <div className="flex items-center gap-2">
                             {recommendedCandidate?.id === c.id && (
-                              <span className="rounded-md border border-sky-700/60 px-2 py-1 text-[10px] text-sky-300">
+                              <span className="rounded-md border border-info/40 px-2 py-1 text-[10px] text-info">
                                 Recommended
                               </span>
                             )}
@@ -379,7 +384,7 @@ function ProposalsModal({
                                 (acceptedCandidate != null && acceptedCandidate.id !== c.id)
                               }
                               onClick={() => void handleSelect(c.id)}
-                              className="rounded-md border border-emerald-700/60 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-50"
+                              className="rounded-md border border-success/40 px-3 py-1 text-xs text-success hover:bg-success/10 disabled:opacity-50"
                             >
                               {c.status === 'ACCEPTED'
                                 ? 'Selected'
@@ -652,7 +657,7 @@ function NewRequestModal({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="request-quantity" className="text-sm text-[rgb(var(--muted))]">
-                {e('Quantity')} <span className="text-red-400">*</span>
+                {e('Quantity')} <span className="text-danger">*</span>
               </label>
               <input
                 id="request-quantity"
@@ -679,7 +684,7 @@ function NewRequestModal({
 
             <div className="flex flex-col gap-1">
               <label className="text-sm text-[rgb(var(--muted))]">
-                {e('Currency')} <span className="text-red-400">*</span>
+                {e('Currency')} <span className="text-danger">*</span>
               </label>
               <SelectField
                 aria-label="Currency"
@@ -704,7 +709,7 @@ function NewRequestModal({
           <GuidanceHint hint="address" />
           <div className="flex flex-col gap-2">
             <label className="text-sm text-[rgb(var(--muted))]">
-              {e('Destination address')} <span className="text-red-400">*</span>
+              {e('Destination address')} <span className="text-danger">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               <button
@@ -714,7 +719,7 @@ function NewRequestModal({
                 aria-pressed={!useManualAddress}
                 className={`rounded-md border px-2 py-1 text-xs ${
                   !useManualAddress
-                    ? 'border-sky-700/80 text-sky-300'
+                    ? 'border-info/40 text-info'
                     : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                 }`}
               >
@@ -726,7 +731,7 @@ function NewRequestModal({
                 aria-pressed={useManualAddress}
                 className={`rounded-md border px-2 py-1 text-xs ${
                   useManualAddress
-                    ? 'border-sky-700/80 text-sky-300'
+                    ? 'border-info/40 text-info'
                     : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                 }`}
               >
@@ -789,15 +794,12 @@ function NewRequestModal({
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
           {success && (
-            <p
-              role="status"
-              className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
-            >
+            <p role="status" className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
               {success}
             </p>
           )}
@@ -1185,9 +1187,9 @@ export default function CustomerWorkspacePage() {
         <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 id="requests" className="slide-up text-2xl font-semibold sm:text-3xl">
+              <h2 id="requests" className="slide-up text-2xl font-semibold sm:text-3xl">
                 {copy.myRequestsTitle}
-              </h1>
+              </h2>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">{copy.myRequestsSubtitle}</p>
             </div>
             {!loading && (
@@ -1201,9 +1203,7 @@ export default function CustomerWorkspacePage() {
             )}
           </div>
 
-          {loading && (
-            <p className="mt-6 text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>
-          )}
+          {loading && <p className="mt-6 text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
 
           {!loading && (
             <div className="mt-6">
@@ -1272,7 +1272,12 @@ export default function CustomerWorkspacePage() {
                     </SelectField>
                   </div>
 
-                  <div className="overflow-x-auto">
+                  <div
+                    className="overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.myRequestsTitle}
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -1297,8 +1302,7 @@ export default function CustomerWorkspacePage() {
                               <span className="record-label" aria-hidden="true">
                                 {e('Reference')}{' '}
                               </span>
-                              {row.id.slice(0, 8)}
-                              \u2026
+                              {row.id.slice(0, 8)}…
                             </td>
                             <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
                               <span className="record-label" aria-hidden="true">
@@ -1340,7 +1344,7 @@ export default function CustomerWorkspacePage() {
                                     type="button"
                                     onClick={() => void handleCancelRequest(row.id)}
                                     disabled={cancellingRequest !== null}
-                                    className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30"
+                                    className="rounded-md border border-danger/40 px-2 py-1 text-xs text-danger hover:bg-danger/10"
                                   >
                                     {copy.cancelRequest}
                                   </button>
@@ -1350,7 +1354,7 @@ export default function CustomerWorkspacePage() {
                                   <button
                                     type="button"
                                     onClick={() => void openProposals(row.id)}
-                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
+                                    className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10"
                                   >
                                     {copy.viewProposals}
                                   </button>
@@ -1428,7 +1432,12 @@ export default function CustomerWorkspacePage() {
               <p className="mt-3 text-sm text-[rgb(var(--muted))]">No active transactions yet.</p>
             ) : (
               <>
-                <div className="mt-3 overflow-x-auto">
+                <div
+                  className="mt-3 overflow-x-auto"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={e('Contract, Payment & Acceptance')}
+                >
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -1488,7 +1497,7 @@ export default function CustomerWorkspacePage() {
                                   type="button"
                                   onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
                                   disabled={workflowBusyId === tx.id + 'SIGN'}
-                                  className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
+                                  className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
                                 >
                                   {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
                                 </button>
@@ -1498,7 +1507,7 @@ export default function CustomerWorkspacePage() {
                                   type="button"
                                   onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
                                   disabled={workflowBusyId === tx.id + 'PAY'}
-                                  className="rounded-md border border-emerald-700/60 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-60"
+                                  className="rounded-md border border-success/40 px-2 py-1 text-xs text-success hover:bg-success/10 disabled:opacity-60"
                                 >
                                   {workflowBusyId === tx.id + 'PAY' ? 'Paying...' : 'Pay'}
                                 </button>
@@ -1510,7 +1519,7 @@ export default function CustomerWorkspacePage() {
                                     void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')
                                   }
                                   disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
-                                  className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
+                                  className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
                                 >
                                   {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
                                     ? 'Accepting...'
@@ -1521,7 +1530,7 @@ export default function CustomerWorkspacePage() {
                                 <button
                                   type="button"
                                   onClick={() => setRatingTransaction(tx)}
-                                  className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30"
+                                  className="rounded-md border border-warning/40 px-2 py-1 text-xs text-warning hover:bg-warning/10"
                                 >
                                   {e('Rate')}{' '}
                                 </button>

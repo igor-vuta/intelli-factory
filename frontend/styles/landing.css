@@ -7,23 +7,6 @@
   --section-space: clamp(4.5rem, 10vw, 7.5rem);
 }
 
-.landing .skip-link {
-  position: absolute;
-  left: var(--gutter);
-  top: 0.5rem;
-  z-index: 50;
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--if-radius-button);
-  background: var(--if-accent);
-  color: var(--if-accent-ink);
-  font-weight: 500;
-  transform: translateY(-160%);
-  transition: transform 200ms var(--if-ease-out);
-}
-.landing .skip-link:focus-visible {
-  transform: translateY(0);
-}
-
 /* Header */
 .landing-header {
   flex-wrap: nowrap;

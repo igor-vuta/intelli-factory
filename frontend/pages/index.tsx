@@ -103,7 +103,7 @@ export default function Home() {
         <title>{`Intelli-Factory · ${e('Supply matching that shows its trade-offs')}`}</title>
         <meta name="description" content={copy.landingHeroSubtitle} />
       </Head>
-      <div className="identity landing">
+      <div className="landing">
         <a className="skip-link" href="#main">
           {e('Skip to content')}
         </a>

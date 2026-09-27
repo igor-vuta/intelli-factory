@@ -45,61 +45,49 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
-async function chooseTheme(page: Page, name: string) {
-  const desktop = page.getByRole('button', { name, exact: true });
-  const trigger = page.getByRole('button', {
-    name: /Open theme picker|Открыть выбор темы|Тақырып таңдауын ашу/,
-  });
-  await expect(page.locator('h1:visible')).toBeVisible();
-  await desktop.or(trigger).first().waitFor({ state: 'visible' });
-  if (await trigger.isVisible()) {
-    await trigger.click();
-    await page.getByRole('menuitemradio', { name }).click();
-  } else await desktop.click();
+async function chooseMode(page: Page, mode: 'system' | 'light' | 'dark') {
+  // By value, so the helper works in every language.
+  await page.locator(`input[name="color-mode"][value="${mode}"]`).check();
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-mode',
+    mode === 'system' ? /light|dark/ : mode
+  );
 }
 
-test('themes persist across navigation and reload; language is retained', async ({ page }) => {
+test('colour mode persists across navigation and reload; language is retained', async ({
+  page,
+}) => {
   await mockApi(page);
-  // The landing moved to the single light/dark identity (M1); the legacy theme picker still
-  // lives on the other pages until M2, so the persistence check starts from the landing's login link.
   await page.goto('/?lang=ru');
   await page.locator('nav a[href="/login?lang=ru"]').click();
   await expect(page).toHaveURL(/login\?lang=ru/);
-  for (const [name, css] of [
-    ['Pearl', 'modern-light'],
-    ['Grove', 'whatsapp-emerald'],
-    ['Midnight', 'modern-dark'],
-  ]) {
-    await chooseTheme(page, name);
-    await expect(page.locator('html')).toHaveClass(`theme-${css}`);
+  for (const mode of ['light', 'dark', 'system'] as const) {
+    await chooseMode(page, mode);
     await noOverflow(page);
   }
-  await chooseTheme(page, 'Pearl');
+  await chooseMode(page, 'light');
   await page.goto('/register?lang=ru');
   await page.reload();
-  await expect(page.locator('html')).toHaveClass('theme-modern-light');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   await noOverflow(page);
 });
 
-test('theme picker supports keyboard selection and Escape', async ({ page }) => {
+test('colour mode switcher works from the keyboard', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/login');
-  const trigger = page.getByRole('button', {
-    name: /Open theme picker|Открыть выбор темы|Тақырып таңдауын ашу/,
-  });
-  await trigger.click();
-  await expect(page.getByRole('menuitemradio', { name: 'Midnight' })).toBeFocused();
-  await page.keyboard.press('Home');
-  await page.keyboard.press('Enter');
-  await expect(trigger).toBeFocused();
-  await trigger.click();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('menu')).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+  const system = page.locator('input[name="color-mode"][value="system"]');
+  await expect(system).toBeChecked();
+  await system.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('input[name="color-mode"][value="light"]')).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'dark');
 });
 
 for (const role of roles) {
-  test(`${role}: login, workspace, theme default and logout`, async ({ page }) => {
+  test(`${role}: login, workspace, identity and logout`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await mockApi(page, role.toUpperCase());
@@ -109,13 +97,9 @@ for (const role of roles) {
     await page.getByRole('button', { name: /log in|sign in/i }).click();
     await expect(page).toHaveURL(new RegExp(`/app/${role}`));
     await expect(page.locator('h1:visible')).toBeVisible();
-    const theme =
-      role === 'customer'
-        ? 'modern-light'
-        : role === 'admin' || role === 'logist'
-          ? 'modern-dark'
-          : 'whatsapp-emerald';
-    await expect(page.locator('html')).toHaveClass(`theme-${theme}`);
+    // Every role shares one identity (M2); the page title names the section and role.
+    await expect(page.locator('html')).toHaveClass(/\bidentity\b/);
+    await expect(page).toHaveTitle(/· Intelli-Factory$/);
     await noOverflow(page);
     await page.screenshot({
       path: `test-results/${role}-${test.info().project.name}.png`,
@@ -179,18 +163,25 @@ test('an authenticated user opening another role goes to their own workspace', a
   await expect(page).toHaveURL('/app/factory?lang=ru');
 });
 
-test('manual theme wins over role default and legacy preferences recover', async ({ page }) => {
+test('stored colour mode wins over the system setting and invalid values recover', async ({
+  page,
+}) => {
   await mockApi(page);
-  await page.addInitScript(() => localStorage.setItem('if-theme', 'cyberNeon'));
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) {
+      localStorage.setItem('if-color-mode', 'sepia');
+      sessionStorage.setItem('seeded', '1');
+    }
+  });
   await page.goto('/app/customer');
-  await expect(page.locator('html')).toHaveClass('theme-modern-dark');
-  await chooseTheme(page, 'Grove');
-  await page.goto('/app/customer');
-  // The init script simulates an old stored preference on each full navigation.
-  await expect(page.locator('html')).toHaveClass('theme-modern-dark');
-  await chooseTheme(page, 'Grove');
+  // An unknown stored value falls back to the system setting.
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'dark');
+  await chooseMode(page, 'light');
   await page.locator('header a').first().click();
-  await expect(page.locator('html')).toHaveClass('theme-whatsapp-emerald');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await page.goto('/app/customer');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
 });
 
 test('autocomplete supports arrow selection without submitting the request', async ({ page }) => {
@@ -259,8 +250,7 @@ test('unavailable storage and reduced motion do not break public routes', async 
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
   await noOverflow(page);
   await page.goto('/login');
-  await chooseTheme(page, 'Pearl');
-  await expect(page.locator('html')).toHaveClass(/theme-modern-light/);
+  await chooseMode(page, 'dark');
   expect(await page.locator('html').evaluate((el) => getComputedStyle(el).scrollBehavior)).toBe(
     'auto'
   );
@@ -357,9 +347,7 @@ test('workspace navigation retains sections through reload, language and history
 test('pointer and keyboard animate while reduced motion skips feedback', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/customer');
-  const trigger = page.getByRole('button', {
-    name: /Open theme picker|Открыть выбор темы|Тақырып таңдауын ашу/,
-  });
+  const trigger = page.locator('.workspace-menu');
   await expect(trigger).toBeVisible();
   for (const [event, init] of [
     ['pointerdown', { pointerType: 'mouse' }],

@@ -355,12 +355,12 @@ function QuoteModal({ bid, currencies, onClose: onDismiss, onQuoted }: QuoteModa
           )}
 
           {error && (
-            <p className="sm:col-span-2 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p className="sm:col-span-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
           {success && (
-            <p className="sm:col-span-2 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+            <p className="sm:col-span-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
               {success}
             </p>
           )}
@@ -786,9 +786,9 @@ export default function LogistWorkspacePage() {
         {!loading && (
           <>
             <section data-section="quotes" className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
+              <h2 className="slide-up text-2xl font-semibold sm:text-3xl">
                 {copy.logistWorkspaceTitle}
-              </h1>
+              </h2>
               <p className="mt-1 text-sm text-[rgb(var(--muted))]">
                 {copy.logistWorkspaceSubtitle}
               </p>
@@ -854,7 +854,12 @@ export default function LogistWorkspacePage() {
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
+                  <div
+                    className="mt-3 overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.bidsNeedingQuoteTitle}
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -898,10 +903,10 @@ export default function LogistWorkspacePage() {
                                 <button
                                   type="button"
                                   onClick={() => setQuoteTarget(bid)}
-                                  className={`rounded-md border px-3 py-1 text-xs hover:bg-emerald-950/30 ${
+                                  className={`rounded-md border px-3 py-1 text-xs hover:bg-success/10 ${
                                     bid.has_my_quote
-                                      ? 'border-amber-700/60 text-amber-300'
-                                      : 'border-emerald-700/60 text-emerald-300'
+                                      ? 'border-warning/40 text-warning'
+                                      : 'border-success/40 text-success'
                                   }`}
                                 >
                                   {bid.has_my_quote ? 'Update Quote' : copy.quoteDelivery}
@@ -972,10 +977,14 @@ export default function LogistWorkspacePage() {
               >
                 {/* Title */}
                 <div className="sm:col-span-2">
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    {copy.offerTitle} <span className="text-red-400">*</span>
+                  <label
+                    htmlFor="offer-title"
+                    className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                  >
+                    {copy.offerTitle} <span className="text-danger">*</span>
                   </label>
                   <input
+                    id="offer-title"
                     value={offerTitle}
                     onChange={(e) => setOfferTitle(e.target.value)}
                     maxLength={120}
@@ -986,10 +995,14 @@ export default function LogistWorkspacePage() {
 
                 {/* Base price + Currency */}
                 <div>
-                  <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    {copy.basePrice} <span className="text-red-400">*</span>
+                  <label
+                    htmlFor="offer-base-price"
+                    className="mb-1 block text-sm text-[rgb(var(--muted))]"
+                  >
+                    {copy.basePrice} <span className="text-danger">*</span>
                   </label>
                   <input
+                    id="offer-base-price"
                     type="number"
                     min="0"
                     step="0.01"
@@ -1002,7 +1015,7 @@ export default function LogistWorkspacePage() {
 
                 <div>
                   <label className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                    {copy.currency} <span className="text-red-400">*</span>
+                    {copy.currency} <span className="text-danger">*</span>
                   </label>
                   <SelectField
                     aria-label="Currency"
@@ -1104,12 +1117,12 @@ export default function LogistWorkspacePage() {
                 )}
 
                 {offerError && (
-                  <p className="sm:col-span-2 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                  <p className="sm:col-span-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                     {offerError}
                   </p>
                 )}
                 {offerSuccess && (
-                  <p className="sm:col-span-2 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+                  <p className="sm:col-span-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
                     {offerSuccess}
                   </p>
                 )}
@@ -1130,7 +1143,12 @@ export default function LogistWorkspacePage() {
                   <h3 className="mb-2 text-sm font-semibold text-[rgb(var(--muted))]">
                     {copy.myOffersTitle}
                   </h3>
-                  <div className="overflow-x-auto">
+                  <div
+                    className="overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.myOffersTitle}
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -1224,7 +1242,12 @@ export default function LogistWorkspacePage() {
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
+                  <div
+                    className="mt-3 overflow-x-auto"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={e('Contract & Fulfillment Workflow')}
+                  >
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
@@ -1255,7 +1278,7 @@ export default function LogistWorkspacePage() {
                                     type="button"
                                     onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
                                     disabled={workflowBusyId === tx.id + 'SIGN'}
-                                    className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
+                                    className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
                                   >
                                     {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
                                   </button>
@@ -1265,7 +1288,7 @@ export default function LogistWorkspacePage() {
                                     type="button"
                                     onClick={() => void handleWorkflowAction(tx.id, 'START')}
                                     disabled={workflowBusyId === tx.id + 'START'}
-                                    className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
+                                    className="rounded-md border border-warning/40 px-2 py-1 text-xs text-warning hover:bg-warning/10 disabled:opacity-60"
                                   >
                                     {workflowBusyId === tx.id + 'START' ? 'Starting...' : 'Start'}
                                   </button>
@@ -1277,7 +1300,7 @@ export default function LogistWorkspacePage() {
                                       void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
                                     }
                                     disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
+                                    className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
                                   >
                                     {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
                                       ? 'Submitting...'

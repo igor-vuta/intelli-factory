@@ -1101,6 +1101,19 @@ export const experienceTranslations = {
   score: { ru: 'оценка', kk: 'баға' },
   'synthetic scenarios': { ru: 'синтетических сценариев', kk: 'синтетикалық сценарий' },
   'weighted pick': { ru: 'взвешенный выбор', kk: 'салмақты таңдау' },
+  // Design system (M2)
+  'Page not found': { ru: 'Страница не найдена', kk: 'Бет табылмады' },
+  'The address may be mistyped, or the page has moved.': {
+    ru: 'Возможно, адрес набран с ошибкой или страница перемещена.',
+    kk: 'Мекенжай қате терілген болуы мүмкін немесе бет басқа жерге көшірілген.',
+  },
+  'Back to the home page': { ru: 'На главную страницу', kk: 'Басты бетке оралу' },
+  'Factory workspace': { ru: 'Кабинет производителя', kk: 'Өндіруші кабинеті' },
+  'Your production cycle': { ru: 'Ваш производственный цикл', kk: 'Сіздің өндірістік циклыңыз' },
+  'Proposals for your request': {
+    ru: 'Предложения по вашей заявке',
+    kk: 'Өтініміңіз бойынша ұсыныстар',
+  },
 } as const;
 
 export function experienceText(locale: Locale, source: string): string {
