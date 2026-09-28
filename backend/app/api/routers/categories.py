@@ -80,13 +80,17 @@ class ProposalBody(BaseModel):
 @router.post("/proposals", status_code=201)
 async def propose(body: ProposalBody, user=Depends(require_roles("FACTORY", "CUSTOMER"))):
     require_verified(user)
+    return await create_proposal(prisma, body, user)
+
+
+async def create_proposal(db, body: ProposalBody, user):
     if len(body.name.strip()) < 2 or len(body.description.strip()) < 5:
         raise HTTPException(422, "Provide a name and short description")
-    if body.parent_id and not await prisma.category.find_first(
+    if body.parent_id and not await db.category.find_first(
         where={"id": str(body.parent_id), "status": "ACTIVE", "deleted_at": None}
     ):
         raise HTTPException(422, "Parent category unavailable")
-    return await prisma.categoryproposal.create(
+    return await db.categoryproposal.create(
         data={
             "submitter_id": user.id,
             "name": body.name.strip(),
@@ -112,7 +116,16 @@ class DecisionBody(BaseModel):
 
 @router.post("/proposals/{proposal_id}/decision")
 async def decide(proposal_id: UUID, body: DecisionBody, user=Depends(require_roles("ADMIN"))):
+    from routers.requests import settle_pending_requests
+
     require_verified(user)
+    proposal = await record_decision(proposal_id, body, user)
+    # Requests that waited for this category go live (or are closed) once the decision is saved.
+    await settle_pending_requests(proposal)
+    return proposal
+
+
+async def record_decision(proposal_id: UUID, body: DecisionBody, user):
     async with prisma.tx() as tx:
         await catalogue_lock(tx)
         row = await tx.categoryproposal.find_unique(where={"id": str(proposal_id)})

@@ -840,3 +840,37 @@ export function createCatalogueItem(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+/** A product whose category is proposed but not yet approved (see ProductPicker). */
+export type ProposedProduct = {
+  category: { name: string; description: string; parent_id: string | null };
+  product: { name: string; locale: Locale; unit: string; attributes: Record<string, string> };
+};
+export type PendingRequestPayload = ProposedProduct &
+  Omit<CreateRequestPayload, 'category_id' | 'item_id' | 'quantity_unit'>;
+export type PendingRequest = {
+  id: string;
+  status: 'WAITING' | 'REJECTED' | 'FAILED';
+  note: string | null;
+  category_name: string | null;
+  product_name: string;
+  unit: string;
+  quantity: number;
+  created_at: string;
+};
+
+/** Proposes the category and keeps the request until an administrator approves it. */
+export function createPendingRequest(payload: PendingRequestPayload) {
+  return request<{ status: string; pending_request_id: string; proposal_id: string }>(
+    '/requests/pending',
+    { method: 'POST', body: JSON.stringify(payload) }
+  );
+}
+
+export function listPendingRequests() {
+  return request<PendingRequest[]>('/requests/pending');
+}
+
+export function cancelPendingRequest(id: string) {
+  return request<ApiMessage>(`/requests/pending/${id}`, { method: 'DELETE' });
+}

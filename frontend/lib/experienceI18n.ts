@@ -2,6 +2,59 @@ import type { Locale } from './i18n';
 
 export const experienceTranslations = {
   // Shared catalogue product picker
+  'Closest group (optional)': {
+    ru: 'Ближайшая группа (необязательно)',
+    kk: 'Ең жақын топ (міндетті емес)',
+  },
+  'Continue with the new category': {
+    ru: 'Продолжить с новой категорией',
+    kk: 'Жаңа санатпен жалғастыру',
+  },
+  'Could not go live.': { ru: 'Не удалось опубликовать.', kk: 'Жариялау мүмкін болмады.' },
+  'Could not remove it': { ru: 'Не удалось удалить', kk: 'Жою мүмкін болмады' },
+  Group: { ru: 'Группа', kk: 'Топ' },
+  'Name the new category': {
+    ru: 'Введите название новой категории',
+    kk: 'Жаңа санаттың атауын енгізіңіз',
+  },
+  'New category': { ru: 'Новая категория', kk: 'Жаңа санат' },
+  'New category name': { ru: 'Название новой категории', kk: 'Жаңа санаттың атауы' },
+  'No fitting category? Pick “Other (not listed)” in the closest group (factories see it straight away), or propose a new category and your request will wait for it.':
+    {
+      ru: 'Нет подходящей категории? Выберите «Прочее (нет в списке)» в ближайшей группе — заводы увидят заявку сразу — или предложите новую категорию, и заявка дождётся её одобрения.',
+      kk: 'Қолайлы санат жоқ па? Ең жақын топтағы «Басқасы (тізімде жоқ)» санатын таңдаңыз — зауыттар өтінімді бірден көреді — немесе жаңа санат ұсыныңыз, өтінім оның мақұлдануын күтеді.',
+    },
+  'No fitting category? Pick “Other (not listed)” in the closest group, or propose a new category for review.':
+    {
+      ru: 'Нет подходящей категории? Выберите «Прочее (нет в списке)» в ближайшей группе или предложите новую категорию на проверку.',
+      kk: 'Қолайлы санат жоқ па? Ең жақын топтағы «Басқасы (тізімде жоқ)» санатын таңдаңыз немесе жаңа санатты тексеруге ұсыныңыз.',
+    },
+  'Propose a new category…': { ru: 'Предложить новую категорию…', kk: 'Жаңа санат ұсыну…' },
+  Remove: { ru: 'Удалить', kk: 'Жою' },
+  'Saved. Your request goes live as soon as an administrator approves the category.': {
+    ru: 'Сохранено. Заявка будет опубликована, как только администратор одобрит категорию.',
+    kk: 'Сақталды. Әкімші санатты мақұлдаған сәтте өтінім жарияланады.',
+  },
+  'Say briefly what the category is for': {
+    ru: 'Кратко опишите, для чего эта категория',
+    kk: 'Санаттың не үшін керек екенін қысқаша жазыңыз',
+  },
+  'The category was not approved.': { ru: 'Категория не одобрена.', kk: 'Санат мақұлданбады.' },
+  'Waiting for a new category': { ru: 'Ожидают новую категорию', kk: 'Жаңа санатты күтуде' },
+  'Waiting for an administrator to approve the category.': {
+    ru: 'Ждёт, пока администратор одобрит категорию.',
+    kk: 'Әкімшінің санатты мақұлдауын күтуде.',
+  },
+  'What is it for?': { ru: 'Для чего она?', kk: 'Ол не үшін керек?' },
+  'Your request waits for approval': {
+    ru: 'Заявка дождётся одобрения',
+    kk: 'Өтінім мақұлдауды күтеді',
+  },
+  'Your request will be saved and go live on its own once an administrator approves the category.':
+    {
+      ru: 'Заявка сохранится и опубликуется автоматически, когда администратор одобрит категорию.',
+      kk: 'Өтінім сақталады және әкімші санатты мақұлдаған кезде өздігінен жарияланады.',
+    },
   'Not yet translated; shown in English': {
     ru: 'Перевода пока нет; название на английском',
     kk: 'Аудармасы әзірге жоқ; атауы ағылшын тілінде',

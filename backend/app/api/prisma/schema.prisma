@@ -166,6 +166,8 @@ model CustomerProfile {
   phone              String?
   primary_address_id String?   @db.Uuid
 
+  pending_requests   PendingRequest[]
+
   created_at         DateTime  @default(now())
   updated_at         DateTime  @updatedAt
   deleted_at         DateTime?
@@ -735,6 +737,7 @@ model CategoryProposal {
   reviewer User? @relation("ProposalReviewer", fields: [reviewer_id], references: [id])
   parent Category? @relation("ProposalParent", fields: [parent_id], references: [id])
   category Category? @relation("ProposalCategory", fields: [category_id], references: [id])
+  pending_requests PendingRequest[]
   @@index([submitter_id, status])
 }
 
@@ -745,4 +748,24 @@ model InventoryDraft {
   updated_at DateTime @updatedAt
   factory_profile FactoryProfile @relation(fields: [factory_profile_id], references: [id])
   @@index([factory_profile_id])
+}
+
+// A customer's request for a product in a category that is still awaiting approval. It becomes a
+// real Request, with its product added to the shared catalogue, when the proposal is approved.
+model PendingRequest {
+  id                  String           @id @default(uuid()) @db.Uuid
+  customer_profile_id String           @db.Uuid
+  proposal_id         String           @db.Uuid
+  // WAITING · PUBLISHED (request_id set) · REJECTED (proposal rejected) · FAILED (see note)
+  status              String           @default("WAITING")
+  data                Json
+  request_id          String?          @db.Uuid
+  note                String?
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
+  customer_profile    CustomerProfile  @relation(fields: [customer_profile_id], references: [id])
+  proposal            CategoryProposal @relation(fields: [proposal_id], references: [id])
+
+  @@index([customer_profile_id, status])
+  @@index([proposal_id, status])
 }
