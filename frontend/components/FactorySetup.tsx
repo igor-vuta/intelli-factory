@@ -11,6 +11,7 @@ import CategoryProposalPanel, {
 } from './CategoryProposalPanel';
 import AttributeFields from './AttributeFields';
 import ProductPicker from './ProductPicker';
+import type { CatalogueItem } from '../lib/authClient';
 import { categoryApi, getRequestsBootstrap, type RequestsBootstrap } from '../lib/authClient';
 import { categoryCopy } from '../lib/categoryCopy';
 import type { Locale } from '../lib/i18n';
@@ -31,7 +32,10 @@ type DraftData = {
   category_id?: string;
   proposal_id?: string;
   item_id?: string;
+  /** Product name typed for a category that is still awaiting approval. */
   item_name?: string;
+  /** Display name of the chosen catalogue product, for the draft list. */
+  item_label?: string;
   unit?: string;
   quantity_available?: string;
   price_per_unit?: string;
@@ -121,9 +125,15 @@ export default function FactorySetup({
   function patch(v: Partial<DraftData>) {
     setData((d) => ({ ...d, ...v }));
   }
-  const product = bootstrap?.items.find((x) => x.id === data.item_id) as
-    | (RequestsBootstrap['items'][number] & { characteristics_schema?: AttributeSchema })
-    | undefined;
+  const [picked, setPicked] = useState<CatalogueItem | null>(null);
+  // The picked catalogue product carries its own schema, including products created or loaded
+  // after the page's bootstrap list.
+  const product =
+    picked?.id === data.item_id
+      ? picked
+      : (bootstrap?.items.find((x) => x.id === data.item_id) as
+          | (RequestsBootstrap['items'][number] & { characteristics_schema?: AttributeSchema })
+          | undefined);
   const category = cats.find((x) => x.id === data.category_id);
   async function save() {
     const id = draftId || crypto.randomUUID();
@@ -379,6 +389,7 @@ export default function FactorySetup({
                 >
                   {c.resume}:{' '}
                   {d.data.item_name ||
+                    d.data.item_label ||
                     bootstrap?.items.find((x) => x.id === d.data.item_id)?.name ||
                     c.draft}
                 </button>
@@ -420,6 +431,8 @@ export default function FactorySetup({
                         ? e.target.value.slice(9)
                         : undefined,
                       item_id: undefined,
+                      item_name: undefined,
+                      item_label: undefined,
                       characteristics_json: {},
                     })
                   }
@@ -473,14 +486,16 @@ export default function FactorySetup({
                       locale={locale}
                       categoryId={data.category_id}
                       value={data.item_id ?? ''}
-                      onChange={(item) =>
+                      onChange={(item) => {
+                        setPicked(item);
                         patch({
                           item_id: item?.id,
                           item_name: undefined,
+                          item_label: item?.name,
                           unit: item?.unit ?? 'pcs',
                           characteristics_json: {},
-                        })
-                      }
+                        });
+                      }}
                     />
                   </div>
                 )

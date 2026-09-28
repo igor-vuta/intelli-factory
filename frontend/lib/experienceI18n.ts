@@ -2,6 +2,22 @@ import type { Locale } from './i18n';
 
 export const experienceTranslations = {
   // Shared catalogue product picker
+  'Not yet translated; shown in English': {
+    ru: 'Перевода пока нет; название на английском',
+    kk: 'Аудармасы әзірге жоқ; атауы ағылшын тілінде',
+  },
+  'Not yet translated; shown in Russian': {
+    ru: 'Перевода пока нет; название на русском',
+    kk: 'Аудармасы әзірге жоқ; атауы орыс тілінде',
+  },
+  'Not yet translated; shown in Kazakh': {
+    ru: 'Перевода пока нет; название на казахском',
+    kk: 'Аудармасы әзірге жоқ; атауы қазақ тілінде',
+  },
+  'This product is no longer available.': {
+    ru: 'Этот товар больше недоступен.',
+    kk: 'Бұл тауар енді қолжетімсіз.',
+  },
   'Add a characteristic': { ru: 'Добавить характеристику', kk: 'Сипаттама қосу' },
   'Added to the shared catalogue and selected.': {
     ru: 'Добавлено в общий каталог и выбрано.',
@@ -49,10 +65,6 @@ export const experienceTranslations = {
   'Not yet translated; original name': {
     ru: 'Перевода пока нет; исходное название',
     kk: 'Аудармасы әзірге жоқ; бастапқы атауы',
-  },
-  'Not yet translated; shown in': {
-    ru: 'Перевода пока нет; показано на языке:',
-    kk: 'Аудармасы әзірге жоқ; көрсетілген тіл:',
   },
   Product: { ru: 'Товар', kk: 'Тауар' },
   Products: { ru: 'Товары', kk: 'Тауарлар' },

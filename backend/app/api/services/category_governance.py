@@ -7,6 +7,20 @@ from fastapi import HTTPException
 SUPPORTED_UNITS = {"pcs", "kg", "g", "t", "tons", "l", "m", "m2", "m3", "roll"}
 
 
+# One transaction-scoped PostgreSQL lock serialises every catalogue and category-tree write with
+# stock publication and production declarations.
+CATALOGUE_LOCK = 734901
+
+
+async def catalogue_lock(db):
+    await db.execute_raw(f"SELECT pg_advisory_xact_lock({CATALOGUE_LOCK})")
+
+
+def normalized(value):
+    """Comparison form of a label: Unicode NFKC, case-folded, whitespace collapsed."""
+    return " ".join(unicodedata.normalize("NFKC", value or "").casefold().split())
+
+
 def require_verified(user):
     if not user.is_email_verified or user.deleted_at is not None:
         raise HTTPException(403, "Verify your email before publishing or bidding")
@@ -166,13 +180,9 @@ async def validate_bid(db, req, inv, quantity, factory_id=None):
     if item.category_id != req.category_id or (requested_id and requested_id != item.id):
         raise HTTPException(422, "Product and category must match the request")
     if not req.item_id:
-
-        def normalized_name(value):
-            return " ".join(unicodedata.normalize("NFKC", value or "").casefold().split())
-
-        if not normalized_name(req.requested_name_text) or normalized_name(
+        if not normalized(req.requested_name_text) or normalized(
             req.requested_name_text
-        ) != normalized_name(item.name):
+        ) != normalized(item.name):
             raise HTTPException(422, "Product name must match the requested product")
     requested = req.requested_characteristics_json or {}
     if requested.get("quantity_unit") != item.unit:

@@ -5,6 +5,7 @@ factories propose them through /categories/proposals and an administrator approv
 administrators create categories here directly.
 """
 
+import asyncio
 import hashlib
 import json
 import unicodedata
@@ -18,20 +19,19 @@ from pydantic import BaseModel, Field, field_validator
 from db import prisma
 from routers.auth import _ensure_db_connection
 from routers.requests import _require_authenticated_user, require_roles
-from services.category_governance import SUPPORTED_UNITS, eligible_category, require_verified
+from services.category_governance import (
+    SUPPORTED_UNITS,
+    catalogue_lock,
+    eligible_category,
+    normalized,
+    require_verified,
+)
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 Locale = Literal["en", "ru", "kk"]
 Kind = Literal["categories", "items"]
 
-# Shared with stock publication and production declarations, so catalogue writes serialise with
-# the operations that depend on them.
-CATALOGUE_LOCK = 734901
 CREATION_LIMIT = 500
-
-
-def normalized(value):
-    return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
 
 
 def labels(row, kind):
@@ -79,21 +79,24 @@ async def search(
     category_id: UUID | None = None,
     user=Depends(_require_authenticated_user),
 ):
-    categories = await prisma.category.find_many(
-        where={"status": "ACTIVE", "deleted_at": None},
-        include={"translations": True},
-        order={"default_name": "asc"},
-    )
-    items = await prisma.item.find_many(
-        where={"status": "ACTIVE", "deleted_at": None, "merged_into_id": None},
-        include={"translations": True},
-        order={"name": "asc"},
-    )
-    redirects = await prisma.item.find_many(
-        where={"merged_into_id": {"not": None}}, include={"translations": True}
+    categories, items, redirects = await asyncio.gather(
+        prisma.category.find_many(
+            where={"status": "ACTIVE", "deleted_at": None},
+            include={"translations": True},
+            order={"default_name": "asc"},
+        ),
+        prisma.item.find_many(
+            where={"status": "ACTIVE", "deleted_at": None, "merged_into_id": None},
+            include={"translations": True},
+            order={"name": "asc"},
+        ),
+        prisma.item.find_many(
+            where={"merged_into_id": {"not": None}}, include={"translations": True}
+        ),
     )
     parents = {r.parent_id for r in categories}
-    active_ids = {r.id for r in categories}
+    # Products are usable only in leaf categories (a group that gained subcategories is not).
+    leaf_ids = {r.id for r in categories if r.id not in parents}
     query = normalized(q)
     # Names of products merged into a record keep finding it.
     merged_names: dict[str, list[str]] = {}
@@ -116,7 +119,7 @@ async def search(
                 merged_names=merged_names.get(r.id, []),
             )
             for r in items
-            if r.category_id in active_ids
+            if r.category_id in leaf_ids
             and (not category_id or r.category_id == str(category_id))
             and matches(labels(r, "items") + merged_names.get(r.id, []))
         ],
@@ -201,27 +204,30 @@ async def duplicates(db, kind, body):
     else:
         scope = {"category_id": str(body.category_id)}
     rows = await table(db, kind).find_many(where=scope, include={"translations": True})
+    by_id = {row.id: row for row in rows}
     name = normalized(body.name)
-    return [
-        row
-        for row in rows
-        if name in {normalized(v) for v in labels(row, kind)}
-        and (
-            kind == "categories"
-            or (row.unit == body.unit and (row.identity_attributes or {}) == body.attributes)
-        )
-    ]
+    found = {}
+    for row in rows:
+        if name not in {normalized(v) for v in labels(row, kind)}:
+            continue
+        if kind == "items":
+            if row.unit != body.unit or (row.identity_attributes or {}) != body.attributes:
+                continue
+            # A merged duplicate stands for its canonical product (whose aliases also match).
+            row = by_id.get(row.merged_into_id, row) if row.merged_into_id else row
+        found[row.id] = row
+    return list(found.values())
 
 
 async def create(kind, body, user):
     require_verified(user)
     async with prisma.tx() as tx:
-        await tx.execute_raw(f"SELECT pg_advisory_xact_lock({CATALOGUE_LOCK})")
+        await catalogue_lock(tx)
         return await create_locked(tx, kind, body, user)
 
 
 async def create_locked(tx, kind, body, user):
-    """Create or reuse a record inside a transaction that already holds CATALOGUE_LOCK."""
+    """Create or reuse a record inside a transaction that already holds the catalogue lock."""
     if kind == "items":
         await eligible_category(tx, str(body.category_id))
     elif body.parent_id:
@@ -243,12 +249,11 @@ async def create_locked(tx, kind, body, user):
         raise HTTPException(409, "Several records match; select the intended product")
     if existing:
         row = existing[0]
-        if kind == "items" and row.merged_into_id:
-            row = await tx.item.find_unique(
-                where={"id": row.merged_into_id}, include={"translations": True}
-            )
         if row.status != "ACTIVE" or row.deleted_at:
-            raise HTTPException(409, "This record is retired; choose an active record")
+            raise HTTPException(
+                409,
+                "An administrator retired this product; ask an administrator to restore it",
+            )
         return dict(present(row, kind, body.locale), created=False)
     # A per-account limit bounds accidental or abusive catalogue growth.
     created = await tx.eventlog.count(
@@ -328,7 +333,7 @@ class LabelBody(BaseModel):
 async def label(kind: Kind, record_id: UUID, body: LabelBody, user=Depends(require_roles("ADMIN"))):
     require_verified(user)
     async with prisma.tx() as tx:
-        await tx.execute_raw(f"SELECT pg_advisory_xact_lock({CATALOGUE_LOCK})")
+        await catalogue_lock(tx)
         row = await table(tx, kind).find_unique(where={"id": str(record_id)})
         if (
             not row
@@ -363,13 +368,14 @@ async def maintain(
 ):
     require_verified(user)
     async with prisma.tx() as tx:
-        await tx.execute_raw(f"SELECT pg_advisory_xact_lock({CATALOGUE_LOCK})")
+        await catalogue_lock(tx)
         row = await table(tx, kind).find_unique(where={"id": str(record_id)})
         if not row:
             raise HTTPException(404, "Record not found")
         if kind == "items" and row.merged_into_id:
             raise HTTPException(409, "Maintain the canonical target of this merged item")
-        data = {"record_state": "ESTABLISHED"}
+        # Establishing also restores a retired record.
+        data = {"record_state": "ESTABLISHED", "status": "ACTIVE"}
         if body.action == "retire":
             if kind == "categories" and await tx.category.count(
                 where={"parent_id": row.id, "status": "ACTIVE", "deleted_at": None}

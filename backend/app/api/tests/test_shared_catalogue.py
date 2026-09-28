@@ -222,3 +222,50 @@ async def test_identity_characteristics_cannot_be_overridden(real_db):
     with pytest.raises(HTTPException):
         governance.validate_identity(item, {"material": "linen"})
     await real_db.item.update(where={"id": item.id}, data={"identity_attributes": Json({})})
+
+
+@pytest.mark.anyio
+async def test_the_merged_name_reuses_the_canonical_product(real_db):
+    customer = await make_user(real_db, "CUSTOMER")
+    admin = await make_user(real_db, "ADMIN")
+    category = await make_category(real_db)
+    keep = await catalogue.create_item(item_body(category, "Steel sheet", "en"), customer)
+    duplicate = await catalogue.create_item(item_body(category, "Лист стальной"), customer)
+    await catalogue.maintain(
+        "items", duplicate["id"], catalogue.MaintenanceBody(action="merge", target_id=keep["id"]), admin
+    )
+    again = await catalogue.create_item(item_body(category, "лист  СТАЛЬНОЙ"), customer)
+    assert (again["id"], again["created"]) == (keep["id"], False)
+
+
+@pytest.mark.anyio
+async def test_retired_products_block_recreation_until_established(real_db):
+    customer = await make_user(real_db, "CUSTOMER")
+    admin = await make_user(real_db, "ADMIN")
+    category = await make_category(real_db)
+    bolt = await catalogue.create_item(item_body(category, "Bolt M8", "en", "pcs"), customer)
+    retire = catalogue.MaintenanceBody(action="retire")
+    await catalogue.maintain("items", bolt["id"], retire, admin)
+    with pytest.raises(HTTPException) as refused:
+        await catalogue.create_item(item_body(category, "Bolt M8", "en", "pcs"), customer)
+    assert "administrator" in refused.value.detail
+
+    establish = catalogue.MaintenanceBody(action="establish")
+    await catalogue.maintain("items", bolt["id"], establish, admin)
+    restored = await real_db.item.find_unique(where={"id": bolt["id"]})
+    assert (restored.status, restored.record_state) == ("ACTIVE", "ESTABLISHED")
+    again = await catalogue.create_item(item_body(category, "Bolt M8", "en", "pcs"), customer)
+    assert (again["id"], again["created"]) == (bolt["id"], False)
+
+
+@pytest.mark.anyio
+async def test_products_of_a_category_that_became_a_group_are_not_offered(real_db):
+    customer = await make_user(real_db, "CUSTOMER")
+    category = await make_category(real_db)
+    product = await catalogue.create_item(item_body(category, "Wire", "en", "m"), customer)
+    await real_db.category.create(
+        data={"slug": str(uuid4()), "default_name": "Copper wire", "parent_id": category.id}
+    )
+    found = await catalogue.search(locale="en", q="", category_id=category.id, user=customer)
+    assert product["id"] not in [i["id"] for i in found["items"]]
+    assert next(c for c in found["categories"] if c["id"] == category.id)["selectable"] is False

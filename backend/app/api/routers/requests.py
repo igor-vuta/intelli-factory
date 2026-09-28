@@ -13,6 +13,7 @@ from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_b
 from routers.ratings import get_computed_reliability
 from services.category_governance import (
     SUPPORTED_UNITS,
+    catalogue_lock,
     eligible_category,
     require_verified,
     validate_attributes,
@@ -719,7 +720,7 @@ async def create_inventory_entry(
 ):
     require_verified(user)
     async with prisma.tx() as tx:
-        await tx.execute_raw("SELECT pg_advisory_xact_lock(734901)")
+        await catalogue_lock(tx)
         return await _publish_inventory(payload, user, tx)
 
 

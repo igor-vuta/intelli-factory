@@ -9,8 +9,25 @@ import {
 import type { Locale } from '../lib/i18n';
 import SelectField from './SelectField';
 
-const LANGUAGE: Record<Locale, string> = { en: 'English', ru: 'Russian', kk: 'Kazakh' };
+const SHOWN_IN: Record<Locale, string> = {
+  en: 'Not yet translated; shown in English',
+  ru: 'Not yet translated; shown in Russian',
+  kk: 'Not yet translated; shown in Kazakh',
+};
 const MAX_RESULTS = 8;
+
+// One catalogue download per language for the page's lifetime: pickers remount (for example when
+// a draft's category changes) without refetching, and products created here are added to it.
+const cache = new Map<Locale, Promise<Catalogue>>();
+function loadCatalogue(locale: Locale) {
+  let pending = cache.get(locale);
+  if (!pending) {
+    pending = getCatalogue(locale);
+    pending.catch(() => cache.delete(locale));
+    cache.set(locale, pending);
+  }
+  return pending;
+}
 
 export function normalise(value: string) {
   return value.normalize('NFKC').toLocaleLowerCase().split(/\s+/).filter(Boolean).join(' ');
@@ -51,7 +68,7 @@ export default function ProductPicker({
 
   useEffect(() => {
     let cancelled = false;
-    getCatalogue(locale)
+    loadCatalogue(locale)
       .then((data) => !cancelled && setCatalogue(data))
       .catch((err) => !cancelled && setLoadError(err instanceof Error ? err.message : String(err)));
     return () => {
@@ -131,10 +148,11 @@ export default function ProductPicker({
         unit: draft.unit,
         attributes,
       });
-      // Keep the local list current so the new product is searchable straight away.
-      setCatalogue((c) =>
-        c && !c.items.some((i) => i.id === item.id) ? { ...c, items: [...c.items, item] } : c
-      );
+      // Keep the cached list current so the new product is searchable straight away.
+      const next = (c: Catalogue) =>
+        c.items.some((i) => i.id === item.id) ? c : { ...c, items: [...c.items, item] };
+      cache.set(locale, loadCatalogue(locale).then(next));
+      setCatalogue((c) => c && next(c));
       choose(item, created ? 'created' : 'reused');
     } catch (err) {
       setError(err instanceof Error ? err.message : e('Could not save the product'));
@@ -161,16 +179,27 @@ export default function ProductPicker({
 
   function fallbackNote(item: CatalogueItem) {
     if (!item.fallback) return null;
-    return item.label_locale
-      ? `${e('Not yet translated; shown in')} ${e(LANGUAGE[item.label_locale])}`
-      : e('Not yet translated; original name');
+    return e(item.label_locale ? SHOWN_IN[item.label_locale] : 'Not yet translated; original name');
   }
 
   if (loadError) return <p className="product-picker-error">{loadError}</p>;
 
   const chosen = value ? catalogue?.items.find((item) => item.id === value) : undefined;
-  if (value && !chosen)
+  if (value && !catalogue)
     return <p className="product-picker-label">{e('Loading the catalogue…')}</p>;
+  // A saved choice the catalogue no longer offers (merged, retired or in a closed category).
+  if (value && !chosen)
+    return (
+      <div className="product-picker">
+        <span className="product-picker-label">{e('Product')}</span>
+        <div className="product-picker-chosen">
+          <p className="product-picker-error">{e('This product is no longer available.')}</p>
+          <button type="button" className="if-link" onClick={() => choose(null)}>
+            {e('Change')}
+          </button>
+        </div>
+      </div>
+    );
   if (chosen)
     return (
       <div className="product-picker">

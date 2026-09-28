@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import UUID, uuid4
-import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException
 from prisma import Json
@@ -12,7 +11,9 @@ from db import prisma
 from routers.requests import require_roles, _require_authenticated_user
 from routers.auth import _ensure_db_connection
 from services.category_governance import (
+    catalogue_lock,
     confirm_category,
+    normalized,
     eligible_category,
     profile_complete,
     require_verified,
@@ -20,15 +21,6 @@ from services.category_governance import (
 )
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
-
-
-async def catalogue_lock(db):
-    # Serialize review/tree changes, including approvals of different proposals.
-    await db.execute_raw("SELECT pg_advisory_xact_lock(734901)")
-
-
-def normalized(value):
-    return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
 
 
 async def factory_for(user):
@@ -335,7 +327,7 @@ async def publish_draft(draft_id: UUID, user=Depends(require_roles("FACTORY"))):
             if not proposal or proposal.status != "APPROVED":
                 raise HTTPException(422, "Category proposal is still waiting for approval")
             data["category_id"] = proposal.category_id
-        if not data.get("item_id") and data.get("item_name") and data.get("category_id"):
+        if data.get("proposal_id") and not data.get("item_id") and data.get("item_name"):
             # A product drafted under a newly approved category joins the shared catalogue
             # (or reuses the matching product) now that its category exists.
             from routers.catalogue import ItemBody, create_locked
