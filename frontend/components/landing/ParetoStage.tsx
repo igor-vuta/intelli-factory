@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useColorMode } from '../../hooks/useColorMode';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import type { Scenario } from '../../lib/benchmarkShowcase';
-import { DEFAULT_CAMERA, FLOOR, TOP, type Vec3, project, worldPoints } from '../../lib/paretoScene';
+import { DEFAULT_CAMERA, type Vec3, project, worldPoints, AXES } from '../../lib/paretoScene';
 import type { StageHandles } from '../../lib/paretoStage3d';
 import ParetoStill from './ParetoStill';
 
@@ -62,9 +62,7 @@ export default function ParetoStage({
   const markers = useMemo<Marker[]>(() => {
     const points = worldPoints(scenario.pool);
     return [
-      { key: 'cost', point: [0, FLOOR, 1.28], kind: 'axis' },
-      { key: 'days', point: [-1.3, FLOOR, 0], kind: 'axis' },
-      { key: 'reliability', point: [-1, TOP + 0.14, -1], kind: 'axis' },
+      ...AXES.map(({ key, to }) => ({ key, point: to, kind: 'axis' as const })),
       { key: 'pick', point: points[pick], kind: 'marker' },
       { key: 'cheapest', point: points[scenario.picks.greedy], kind: 'marker' },
       ...(scenario.knee !== null && scenario.knee !== pick

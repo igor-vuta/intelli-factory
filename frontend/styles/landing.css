@@ -153,6 +153,10 @@
 .is-live .pareto-still {
   opacity: 0;
 }
+.pareto-still-axis line {
+  stroke: var(--if-muted);
+  stroke-width: 1.5;
+}
 .pareto-still-grid line,
 .pareto-still-drop {
   stroke: var(--if-line);
@@ -160,6 +164,12 @@
 }
 .pareto-still-drop {
   opacity: 0.6;
+}
+/* On a light page the line colour nearly matches the background. */
+[data-mode='light'] .pareto-still-grid line,
+[data-mode='light'] .pareto-still-drop {
+  stroke: var(--if-muted);
+  stroke-opacity: 0.35;
 }
 .pareto-still-surface polygon {
   fill: var(--if-accent);
@@ -217,7 +227,23 @@
   color: var(--if-accent);
 }
 .pareto-label-axis {
-  margin: -0.6rem 0 0 -1.5rem;
+  color: var(--if-text);
+}
+/* Each axis name sits just past its tip: above the vertical, beyond the ends of the floor. */
+.pareto-label-reliability {
+  translate: -50% calc(-100% - 0.35rem);
+}
+.pareto-label-cost {
+  translate: 0.45rem -50%;
+}
+.pareto-label-days {
+  translate: calc(-100% - 0.4rem) -30%;
+}
+@media (max-width: 640px) {
+  /* The cost tip nears the screen edge on phones; name it just above the tip instead. */
+  .pareto-label-cost {
+    translate: -100% calc(-100% - 0.3rem);
+  }
 }
 .pareto-caption {
   margin-top: 0.75rem;

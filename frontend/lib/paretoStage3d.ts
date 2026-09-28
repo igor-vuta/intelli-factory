@@ -3,12 +3,12 @@ import {
   type Camera,
   DEFAULT_CAMERA,
   FLOOR,
-  TOP,
   type Vec3,
   cameraPosition,
   frontSurface,
   project,
   worldPoints,
+  AXES,
 } from './paretoScene';
 import type { Candidate } from './tradeoff';
 
@@ -69,10 +69,24 @@ export function mountStage(
   for (let i = -1; i <= 1.0001; i += 0.5) {
     grid.push(-1, FLOOR, i, 1, FLOOR, i, i, FLOOR, -1, i, FLOOR, 1);
   }
-  grid.push(-1, FLOOR, -1, -1, TOP, -1);
   const gridGeometry = track(new THREE.BufferGeometry());
   gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(grid, 3));
   scene.add(new THREE.LineSegments(gridGeometry, gridMaterial));
+  // The axes themselves, as thin tubes (WebGL lines are always 1px), each named at its tip.
+  const axisMaterial = track(new THREE.MeshBasicMaterial());
+  const axisGeometry = track(new THREE.CylinderGeometry(0.009, 0.009, 1, 8));
+  for (const { from, to } of AXES) {
+    const start = new THREE.Vector3(...from);
+    const end = new THREE.Vector3(...to);
+    const axis = new THREE.Mesh(axisGeometry, axisMaterial);
+    axis.position.copy(start).lerp(end, 0.5);
+    axis.scale.y = start.distanceTo(end);
+    axis.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      end.clone().sub(start).normalize()
+    );
+    scene.add(axis);
+  }
 
   // Candidates: instanced spheres, dominated ones smaller and dimmer.
   const sphere = track(new THREE.SphereGeometry(1, 20, 14));
@@ -143,8 +157,13 @@ export function mountStage(
   if (input.knee !== null && input.knee !== input.pick) scene.add(kneeRing);
 
   function setPalette(palette: StageInput['palette']) {
-    gridMaterial.color.set(palette.line);
-    dropMaterial.color.set(palette.line);
+    // On a light page the line colour is close to the background; lean on opacity there.
+    const light = new THREE.Color(palette.text).getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
+    gridMaterial.color.set(light ? palette.muted : palette.line);
+    gridMaterial.opacity = light ? 0.35 : 0.55;
+    dropMaterial.color.set(light ? palette.muted : palette.line);
+    dropMaterial.opacity = light ? 0.3 : 0.35;
+    axisMaterial.color.set(palette.muted);
     dominatedMaterial.color.set(palette.dominated);
     frontMaterial.color.set(palette.text);
     accentMaterial.color.set(palette.accent);

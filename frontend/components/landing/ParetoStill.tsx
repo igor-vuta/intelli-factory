@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import {
+  AXES,
   DEFAULT_CAMERA,
   FLOOR,
-  TOP,
   type Vec3,
   frontSurface,
   project,
@@ -30,13 +30,10 @@ export default function ParetoStill({ scenario, pick }: { scenario: Scenario; pi
         [i, FLOOR, 1],
       ]);
     }
-    gridLines.push([
-      [-1, FLOOR, -1],
-      [-1, TOP, -1],
-    ]);
     const front = new Set(scenario.front);
     return {
       grid: gridLines.map(([a, b]) => [at(a), at(b)]),
+      axes: AXES.map(({ from, to }) => [at(from), at(to)]),
       surface: frontSurface(points, scenario.front).map((t) => t.map((i) => at(points[i]))),
       // Far points first so nearer ones overlap them.
       offers: points
@@ -56,6 +53,11 @@ export default function ParetoStill({ scenario, pick }: { scenario: Scenario; pi
     >
       <g className="pareto-still-grid">
         {drawing.grid.map(([a, b], k) => (
+          <line key={k} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+        ))}
+      </g>
+      <g className="pareto-still-axis">
+        {drawing.axes.map(([a, b], k) => (
           <line key={k} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
         ))}
       </g>

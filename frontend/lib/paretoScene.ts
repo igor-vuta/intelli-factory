@@ -9,6 +9,15 @@ export type Vec3 = [number, number, number];
 export const FLOOR = -0.75;
 export const TOP = 0.75;
 
+// The axes run along the outside edges of the box, clear of the offers: reliability up the back
+// corner, days down the left edge to the front, cost along the front edge. Each runs a little
+// past the box so its name can sit right at its tip.
+export const AXES: { key: 'cost' | 'days' | 'reliability'; from: Vec3; to: Vec3 }[] = [
+  { key: 'cost', from: [-1, FLOOR, 1], to: [1.12, FLOOR, 1] },
+  { key: 'days', from: [-1, FLOOR, -1], to: [-1, FLOOR, 1.12] },
+  { key: 'reliability', from: [-1, FLOOR, -1], to: [-1, TOP + 0.1, -1] },
+];
+
 export function worldPoints(pool: Candidate[]): Vec3[] {
   return normalisedObjectives(pool).map(([cost, days, unreliability]) => [
     cost * 2 - 1,
