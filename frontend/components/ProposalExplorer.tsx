@@ -199,7 +199,6 @@ export default function ProposalExplorer({
                   scored[i] === recommended && 'is-pick',
                   scored[i] === cheapest && 'is-cheapest',
                   scored[i] === selected && 'is-selected',
-                  scored[i] === shown && 'is-active',
                 ]}
                 onActive={(i) => setActiveId(i == null ? null : scored[i].candidate.id)}
                 onSelect={(i) => setSelectedId(scored[i].candidate.id)}

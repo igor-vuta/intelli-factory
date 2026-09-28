@@ -684,7 +684,6 @@ export default function AdminWorkspacePage() {
                             i === plot.picks.greedy && 'is-cheapest',
                             i === plot.picks.fast && 'is-pick',
                             i === plot.picks.deep && i !== plot.picks.fast && 'is-deep',
-                            i === activePoint && 'is-active',
                           ]}
                           onActive={setActivePoint}
                         />
