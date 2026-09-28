@@ -22,6 +22,7 @@ from seed_helpers import (
     _ensure_logistic_offer,
     _ensure_region,
     _ensure_user,
+    _ready_seeded_factories,
 )
 
 
@@ -235,9 +236,9 @@ async def seed(with_reference_geo: bool = False) -> None:
         await _ensure_user(prisma, admin_user.email, "ADMIN")
 
         inventory_specs = [
-            (factory_profile_1.id, "Cotton T-Shirt", addr_almaty_factory.id, Decimal("3000"), Decimal("14.50"), "USD", {"color": "white"}),
-            (factory_profile_1.id, "Silk Scarf", addr_almaty_factory.id, Decimal("1500"), Decimal("11.80"), "USD", {"color": "navy"}),
-            (factory_profile_1.id, "Wool Sweater", addr_almaty_factory.id, Decimal("900"), Decimal("27.00"), "USD", {"season": "winter"}),
+            (factory_profile_1.id, "Cotton T-Shirt", addr_almaty_factory.id, Decimal("3000"), Decimal("14.50"), "USD", {"color": "white", "material": "cotton"}),
+            (factory_profile_1.id, "Silk Scarf", addr_almaty_factory.id, Decimal("1500"), Decimal("11.80"), "USD", {"color": "navy", "material": "silk"}),
+            (factory_profile_1.id, "Wool Sweater", addr_almaty_factory.id, Decimal("900"), Decimal("27.00"), "USD", {"season": "winter", "material": "wool"}),
             (factory_profile_2.id, "Power Supply", addr_shymkent_factory.id, Decimal("700"), Decimal("42.00"), "USD", {"voltage": "220V"}),
             (factory_profile_2.id, "Circuit Board", addr_shymkent_factory.id, Decimal("1400"), Decimal("31.50"), "USD", {"layers": 6}),
             (factory_profile_2.id, "Sensor Module", addr_shymkent_factory.id, Decimal("2100"), Decimal("19.40"), "USD", {"protocol": "I2C"}),
@@ -299,6 +300,8 @@ async def seed(with_reference_geo: bool = False) -> None:
                 "addr": addr_almaty_customer.id,
                 "currency": "USD",
                 "name": "Q2 T-shirt restock",
+                # Textile requires a material; the stock offered must match it.
+                "specs": {"material": "cotton"},
             },
             {
                 "profile_id": customer_profile_2.id,
@@ -322,6 +325,8 @@ async def seed(with_reference_geo: bool = False) -> None:
 
         request_rows = []
         for req in requests_data:
+            # Bids are checked against the request's unit and specification (category governance).
+            requested = {**req.get("specs", {}), "quantity_unit": req["item"].unit}
             existing = await prisma.request.find_first(
                 where={
                     "customer_profile_id": req["profile_id"],
@@ -335,6 +340,7 @@ async def seed(with_reference_geo: bool = False) -> None:
                     where={"id": existing.id},
                     data={
                         "requested_name_text": req["name"],
+                        "requested_characteristics_json": Json(requested),
                         "quantity": req["qty"],
                         "destination_address_id": req["addr"],
                         "preferred_currency_code": req["currency"],
@@ -349,6 +355,7 @@ async def seed(with_reference_geo: bool = False) -> None:
                         "category_id": req["category"].id,
                         "item_id": req["item"].id,
                         "requested_name_text": req["name"],
+                        "requested_characteristics_json": Json(requested),
                         "quantity": req["qty"],
                         "destination_address_id": req["addr"],
                         "preferred_currency_code": req["currency"],
@@ -548,6 +555,7 @@ async def seed(with_reference_geo: bool = False) -> None:
             "candidates": len(candidates),
         }
 
+        print(f"Factories ready to publish and bid: {await _ready_seeded_factories(prisma)}")
         print("Seed complete with schema-aligned cross references.")
         print(f"Summary: {summary}")
         print("Demo user password for all newly created users: password123")

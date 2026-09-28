@@ -3,7 +3,10 @@ from __future__ import annotations
 from decimal import Decimal
 
 from argon2 import PasswordHasher
+from fastapi import HTTPException
 from prisma import Json, Prisma
+
+from services.category_governance import confirm_category, eligible_category, profile_complete
 
 
 _argon2_hasher = PasswordHasher()
@@ -307,3 +310,44 @@ async def _ensure_coverage(
             "status": "ACTIVE",
         }
     )
+
+SEED_EMAIL_DOMAIN = "@intelli.local"
+
+
+async def _ready_seeded_factories(prisma: Prisma) -> int:
+    """Make the seeded factories (accounts at SEED_EMAIL_DOMAIN, never real sign-ups) usable
+    under category governance: a complete profile and a confirmed selection for each eligible
+    category they stock. Only gaps are filled: existing values are kept, and a category the
+    factory already selected or dropped is left as it is. Returns how many are ready."""
+    ready = 0
+    profiles = await prisma.factoryprofile.find_many(
+        where={
+            "deleted_at": None,
+            "user": {"is": {"email": {"endswith": SEED_EMAIL_DOMAIN}}},
+        },
+        include={
+            "inventory_entries": {"where": {"deleted_at": None}, "include": {"item": True}},
+            "production_categories": True,
+        },
+    )
+    placeholders = {
+        "legal_name": "Demo factory",
+        "contact_name": "Demo contact",
+        "phone": "+7 700 000 0000",
+    }
+    for profile in profiles:
+        if not profile.primary_address_id:
+            continue
+        chosen = {row.category_id for row in profile.production_categories or []}
+        stocked = {e.item.category_id for e in profile.inventory_entries or [] if e.item}
+        for category_id in stocked - chosen:
+            try:
+                await eligible_category(prisma, category_id)
+            except HTTPException:
+                continue
+            await confirm_category(prisma, profile.id, category_id)
+        gaps = {key: value for key, value in placeholders.items() if not getattr(profile, key)}
+        if gaps:
+            profile = await prisma.factoryprofile.update(where={"id": profile.id}, data=gaps)
+        ready += profile_complete(profile)
+    return ready

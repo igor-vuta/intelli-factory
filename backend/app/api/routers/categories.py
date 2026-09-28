@@ -12,6 +12,7 @@ from db import prisma
 from routers.requests import require_roles, _require_authenticated_user
 from routers.auth import _ensure_db_connection
 from services.category_governance import (
+    confirm_category,
     eligible_category,
     profile_complete,
     require_verified,
@@ -254,22 +255,7 @@ async def select_categories(body: SelectionBody, user=Depends(require_roles("FAC
                 # Retain offerings and contracts; live eligibility rechecks disable new bidding.
                 await tx.factorycategory.update(where={"id": row.id}, data={"is_active": False})
         for category_id in ids:
-            await tx.factorycategory.upsert(
-                where={
-                    "factory_profile_id_category_id": {
-                        "factory_profile_id": factory.id,
-                        "category_id": category_id,
-                    }
-                },
-                data={
-                    "create": {
-                        "factory_profile_id": factory.id,
-                        "category_id": category_id,
-                        "confirmed_at": datetime.now(timezone.utc),
-                    },
-                    "update": {"is_active": True, "confirmed_at": datetime.now(timezone.utc)},
-                },
-            )
+            await confirm_category(tx, factory.id, category_id)
     return {"status": "success"}
 
 
