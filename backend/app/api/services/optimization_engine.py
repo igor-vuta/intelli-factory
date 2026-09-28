@@ -8,6 +8,9 @@ Two modes:
 
 from __future__ import annotations
 
+from fastapi import HTTPException
+from services.category_governance import validate_bid
+
 import logging
 import random
 from decimal import Decimal
@@ -99,7 +102,7 @@ class OptimizationEngine:
             return []
 
         # Apply hard feasibility constraints
-        feasible = [c for c in candidates if self._is_feasible(c, req)]
+        feasible = await self._eligible_candidates(candidates, req)
         if not feasible:
             logger.info("OptimizationEngine: no feasible candidates for request %s", request_id)
             return []
@@ -304,7 +307,7 @@ class OptimizationEngine:
             },
         )
 
-        feasible = [c for c in candidates_raw if self._is_feasible(c, req)]
+        feasible = await self._eligible_candidates(candidates_raw, req)
         if not feasible:
             return {"error": "No feasible candidates"}
 
@@ -335,6 +338,17 @@ class OptimizationEngine:
         p = (profile or "balanced").lower()
         return WEIGHT_PROFILES.get(p, WEIGHT_PROFILES["balanced"])
 
+    async def _eligible_candidates(self, candidates, req):
+        eligible = []
+        for candidate in candidates:
+            try:
+                await validate_bid(prisma, req, candidate.inventory_entry, candidate.quoted_quantity)
+            except HTTPException:
+                continue
+            if self._is_feasible(candidate, req):
+                eligible.append(candidate)
+        return eligible
+
     @staticmethod
     def _is_feasible(candidate: Any, req: Any) -> bool:
         inv = candidate.inventory_entry
@@ -342,7 +356,7 @@ class OptimizationEngine:
 
         if inv is None or offer is None:
             return False
-        if inv.deleted_at is not None or inv.status not in ("ACTIVE", "PENDING"):
+        if inv.deleted_at is not None or inv.status != "ACTIVE":
             return False
         if offer.deleted_at is not None or offer.status not in ("ACTIVE", "PENDING"):
             return False

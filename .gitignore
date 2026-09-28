@@ -99,3 +99,4 @@ frontend/test-results/
 frontend/playwright-report/
 
 !docs/quality/ui-ux.md
+!docs/factory-categories.md

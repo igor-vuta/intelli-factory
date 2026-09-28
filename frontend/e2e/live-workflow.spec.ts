@@ -9,6 +9,30 @@ async function post(page: Page, path: string, data: object) {
   expect(response.ok(), `${path}: ${JSON.stringify(result)}`).toBeTruthy();
   return result;
 }
+/** Completes factory setup (profile, location, one leaf category) and returns that category. */
+async function readyFactory(factory: Page) {
+  const call = async (method: string, path: string, data: object) => {
+    const response = await factory.request.fetch(`/api${path}`, { method, data });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+  };
+  await call('PATCH', '/categories/factory-profile', {
+    legal_name: 'Demo Factory',
+    contact_name: 'Demo Contact',
+    phone: '+7 700 000 0001',
+  });
+  await call('PUT', '/categories/factory-location', {
+    country_code: 'KZ',
+    region_name: 'Almaty Region',
+    city_name: 'Almaty',
+    street: 'Test factory 10',
+  });
+  const bootstrap = await (await factory.request.get('/api/requests/bootstrap')).json();
+  const categories = bootstrap.categories as { id: string; parent_id: string | null }[];
+  const leaf = categories.find((c) => !categories.some((child) => child.parent_id === c.id))!;
+  await call('PUT', '/categories/factory-selections', { category_ids: [leaf.id] });
+  return leaf.id;
+}
+
 async function login(page: Page, role: string) {
   await page.goto('/login?lang=en');
   await page.getByLabel('Email', { exact: true }).fill(`${role}.demo@intelli.local`);
@@ -43,9 +67,9 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
     ] as const)
       await login(page, role);
     const name = `UX steel ${Date.now()}`;
-    const bootstrap = await (await factory.request.get('/api/requests/bootstrap')).json();
+    const categoryId = await readyFactory(factory);
     await post(factory, '/requests/inventory-entries', {
-      category_id: bootstrap.categories[0].id,
+      category_id: categoryId,
       item_name: name,
       unit: 'pcs',
       stock_country_code: 'KZ',
@@ -204,9 +228,9 @@ test('real database: record actions keep the lifecycle guards', async ({ browser
     ] as const)
       await login(page, role);
     const name = `Record steel ${Date.now()}`;
-    const bootstrap = await (await factory.request.get('/api/requests/bootstrap')).json();
+    const categoryId = await readyFactory(factory);
     await post(factory, '/requests/inventory-entries', {
-      category_id: bootstrap.categories[0].id,
+      category_id: categoryId,
       item_name: name,
       unit: 'pcs',
       stock_country_code: 'KZ',
@@ -221,7 +245,7 @@ test('real database: record actions keep the lifecycle guards', async ({ browser
       await (await factory.request.get('/api/requests/inventory-entries/mine')).json()
     ).find((item: { item_name: string }) => item.item_name === name);
     const request = await post(customer, '/requests/', {
-      category_id: entry.category_id ?? bootstrap.categories[0].id,
+      category_id: entry.category_id ?? categoryId,
       item_id: entry.item_id,
       quantity: 10,
       quantity_unit: 'pcs',

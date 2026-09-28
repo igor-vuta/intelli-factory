@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from contextlib import asynccontextmanager
 
 import httpx
 import pytest
@@ -16,7 +17,9 @@ requests_router = importlib.import_module("routers.requests")
 
 
 class FakePrisma(SimpleNamespace):
-    pass
+    @asynccontextmanager
+    async def tx(self):
+        yield self
 
 
 @pytest.fixture
@@ -34,6 +37,8 @@ def _make_app_with_user(user):
 
 def _build_base_prisma_mocks():
     fake = FakePrisma()
+    fake.execute_raw = AsyncMock()
+    fake.factorycategory = SimpleNamespace(find_first=AsyncMock(return_value=SimpleNamespace(id="cap")))
     fake.session = SimpleNamespace(update=AsyncMock())
     fake.country = SimpleNamespace(find_many=AsyncMock(return_value=[]))
     fake.category = SimpleNamespace(find_many=AsyncMock(return_value=[]), find_first=AsyncMock())
@@ -56,7 +61,7 @@ def _build_base_prisma_mocks():
 
 @pytest.mark.anyio
 async def test_bootstrap_returns_catalog_data(monkeypatch):
-    user = SimpleNamespace(id="u1", role="CUSTOMER", is_email_verified=True)
+    user = SimpleNamespace(id="u1", role="CUSTOMER", is_email_verified=True, deleted_at=None)
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
@@ -87,6 +92,16 @@ async def test_bootstrap_returns_catalog_data(monkeypatch):
     )
     fake_prisma.request.find_many = AsyncMock(return_value=[])
 
+    previous_category = fake_prisma.category.find_first
+    async def category_lookup(*, where):
+        if "parent_id" in where:
+            return None
+        row = await previous_category(where=where)
+        if not row:
+            return SimpleNamespace(id=where["id"], attributes_schema=None)
+        row.attributes_schema = None
+        return row
+    fake_prisma.category.find_first = category_lookup
     monkeypatch.setattr(requests_router, "prisma", fake_prisma)
 
     async with httpx.AsyncClient(
@@ -108,7 +123,7 @@ async def test_create_request_success_for_verified_customer(monkeypatch):
     category_id = "11111111-1111-1111-1111-111111111111"
     destination_address_id = "22222222-2222-2222-2222-222222222222"
 
-    user = SimpleNamespace(id="u1", role="CUSTOMER", is_email_verified=True)
+    user = SimpleNamespace(id="u1", role="CUSTOMER", is_email_verified=True, deleted_at=None)
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
@@ -122,6 +137,16 @@ async def test_create_request_success_for_verified_customer(monkeypatch):
     fake_prisma.currency.find_unique = AsyncMock(return_value=SimpleNamespace(code="USD"))
     fake_prisma.request.create = AsyncMock(return_value=SimpleNamespace(id="req-1"))
 
+    previous_category = fake_prisma.category.find_first
+    async def category_lookup(*, where):
+        if "parent_id" in where:
+            return None
+        row = await previous_category(where=where)
+        if not row:
+            return SimpleNamespace(id=where["id"], attributes_schema=None)
+        row.attributes_schema = None
+        return row
+    fake_prisma.category.find_first = category_lookup
     monkeypatch.setattr(requests_router, "prisma", fake_prisma)
 
     async with httpx.AsyncClient(
@@ -151,6 +176,16 @@ async def test_create_request_requires_verified_email(monkeypatch):
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
+    previous_category = fake_prisma.category.find_first
+    async def category_lookup(*, where):
+        if "parent_id" in where:
+            return None
+        row = await previous_category(where=where)
+        if not row:
+            return SimpleNamespace(id=where["id"], attributes_schema=None)
+        row.attributes_schema = None
+        return row
+    fake_prisma.category.find_first = category_lookup
     monkeypatch.setattr(requests_router, "prisma", fake_prisma)
 
     async with httpx.AsyncClient(
@@ -177,16 +212,26 @@ async def test_factory_can_create_inventory_entry(monkeypatch):
     item_id = "33333333-3333-3333-3333-333333333333"
     stock_address_id = "44444444-4444-4444-4444-444444444444"
 
-    user = SimpleNamespace(id="factory-user", role="FACTORY", is_email_verified=True)
+    user = SimpleNamespace(id="factory-user", role="FACTORY", is_email_verified=True, deleted_at=None)
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
-    fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1"))
-    fake_prisma.item.find_first = AsyncMock(return_value=SimpleNamespace(id=item_id))
+    fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1", legal_name="Factory", contact_name="Contact", phone="123", primary_address_id=stock_address_id, deleted_at=None))
+    fake_prisma.item.find_first = AsyncMock(return_value=SimpleNamespace(id=item_id, category_id="cat", unit="pcs", status="ACTIVE", deleted_at=None, characteristics_schema=None))
     fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id=stock_address_id))
     fake_prisma.currency.find_unique = AsyncMock(return_value=SimpleNamespace(code="USD"))
     fake_prisma.inventoryentry.create = AsyncMock(return_value=SimpleNamespace(id="inv-1"))
 
+    previous_category = fake_prisma.category.find_first
+    async def category_lookup(*, where):
+        if "parent_id" in where:
+            return None
+        row = await previous_category(where=where)
+        if not row:
+            return SimpleNamespace(id=where["id"], attributes_schema=None)
+        row.attributes_schema = None
+        return row
+    fake_prisma.category.find_first = category_lookup
     monkeypatch.setattr(requests_router, "prisma", fake_prisma)
 
     async with httpx.AsyncClient(
@@ -212,15 +257,25 @@ async def test_factory_can_create_inventory_entry(monkeypatch):
 
 @pytest.mark.anyio
 async def test_factory_can_toggle_inventory_entry_status(monkeypatch):
-    user = SimpleNamespace(id="factory-user", role="FACTORY", is_email_verified=True)
+    user = SimpleNamespace(id="factory-user", role="FACTORY", is_email_verified=True, deleted_at=None)
     app = _make_app_with_user(user)
 
     fake_prisma = _build_base_prisma_mocks()
-    fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1"))
+    fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1", legal_name="Factory", contact_name="Contact", phone="123", primary_address_id="address", deleted_at=None))
     fake_prisma.inventoryentry.find_first = AsyncMock(
         return_value=SimpleNamespace(id="inv-1", factory_profile_id="fp-1", status="ACTIVE")
     )
     fake_prisma.inventoryentry.update = AsyncMock(return_value=SimpleNamespace(id="inv-1"))
+    previous_category = fake_prisma.category.find_first
+    async def category_lookup(*, where):
+        if "parent_id" in where:
+            return None
+        row = await previous_category(where=where)
+        if not row:
+            return SimpleNamespace(id=where["id"], attributes_schema=None)
+        row.attributes_schema = None
+        return row
+    fake_prisma.category.find_first = category_lookup
     monkeypatch.setattr(requests_router, "prisma", fake_prisma)
 
     async with httpx.AsyncClient(

@@ -14,6 +14,7 @@ from db import prisma
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
 from routers.ratings import get_avg_rating, get_computed_reliability
 from services.optimization_engine import OptimizationEngine
+from services.category_governance import require_verified, validate_bid
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,7 @@ async def get_open_requests(user=Depends(_require_role("FACTORY"))):
 class FactoryBidBody(BaseModel):
     request_id: str
     inventory_entry_id: str
-    quoted_quantity: float = Field(..., gt=0)
+    quoted_quantity: float = Field(..., gt=0, allow_inf_nan=False)
     factory_note: str | None = Field(default=None, max_length=500)
 
 
@@ -177,6 +178,9 @@ async def create_factory_bid(payload: FactoryBidBody, user=Depends(_require_role
     )
     if not inv:
         raise HTTPException(404, "Inventory entry not found or not yours")
+
+    require_verified(user)
+    await validate_bid(prisma, req, inv, payload.quoted_quantity, factory_profile.id)
 
     # prevent duplicate bids on same request+inventory
     existing = await prisma.matchcandidate.find_first(
@@ -368,7 +372,7 @@ class LogistQuoteBody(BaseModel):
     estimated_days_max: int | None = Field(default=None, ge=0)
     currency_code: str = Field(..., min_length=3, max_length=3)
     delivery_price: float = Field(..., ge=0)
-    delivery_days: int = Field(..., gt=0)
+    delivery_days: int = Field(..., gt=0, allow_inf_nan=False)
 
 
 @router.post("/logist-quotes", status_code=201)
@@ -613,11 +617,11 @@ async def select_candidate(
     if req.status not in ("PAIRING_IN_PROGRESS", "PENDING", "PAUSED"):
         raise HTTPException(400, f"Request cannot be matched in status '{req.status}'")
 
-    # customers can only select their own request
-    if user.role == "CUSTOMER":
-        profile = await prisma.customerprofile.find_unique(where={"user_id": user.id})
-        if not profile or req.customer_profile_id != profile.id:
-            raise HTTPException(403, "Forbidden")
+    require_verified(user)
+    if user.role != "CUSTOMER" or req.customer_profile.user_id != user.id:
+        raise HTTPException(403, "Only the owning customer can select a bid")
+    inv = await prisma.inventoryentry.find_unique(where={"id": candidate.inventory_entry_id})
+    await validate_bid(prisma, req, inv, candidate.quoted_quantity)
 
     # refuse if transaction already exists
     existing_tx = await prisma.transaction.find_unique(where={"request_id": req.id})

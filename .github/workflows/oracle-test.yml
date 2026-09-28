@@ -50,9 +50,9 @@ jobs:
       - name: Build and start all three tiers
         run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml up -d --build --wait --wait-timeout 180
       - name: Seed reference data
-        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml exec -T backend python seed_reference_geo.py
+        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml run --rm --no-deps -T migrate python seed_reference_geo.py
       - name: Verify repeatable geography import
-        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml exec -T backend python verify_reference_geo.py
+        run: docker compose -f deploy/oracle/compose.yml -f deploy/oracle/micro.yml run --rm --no-deps -T migrate python verify_reference_geo.py
       - name: Check frontend and proxied API
         run: |
           curl --fail --silent http://127.0.0.1:4200/ > /dev/null

@@ -1,8 +1,12 @@
+import Combobox from '../../components/Combobox';
 import SelectField from '../../components/SelectField';
 import GuidanceHint from '../../components/GuidanceHint';
 import OrderGuidance from '../../components/OrderGuidance';
 import { dissolve } from '../../lib/dissolve';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
+import CategoryProposalPanel from '../../components/CategoryProposalPanel';
+import AttributeFields from '../../components/AttributeFields';
+import { categoryCopy } from '../../lib/categoryCopy';
 import ProposalExplorer from '../../components/ProposalExplorer';
 import StatusBadge from '../../components/StatusBadge';
 import RecordRow, { RecordDetail } from '../../components/RecordRow';
@@ -245,7 +249,9 @@ function NewRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [categoryText, setCategoryText] = useState('');
+  const categoryLocale = getLocaleFromQuery(useRouter().query.lang);
+  const [attributes, setAttributes] = useState<Record<string, unknown>>({});
+  const [, setCategoryText] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [itemText, setItemText] = useState('');
   const [itemId, setItemId] = useState('');
@@ -262,10 +268,12 @@ function NewRequestModal({
 
   const categoryOptions = useMemo<ComboboxOption[]>(
     () =>
-      categories.map((c) => ({
-        id: c.id,
-        label: c.name,
-      })),
+      categories
+        .filter((c) => !categories.some((child) => child.parent_id === c.id))
+        .map((c) => ({
+          id: c.id,
+          label: c.name,
+        })),
     [categories]
   );
 
@@ -308,6 +316,7 @@ function NewRequestModal({
   function handleCategoryChange(text: string, id: string) {
     setCategoryText(text);
     setCategoryId(id);
+    setAttributes({});
     // clear item match only if the matched item doesn't belong to new category
     if (itemId) {
       const match = items.find((i) => i.id === itemId);
@@ -352,8 +361,8 @@ function NewRequestModal({
       setError(e('Please describe the item you need'));
       return;
     }
-    if (!categoryText.trim()) {
-      setError(e('Please choose or type a category'));
+    if (!categoryId) {
+      setError(categoryCopy(categoryLocale).select);
       return;
     }
     if (!quantityUnitText.trim()) {
@@ -365,7 +374,7 @@ function NewRequestModal({
     try {
       const result = await createCustomerRequest({
         category_id: categoryId || undefined,
-        category_name_text: categoryText.trim(),
+        requested_characteristics_json: attributes,
         item_id: itemId || undefined,
         requested_name_text: itemText.trim(),
         quantity: qty,
@@ -425,14 +434,24 @@ function NewRequestModal({
             <h3>{e('What do you need?')}</h3>
           </div>
           <GuidanceHint hint="request" />
-          <SearchableInput
-            suggestions={categoryOptions}
-            text={categoryText}
-            selectedId={categoryId}
-            onChange={handleCategoryChange}
-            placeholder={e('Type category or choose existing (e.g. Textile, Electronics, Food)')}
+          <Combobox
+            options={categoryOptions}
+            value={categoryId}
+            onChange={(id) => handleCategoryChange(categoryNameById.get(id) ?? '', id)}
+            placeholder={categoryCopy(categoryLocale).select}
             label={e('Category')}
             required
+          />
+
+          <AttributeFields
+            schema={categories.find((c) => c.id === categoryId)?.attributes_schema}
+            value={attributes}
+            onChange={setAttributes}
+          />
+          <AttributeFields
+            schema={items.find((i) => i.id === itemId)?.characteristics_schema}
+            value={attributes}
+            onChange={setAttributes}
           />
 
           {/* Step 2 \u2014 Item name: free text with catalogue suggestions */}
@@ -479,6 +498,7 @@ function NewRequestModal({
 
             <div className="flex flex-col gap-1">
               <SearchableInput
+                disabled={!!itemId}
                 suggestions={unitSuggestions}
                 text={quantityUnitText}
                 selectedId={quantityUnitId}
@@ -788,7 +808,7 @@ export default function CustomerWorkspacePage() {
         }
 
         const [bootstrap, rows, txRows] = await Promise.all([
-          getRequestsBootstrap(),
+          getRequestsBootstrap(locale),
           listRequests(),
           listMyTransactions(),
         ]);
@@ -1042,6 +1062,7 @@ export default function CustomerWorkspacePage() {
       onCreate={() => setShowModal(true)}
     >
       <div className="workspace-panels">
+        <CategoryProposalPanel locale={locale} />
         <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="section-heading-row">
             <div>

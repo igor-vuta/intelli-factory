@@ -1,4 +1,5 @@
 import SelectField from '../../components/SelectField';
+import CategoryProposalPanel from '../../components/CategoryProposalPanel';
 import StatusBadge from '../../components/StatusBadge';
 import RecordRow, { RecordDetail } from '../../components/RecordRow';
 import { useExpandedRecords } from '../../hooks/useExpandedRecords';
@@ -346,6 +347,7 @@ export default function AdminWorkspacePage() {
       onLogout={handleLogout}
     >
       <div className="workspace-panels">
+        <CategoryProposalPanel locale={locale} admin />
         <section data-section="operations" className="surface-1 rounded-2xl p-6 sm:p-8">
           <h2 id="requests" className="text-lg font-semibold">
             {e('All requests')}

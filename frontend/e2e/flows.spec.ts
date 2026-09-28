@@ -14,6 +14,24 @@ async function mockApi(page: Page, role = 'CUSTOMER', authorized = true, userId 
       });
       return;
     }
+    if (path === '/api/categories/factory-setup') {
+      await route.fulfill({
+        json: {
+          ready: true,
+          email_verified: true,
+          profile_complete: true,
+          eligible_inventory_ids: [],
+          selections: [],
+          profile: {
+            legal_name: 'Factory',
+            contact_name: 'User',
+            phone: '123',
+            primary_address_id: null,
+          },
+        },
+      });
+      return;
+    }
     const bootstrap = {
       user,
       categories: [
@@ -193,6 +211,7 @@ test('autocomplete supports arrow selection without submitting the request', asy
     .click();
   const field = page.getByRole('combobox', { name: /category/i });
   await field.focus();
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(field).toHaveValue('Wood');
@@ -404,7 +423,7 @@ for (const locale of ['ru', 'kk'] as const) {
           ];
     for (const [index, role] of roles.entries()) {
       await mockApi(page, role.toUpperCase());
-      await page.goto(`/app/${role}?lang=${locale}`);
+      await page.goto(`/app/${role}?lang=${locale}&view=home`);
       await expect(page.locator('h1:visible')).toContainText(headings[index]);
       await expect(page.locator('.experience-overview')).not.toContainText(
         /New [Rr]equest|Open details|Your next|Ready when|Loading your|Latest activity/

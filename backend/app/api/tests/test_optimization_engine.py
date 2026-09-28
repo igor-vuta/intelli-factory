@@ -584,3 +584,8 @@ async def test_large_scale_deep_mode_mocked():
     assert 1 <= len(result) <= _GA_TOP_N
     assert result[0]["rank"] == 1
 
+
+
+@pytest.fixture(autouse=True)
+def eligible_scoring_fixtures(monkeypatch):
+    monkeypatch.setattr("services.optimization_engine.validate_bid", AsyncMock())

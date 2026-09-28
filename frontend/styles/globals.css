@@ -591,3 +591,24 @@ h2[id] {
     display: inline-flex;
   }
 }
+
+.factory-setup label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.factory-setup input:not([type='checkbox']),
+.factory-setup select,
+.factory-setup textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid rgb(var(--stroke));
+  border-radius: 0.5rem;
+  background: rgb(var(--panel));
+  color: rgb(var(--text));
+}
+.factory-setup button:disabled {
+  opacity: 0.5;
+}

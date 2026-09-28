@@ -407,7 +407,8 @@ async def test_factory_cannot_reopen_a_paused_request(monkeypatch):
         "/api/requests/req-1/status",
         {"status": "PAIRING_IN_PROGRESS"},
     )
-    assert response.status_code == 409
+    # Only the owning customer may change a request's status at all.
+    assert response.status_code == 403
     fake.request.update.assert_not_awaited()
 
 

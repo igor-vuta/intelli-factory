@@ -104,7 +104,6 @@ export default function ChoiceField({
   const listId = `${inputId}-choices`;
   const input = useRef<HTMLInputElement>(null);
   const validation = useRef<HTMLInputElement>(null);
-  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -117,12 +116,26 @@ export default function ChoiceField({
       .includes(search.toLocaleLowerCase())
   );
   const actualOpen = open && !disabled;
-  useEffect(
-    () => () => {
-      if (blurTimer.current) clearTimeout(blurTimer.current);
-    },
-    []
-  );
+  useEffect(() => {
+    if (!actualOpen) return;
+    function outside(event: Event) {
+      const target = event.target as Node | null;
+      if (
+        !target ||
+        input.current?.parentElement?.contains(target) ||
+        document.getElementById(listId)?.contains(target)
+      )
+        return;
+      setOpen(false);
+      setQuery('');
+    }
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('focusin', outside);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('focusin', outside);
+    };
+  }, [actualOpen, listId]);
   useEffect(() => {
     if (actualOpen)
       document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: 'nearest' });
@@ -172,7 +185,6 @@ export default function ChoiceField({
             actualOpen && !custom ? e('Search options…') : (placeholder ?? e('Choose an option'))
           }
           onFocus={() => {
-            if (blurTimer.current) clearTimeout(blurTimer.current);
             if (custom) setOpen(true);
           }}
           onClick={() => {
@@ -185,9 +197,6 @@ export default function ChoiceField({
             input.current?.removeAttribute('aria-invalid');
             setActive(0);
             setOpen(true);
-          }}
-          onBlur={() => {
-            blurTimer.current = setTimeout(close, 150);
           }}
           onKeyDown={(event) => {
             if (event.key === 'Escape' && actualOpen) {
@@ -261,7 +270,9 @@ export default function ChoiceField({
               }}
             >
               <span>
-                <span className="choice-option-title">{option.label}</span>
+                <span data-choice-id={option.id} className="choice-option-title">
+                  {option.label}
+                </span>
                 {option.sublabel && <small>{option.sublabel}</small>}
               </span>
               <span className="choice-check" aria-hidden>

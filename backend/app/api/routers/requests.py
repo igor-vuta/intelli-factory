@@ -11,6 +11,7 @@ from db import prisma
 from routers.addresses import matches_name
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
 from routers.ratings import get_computed_reliability
+from services.category_governance import eligible_category, require_verified, validate_attributes, validate_publication, SUPPORTED_UNITS
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 
@@ -39,7 +40,7 @@ class CreateRequestBody(BaseModel):
     item_id: str | None = None
     requested_name_text: str | None = Field(default=None, min_length=2, max_length=200)
     requested_characteristics_json: dict[str, Any] | None = None
-    quantity: float = Field(..., gt=0)
+    quantity: float = Field(..., gt=0, allow_inf_nan=False)
     quantity_unit: str = Field(default="pcs", min_length=1, max_length=20)
     destination_address_id: str | None = None
     destination_country_code: str | None = Field(default=None, min_length=2, max_length=2)
@@ -98,8 +99,8 @@ class InventoryEntryCreateBody(BaseModel):
     stock_region_name: str | None = Field(default=None, min_length=2, max_length=120)
     stock_city_name: str | None = Field(default=None, min_length=2, max_length=120)
     stock_street: str | None = Field(default=None, min_length=3, max_length=300)
-    quantity_available: float = Field(..., gt=0)
-    price_per_unit: float = Field(..., gt=0)
+    quantity_available: float = Field(..., gt=0, allow_inf_nan=False)
+    price_per_unit: float = Field(..., gt=0, allow_inf_nan=False)
     currency_code: str = Field(..., min_length=3, max_length=3)
     characteristics_json: dict[str, Any] | None = None
 
@@ -184,10 +185,12 @@ async def _resolve_or_create_address(
     city_name: str | None,
     street: str | None,
     address_field_name: str,
+    db=None,
 ) -> str | None:
+    db = db or prisma
     normalized_address_id = _validate_uuid(address_id, address_field_name)
     if normalized_address_id:
-        row = await prisma.address.find_first(
+        row = await db.address.find_first(
             where={"id": normalized_address_id, "deleted_at": None}
         )
         if not row:
@@ -214,14 +217,14 @@ async def _resolve_or_create_address(
             ),
         )
 
-    country = await prisma.country.find_unique(where={"iso2": normalized_country_code.upper()})
+    country = await db.country.find_unique(where={"iso2": normalized_country_code.upper()})
     if not country or not country.is_active:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Unsupported country code for manual address",
         )
 
-    region_rows = await prisma.region.find_many(
+    region_rows = await db.region.find_many(
         where={"country_id": country.id, "is_active": True},
         include={"translations": True},
     )
@@ -237,7 +240,7 @@ async def _resolve_or_create_address(
         while candidate_code in existing_codes:
             suffix += 1
             candidate_code = f"{base[:9]}-{suffix}"
-        region = await prisma.region.create(
+        region = await db.region.create(
             data={
                 "country": {"connect": {"id": country.id}},
                 "code": candidate_code,
@@ -246,7 +249,7 @@ async def _resolve_or_create_address(
             }
         )
 
-    city_rows = await prisma.city.find_many(
+    city_rows = await db.city.find_many(
         where={"region_id": region.id, "is_active": True},
         include={"translations": True},
     )
@@ -255,7 +258,7 @@ async def _resolve_or_create_address(
         None,
     )
     if not city:
-        city = await prisma.city.create(
+        city = await db.city.create(
             data={
                 "region": {"connect": {"id": region.id}},
                 "default_name": normalized_city_name,
@@ -263,7 +266,7 @@ async def _resolve_or_create_address(
             }
         )
 
-    address_rows = await prisma.address.find_many(
+    address_rows = await db.address.find_many(
         where={
             "country_id": country.id,
             "region_id": region.id,
@@ -279,7 +282,7 @@ async def _resolve_or_create_address(
     if existing_address:
         return existing_address.id
 
-    created = await prisma.address.create(
+    created = await db.address.create(
         data={
             "country": {"connect": {"id": country.id}},
             "region": {"connect": {"id": region.id}},
@@ -318,11 +321,11 @@ def require_roles(*allowed_roles: UserRole):
 
 
 @router.get("/bootstrap")
-async def bootstrap(user=Depends(_require_authenticated_user)):
+async def bootstrap(locale: Literal["en", "ru", "kk"] = "en", user=Depends(_require_authenticated_user)):
     categories = await prisma.category.find_many(
         where={"deleted_at": None, "status": "ACTIVE"},
         order={"default_name": "asc"},
-        take=100,
+        include={"translations": True},
     )
     items = await prisma.item.find_many(
         where={"deleted_at": None, "status": "ACTIVE"},
@@ -385,7 +388,7 @@ async def bootstrap(user=Depends(_require_authenticated_user)):
 
     return {
         "categories": [
-            {"id": category.id, "name": category.default_name, "slug": category.slug}
+            {"id": category.id, "name": next((t.name for t in (getattr(category, "translations", None) or []) if t.locale == locale), category.default_name), "slug": category.slug, "parent_id": getattr(category, "parent_id", None), "attributes_schema": getattr(category, "attributes_schema", None)}
             for category in categories
         ],
         "items": [
@@ -394,8 +397,9 @@ async def bootstrap(user=Depends(_require_authenticated_user)):
                 "name": item.name,
                 "category_id": item.category_id,
                 "unit": item.unit,
+                "characteristics_schema": getattr(item, "characteristics_schema", None),
             }
-            for item in items
+            for item in items if item.category_id in {c.id for c in categories}
         ],
         "currencies": [{"code": currency.code, "name": currency.name} for currency in currencies],
         "countries": [
@@ -460,28 +464,7 @@ async def create_request(
         category_id = item.category_id
 
     if not category_id and category_name_text:
-        slug = _slugify_category_name(category_name_text)
-        if not slug:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="category_name_text must contain letters or numbers",
-            )
-        created_or_existing_category = await prisma.category.upsert(
-            where={"slug": slug},
-            data={
-                "create": {
-                    "slug": slug,
-                    "default_name": category_name_text,
-                    "status": "ACTIVE",
-                },
-                "update": {
-                    "default_name": category_name_text,
-                    "status": "ACTIVE",
-                    "deleted_at": None,
-                },
-            },
-        )
-        category_id = created_or_existing_category.id
+        raise HTTPException(422, "Request a category for review before using it")
 
     if not category_id:
         raise HTTPException(
@@ -494,6 +477,15 @@ async def create_request(
     )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+
+    if item and item.category_id != category.id:
+        raise HTTPException(422, "Item and category must agree")
+    await eligible_category(prisma, category.id)
+    validate_attributes(getattr(category, "attributes_schema", None), payload.requested_characteristics_json)
+    if item:
+        validate_attributes(item.characteristics_schema, payload.requested_characteristics_json)
+    if payload.quantity_unit not in SUPPORTED_UNITS or (item and item.unit != payload.quantity_unit):
+        raise HTTPException(422, "Choose the product's supported quantity unit")
 
     destination_address_id = await _resolve_or_create_address(
         address_id=payload.destination_address_id,
@@ -653,36 +645,21 @@ async def update_request_status(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Customers can only set request status to CANCELLED",
             )
-        if target_request.status not in PRE_CONTRACT_STATUSES:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A request can only be cancelled before a contract is drafted",
-            )
 
-    if user.role in {"FACTORY", "LOGIST"}:
-        if new_status != "PAIRING_IN_PROGRESS":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Factory/Logistics roles can only set status to PAIRING_IN_PROGRESS",
-            )
-        # Only a waiting request can start pairing; never reopen a paused, cancelled or
-        # contracted one.
-        if target_request.status != "PENDING":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Only a waiting request can move to pairing",
-            )
+    if user.role != "CUSTOMER" or new_status != "CANCELLED":
+        raise HTTPException(403, "Only the owning customer can cancel an open request")
+    if target_request.status not in PRE_CONTRACT_STATUSES:
+        raise HTTPException(409, "Request is no longer open")
 
     await prisma.request.update(
         where={"id": request_id},
         data={"status": new_status},
     )
-    if new_status == "CANCELLED":
-        # Open bids and quotes for a cancelled request can no longer be chosen.
-        await prisma.matchcandidate.update_many(
-            where={"request_id": request_id, "deleted_at": None, "status": "PENDING"},
-            data={"status": "EXPIRED"},
-        )
+    # Open bids and quotes for a cancelled request can no longer be chosen.
+    await prisma.matchcandidate.update_many(
+        where={"request_id": request_id, "deleted_at": None, "status": "PENDING"},
+        data={"status": "EXPIRED"},
+    )
 
     return MessageResponse(status="success", message=f"Request status updated to {new_status}")
 
@@ -767,12 +744,21 @@ async def delete_request(request_id: str, user=Depends(require_roles("CUSTOMER")
     return MessageResponse(status="success", message="Request deleted")
 
 
+
+
 @router.post("/inventory-entries", response_model=MessageResponse)
 async def create_inventory_entry(
     payload: InventoryEntryCreateBody,
     user=Depends(require_roles("FACTORY")),
 ):
-    factory_profile = await prisma.factoryprofile.find_unique(where={"user_id": user.id})
+    require_verified(user)
+    async with prisma.tx() as tx:
+        await tx.execute_raw("SELECT pg_advisory_xact_lock(734901)")
+        return await _publish_inventory(payload, user, tx)
+
+
+async def _publish_inventory(payload, user, db):
+    factory_profile = await db.factoryprofile.find_unique(where={"user_id": user.id})
     if not factory_profile:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Factory profile not found")
 
@@ -789,6 +775,7 @@ async def create_inventory_entry(
         city_name=payload.stock_city_name,
         street=payload.stock_street,
         address_field_name="stock_address_id",
+        db=db,
     )
     if not stock_address_id:
         stock_address_id = factory_profile.primary_address_id
@@ -804,7 +791,7 @@ async def create_inventory_entry(
     item = None
     if payload.item_id:
         item_id = _validate_uuid(payload.item_id, "item_id", required=True)
-        item = await prisma.item.find_first(where={"id": item_id, "deleted_at": None})
+        item = await db.item.find_first(where={"id": item_id, "deleted_at": None})
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
     else:
@@ -820,46 +807,25 @@ async def create_inventory_entry(
             payload.category_name_text.strip() if payload.category_name_text else None
         )
         if not custom_category_id and custom_category_name_text:
-            slug = _slugify_category_name(custom_category_name_text)
-            if not slug:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="category_name_text must contain letters or numbers",
-                )
-            category_row = await prisma.category.upsert(
-                where={"slug": slug},
-                data={
-                    "create": {
-                        "slug": slug,
-                        "default_name": custom_category_name_text,
-                        "status": "ACTIVE",
-                    },
-                    "update": {
-                        "default_name": custom_category_name_text,
-                        "status": "ACTIVE",
-                        "deleted_at": None,
-                    },
-                },
-            )
-            custom_category_id = category_row.id
+            raise HTTPException(422, "Request a category for review before using it")
 
         if not custom_category_id:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Provide category_id or category_name_text when adding a custom item",
             )
-        category_row = await prisma.category.find_first(
+        category_row = await db.category.find_first(
             where={"id": custom_category_id, "deleted_at": None, "status": "ACTIVE"}
         )
         if not category_row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
         normalized = custom_name.lower().replace(" ", "-")
-        item = await prisma.item.find_first(
+        item = await db.item.find_first(
             where={"category_id": custom_category_id, "normalized_name": normalized, "deleted_at": None}
         )
         if not item:
-            item = await prisma.item.create(
+            item = await db.item.create(
                 data={
                     "category": {"connect": {"id": custom_category_id}},
                     "name": custom_name,
@@ -869,14 +835,21 @@ async def create_inventory_entry(
                 }
             )
 
-    stock_address = await prisma.address.find_first(
+    require_verified(user)
+    if payload.category_id and payload.category_id != item.category_id:
+        raise HTTPException(422, "Item and category must agree")
+    if provided_unit and item.unit != provided_unit:
+        raise HTTPException(422, "Shared product units cannot be changed by an offering")
+    await validate_publication(db, factory_profile, item, payload.quantity_available, payload.price_per_unit, payload.characteristics_json)
+
+    stock_address = await db.address.find_first(
         where={"id": stock_address_id, "deleted_at": None}
     )
     if not stock_address:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock address not found")
 
     currency_code = payload.currency_code.upper()
-    currency = await prisma.currency.find_unique(where={"code": currency_code})
+    currency = await db.currency.find_unique(where={"code": currency_code})
     if not currency:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Currency not found")
 
@@ -890,9 +863,9 @@ async def create_inventory_entry(
         "status": "ACTIVE",
     }
     if payload.characteristics_json is not None:
-        inventory_data["characteristics_json"] = payload.characteristics_json
+        inventory_data["characteristics_json"] = Json(payload.characteristics_json)
 
-    await prisma.inventoryentry.create(data=inventory_data)
+    await db.inventoryentry.create(data=inventory_data)
 
     return MessageResponse(status="success", message="Inventory entry created")
 
@@ -955,6 +928,11 @@ async def update_inventory_entry_status(
     )
     if not entry:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory entry not found")
+
+    if new_status == "ACTIVE":
+        require_verified(user)
+        item = await prisma.item.find_unique(where={"id": entry.item_id})
+        await validate_publication(prisma, factory_profile, item, entry.quantity_available, entry.price_per_unit, entry.characteristics_json)
 
     await prisma.inventoryentry.update(
         where={"id": inventory_entry_id},

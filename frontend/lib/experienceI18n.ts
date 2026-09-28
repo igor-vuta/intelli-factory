@@ -1319,6 +1319,54 @@ export const experienceTranslations = {
     kk: 'Ұсыныс таңдалды; өтінім тапсырыс ретінде жалғасады.',
   },
   'Delete request': { ru: 'Удалить заявку', kk: 'Өтінімді жою' },
+  // Category governance (from main)
+  'Saving…': { ru: 'Сохраняем…', kk: 'Сақталуда…' },
+  'Add a company address': { ru: 'Добавьте адрес компании', kk: 'Компания мекенжайын қосыңыз' },
+  'Submitted by': { ru: 'Автор', kk: 'Ұсынған' },
+  'Proposal already decided': {
+    ru: 'Решение уже принято. Обновите список.',
+    kk: 'Шешім қабылданған. Тізімді жаңартыңыз.',
+  },
+  'Verify your email before publishing or bidding': {
+    ru: 'Подтвердите email перед публикацией или подачей предложения.',
+    kk: 'Жариялау немесе ұсыныс беру алдында email мекенжайын растаңыз.',
+  },
+  'Choose an active category from the catalogue': {
+    ru: 'Выберите действующую категорию из каталога.',
+    kk: 'Каталогтан белсенді санатты таңдаңыз.',
+  },
+  'Choose a concrete category, not a parent group': {
+    ru: 'Выберите конечную категорию внутри группы.',
+    kk: 'Топ ішіндегі нақты санатты таңдаңыз.',
+  },
+  'Category proposal is still waiting for approval': {
+    ru: 'Категория ещё на рассмотрении. Черновик сохранён; вернитесь после одобрения.',
+    kk: 'Санат әлі қаралуда. Нобай сақталды; мақұлданғаннан кейін оралыңыз.',
+  },
+  'Quantity and unit price must be positive': {
+    ru: 'Укажите количество и цену за единицу больше нуля.',
+    kk: 'Саны мен бірлік бағасы нөлден үлкен болуы керек.',
+  },
+  'Confirm this production category before publishing or bidding': {
+    ru: 'Подтвердите эту категорию продукции перед публикацией или подачей предложения.',
+    kk: 'Жариялау немесе ұсыныс беру алдында осы өнім санатын растаңыз.',
+  },
+  'Complete the company location first': {
+    ru: 'Сохраните адрес компании.',
+    kk: 'Компания мекенжайын сақтаңыз.',
+  },
+  'Complete company, contact, phone and location first': {
+    ru: 'Заполните компанию, контактное лицо, телефон и адрес.',
+    kk: 'Компанияны, байланыс тұлғасын, телефон мен мекенжайды толтырыңыз.',
+  },
+  'No category proposals yet': {
+    ru: 'Предложений категорий пока нет',
+    kk: 'Санат ұсыныстары әлі жоқ',
+  },
+  'eligible offerings': { ru: 'доступных предложений', kk: 'жарамды ұсыныс' },
+  'Confirmation needed': { ru: 'Нужно подтверждение', kk: 'Растау қажет' },
+  Confirmed: { ru: 'Подтверждено', kk: 'Расталды' },
+  'Review details': { ru: 'Проверьте данные', kk: 'Деректерді тексеріңіз' },
   // Status labels (M3)
   DISPUTED: { ru: 'Спор', kk: 'Дау' },
   PAUSED: { ru: 'Приостановлено', kk: 'Тоқтатылды' },
