@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal, InvalidOperation
 import re
 from typing import Any, Literal
@@ -26,6 +27,8 @@ router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 UserRole = Literal["CUSTOMER", "FACTORY", "LOGIST", "ADMIN"]
 
 
+logger = logging.getLogger(__name__)
+
 class RequestSummaryResponse(BaseModel):
     id: str
     customer_profile_id: str
@@ -42,18 +45,23 @@ class RequestSummaryResponse(BaseModel):
     created_at: str
 
 
-class CreateRequestBody(BaseModel):
-    category_id: str | None = None
-    item_id: str | None = None
+class RequestTermsBody(BaseModel):
+    """What every request carries besides its product: quantity, currency and destination."""
+
     requested_characteristics_json: dict[str, Any] | None = None
     quantity: float = Field(..., gt=0, allow_inf_nan=False)
-    quantity_unit: str = Field(default="pcs", min_length=1, max_length=20)
     destination_address_id: str | None = None
     destination_country_code: str | None = Field(default=None, min_length=2, max_length=2)
     destination_region_name: str | None = Field(default=None, min_length=2, max_length=120)
     destination_city_name: str | None = Field(default=None, min_length=2, max_length=120)
     destination_street: str | None = Field(default=None, min_length=3, max_length=300)
     preferred_currency_code: str = Field(default="USD", min_length=3, max_length=3)
+
+
+class CreateRequestBody(RequestTermsBody):
+    category_id: str | None = None
+    item_id: str | None = None
+    quantity_unit: str = Field(default="pcs", min_length=1, max_length=20)
 
 
 class CreateRequestResponse(BaseModel):
@@ -455,6 +463,8 @@ async def create_request(
         raise HTTPException(422, "Item and category must agree")
     if payload.quantity_unit not in SUPPORTED_UNITS or item.unit != payload.quantity_unit:
         raise HTTPException(422, "Choose the product's supported quantity unit")
+    # Validate before a typed destination is stored, so a refused request leaves no address.
+    await _validate_request_product(prisma, item, payload.requested_characteristics_json)
     destination_address_id = await _destination_address(customer_profile, payload)
     created_request = await _insert_request(
         prisma,
@@ -485,17 +495,9 @@ class PendingCategory(BaseModel):
     parent_id: str | None = None
 
 
-class CreatePendingRequestBody(BaseModel):
+class CreatePendingRequestBody(RequestTermsBody):
     category: PendingCategory
     product: PendingProduct
-    requested_characteristics_json: dict[str, Any] | None = None
-    quantity: float = Field(..., gt=0, allow_inf_nan=False)
-    destination_address_id: str | None = None
-    destination_country_code: str | None = Field(default=None, min_length=2, max_length=2)
-    destination_region_name: str | None = Field(default=None, min_length=2, max_length=120)
-    destination_city_name: str | None = Field(default=None, min_length=2, max_length=120)
-    destination_street: str | None = Field(default=None, min_length=3, max_length=300)
-    preferred_currency_code: str = Field(default="USD", min_length=3, max_length=3)
 
 
 @router.post("/pending", status_code=201)
@@ -520,8 +522,9 @@ async def create_pending_request(
     currency_code = payload.preferred_currency_code.upper()
     if not await prisma.currency.find_unique(where={"code": currency_code}):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Currency not found")
-    destination_address_id = await _destination_address(customer_profile, payload)
     async with prisma.tx() as tx:
+        # Inside the transaction: a refused proposal leaves no stored address behind.
+        destination_address_id = await _destination_address(customer_profile, payload, tx)
         proposal = await create_proposal(tx, proposal_body, user)
         pending = await tx.pendingrequest.create(
             data={
@@ -581,55 +584,72 @@ async def cancel_pending_request(pending_id: str, user=Depends(require_roles("CU
     return MessageResponse(status="success", message="Waiting request removed")
 
 
+SETTLEABLE = ["WAITING", "FAILED"]
+
+
 async def settle_pending_requests(proposal) -> None:
     """Publishes the requests that waited for an approved category (creating or reusing their
     product in it), or marks them rejected with the reviewer's note. Each request is settled on
-    its own, so one that no longer validates doesn't hold back the others or the decision."""
-    from routers.catalogue import ItemBody, create_locked
-
-    rows = await prisma.pendingrequest.find_many(
-        where={"proposal_id": proposal.id, "status": {"in": ["WAITING", "FAILED"]}}
-    )
+    its own, so one that no longer validates doesn't hold back the others or the decision, and a
+    repeated decision (a double click, two reviewers) never publishes one twice."""
     if proposal.status == "REJECTED":
-        for row in rows:
-            await prisma.pendingrequest.update(
-                where={"id": row.id}, data={"status": "REJECTED", "note": proposal.decision_note}
-            )
+        await prisma.pendingrequest.update_many(
+            where={"proposal_id": proposal.id, "status": {"in": SETTLEABLE}},
+            data={"status": "REJECTED", "note": proposal.decision_note},
+        )
         return
     if proposal.status != "APPROVED" or not proposal.category_id:
         return
+    rows = await prisma.pendingrequest.find_many(
+        where={"proposal_id": proposal.id, "status": {"in": SETTLEABLE}}
+    )
     for row in rows:
-        data = row.data
         try:
-            async with prisma.tx() as tx:
-                await catalogue_lock(tx)
-                profile = await tx.customerprofile.find_unique(
-                    where={"id": row.customer_profile_id}, include={"user": True}
-                )
-                product = ItemBody(**data["product"], category_id=proposal.category_id)
-                created = await create_locked(tx, "items", product, profile.user)
-                item = await tx.item.find_unique(where={"id": created["id"]})
-                request = await _insert_request(
-                    tx,
-                    profile,
-                    item,
-                    quantity=data["quantity"],
-                    currency_code=data["currency_code"],
-                    destination_address_id=data["destination_address_id"],
-                    characteristics=data["characteristics"],
-                )
-                await tx.pendingrequest.update(
-                    where={"id": row.id},
-                    data={"status": "PUBLISHED", "request_id": request.id, "note": None},
-                )
-        except (HTTPException, ValidationError) as exc:
-            note = exc.detail if isinstance(exc, HTTPException) else str(exc.errors()[0]["msg"])
-            await prisma.pendingrequest.update(
-                where={"id": row.id}, data={"status": "FAILED", "note": str(note)}
+            await _publish_pending(row.id, proposal.category_id)
+        except Exception as exc:  # noqa: BLE001 - any failure is recorded on the row, not raised
+            detail = getattr(exc, "detail", None) or (
+                exc.errors()[0]["msg"] if isinstance(exc, ValidationError) else "Could not publish"
+            )
+            logger.warning("Waiting request %s could not be published: %s", row.id, exc)
+            # update_many: the customer may have removed the row meanwhile.
+            await prisma.pendingrequest.update_many(
+                where={"id": row.id, "status": {"in": SETTLEABLE}},
+                data={"status": "FAILED", "note": str(detail)},
             )
 
 
-async def _destination_address(customer_profile, payload) -> str:
+async def _publish_pending(pending_id: str, category_id: str) -> None:
+    from routers.catalogue import ItemBody, create_locked
+
+    async with prisma.tx() as tx:
+        await catalogue_lock(tx)
+        # Re-read under the lock: a concurrent settle may already have published or removed it.
+        row = await tx.pendingrequest.find_unique(where={"id": pending_id})
+        if not row or row.status not in SETTLEABLE:
+            return
+        data = row.data
+        profile = await tx.customerprofile.find_unique(
+            where={"id": row.customer_profile_id}, include={"user": True}
+        )
+        product = ItemBody(**data["product"], category_id=category_id)
+        created = await create_locked(tx, "items", product, profile.user)
+        item = await tx.item.find_unique(where={"id": created["id"]})
+        request = await _insert_request(
+            tx,
+            profile,
+            item,
+            quantity=data["quantity"],
+            currency_code=data["currency_code"],
+            destination_address_id=data["destination_address_id"],
+            characteristics=data["characteristics"],
+        )
+        await tx.pendingrequest.update(
+            where={"id": row.id},
+            data={"status": "PUBLISHED", "request_id": request.id, "note": None},
+        )
+
+
+async def _destination_address(customer_profile, payload, db=None) -> str:
     """The chosen or typed destination, falling back to the customer's primary address."""
     destination_address_id = await _resolve_or_create_address(
         address_id=payload.destination_address_id,
@@ -638,6 +658,7 @@ async def _destination_address(customer_profile, payload) -> str:
         city_name=payload.destination_city_name,
         street=payload.destination_street,
         address_field_name="destination_address_id",
+        db=db,
     )
     if not destination_address_id:
         destination_address_id = customer_profile.primary_address_id
@@ -652,11 +673,7 @@ async def _destination_address(customer_profile, payload) -> str:
     return destination_address_id
 
 
-async def _insert_request(
-    db, customer_profile, item, *, quantity, currency_code, destination_address_id, characteristics
-):
-    """Validates and stores a request for a catalogue product (used directly and when a request
-    that waited for its category is published)."""
+async def _validate_request_product(db, item, characteristics):
     category = await db.category.find_first(
         where={"id": item.category_id, "deleted_at": None, "status": "ACTIVE"}
     )
@@ -666,6 +683,15 @@ async def _insert_request(
     validate_attributes(getattr(category, "attributes_schema", None), characteristics)
     validate_attributes(item.characteristics_schema, characteristics)
     validate_identity(item, characteristics)
+    return category
+
+
+async def _insert_request(
+    db, customer_profile, item, *, quantity, currency_code, destination_address_id, characteristics
+):
+    """Validates and stores a request for a catalogue product (used directly and when a request
+    that waited for its category is published)."""
+    category = await _validate_request_product(db, item, characteristics)
     destination_address = await db.address.find_first(
         where={"id": destination_address_id, "deleted_at": None}
     )

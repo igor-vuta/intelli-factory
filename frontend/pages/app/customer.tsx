@@ -367,7 +367,11 @@ function NewRequestModal({
             proposed={proposed}
             onPropose={(next) => {
               setProposed(next);
-              if (next) setProduct(null);
+              if (next) {
+                // Characteristics typed for an earlier product don't apply to the new one.
+                setProduct(null);
+                setAttributes({});
+              }
             }}
           />
           <AttributeFields
@@ -651,9 +655,13 @@ export default function CustomerWorkspacePage() {
   }, [transactionsPage, totalTransactionPages]);
 
   const refreshRequests = useCallback(async () => {
-    const [rows, pending] = await Promise.all([listRequests(), listPendingRequests()]);
+    // The waiting list is secondary: if it can't load, the request list still refreshes.
+    const [rows, pending] = await Promise.all([
+      listRequests(),
+      listPendingRequests().catch(() => null),
+    ]);
     setRequests(rows);
-    setWaiting(pending);
+    if (pending) setWaiting(pending);
   }, []);
 
   const refreshTransactions = useCallback(async () => {

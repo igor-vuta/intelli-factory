@@ -420,3 +420,93 @@ async def test_rejected_and_broken_waiting_requests_are_explained(real_db):
     row = await real_db.pendingrequest.find_unique(where={"id": broken["pending_request_id"]})
     assert row.status == "FAILED" and "address" in row.note.lower()
     assert (await real_db.categoryproposal.find_unique(where={"id": broken["proposal_id"]})).status == "APPROVED"
+
+
+@pytest.mark.anyio
+async def test_moving_keeps_stocking_factories_and_refuses_merged_collisions(real_db):
+    customer, _ = await make_customer(real_db)
+    admin = await make_user(real_db, "ADMIN")
+    group = await make_category(real_db)
+    other = await real_db.category.create(
+        data={"slug": str(uuid4()), "default_name": "Other", "parent_id": group.id}
+    )
+    steel = await real_db.category.create(
+        data={"slug": str(uuid4()), "default_name": "Steel", "parent_id": group.id}
+    )
+    wire = await catalogue.create_item(item_body(other, "Wire rod", "en", "t"), customer)
+    factory_user = await make_user(real_db, "FACTORY")
+    address = await make_address(real_db)
+    factory = await real_db.factoryprofile.create(
+        data={
+            "user_id": factory_user.id,
+            "legal_name": "Mill",
+            "contact_name": "Ops",
+            "phone": "1",
+            "primary_address_id": address.id,
+        }
+    )
+    await governance.confirm_category(real_db, factory.id, other.id)
+    await real_db.inventoryentry.create(
+        data={
+            "factory_profile_id": factory.id,
+            "item_id": wire["id"],
+            "stock_address_id": address.id,
+            "quantity_available": 50,
+            "price_per_unit": 10,
+            "currency_code": "KZT",
+            "status": "ACTIVE",
+        }
+    )
+    move = catalogue.MaintenanceBody(action="move", target_id=steel.id)
+    await catalogue.maintain("items", wire["id"], move, admin)
+    carried = await real_db.factorycategory.find_first(
+        where={"factory_profile_id": factory.id, "category_id": steel.id}
+    )
+    assert carried and carried.is_active and carried.confirmed_at
+
+    # A product merged into the moved one would collide with its twin already in the target.
+    bolt = await catalogue.create_item(item_body(other, "Bolt", "en", "pcs"), customer)
+    bolts = await catalogue.create_item(item_body(other, "Bolts", "en", "pcs"), customer)
+    merge = catalogue.MaintenanceBody(action="merge", target_id=bolt["id"])
+    await catalogue.maintain("items", bolts["id"], merge, admin)
+    source = await real_db.item.find_unique(where={"id": bolts["id"]})
+    await real_db.item.create(
+        data={
+            "category_id": steel.id,
+            "name": "Bolts",
+            "normalized_name": source.normalized_name,
+            "unit": "pcs",
+        }
+    )
+    with pytest.raises(HTTPException) as refused:
+        await catalogue.maintain("items", bolt["id"], move, admin)
+    assert refused.value.status_code == 409
+
+
+@pytest.mark.anyio
+async def test_settling_twice_publishes_once_and_survives_removed_rows(real_db):
+    customer, _ = await make_customer(real_db)
+    admin = await make_user(real_db, "ADMIN")
+    group = await make_category(real_db)
+    first = await requests.create_pending_request(
+        pending_body(group, f"Graphene {uuid4()}", "Graphene flakes"), customer
+    )
+    body = pending_body(group, "unused", "Graphene film")
+    removed = await requests.create_pending_request(body, customer)
+    # Both requests wait for the same proposal; one is removed while the admin decides.
+    await real_db.pendingrequest.update(
+        where={"id": removed["pending_request_id"]}, data={"proposal_id": first["proposal_id"]}
+    )
+    await requests.cancel_pending_request(removed["pending_request_id"], customer)
+    approve = categories.DecisionBody(status="APPROVED", note="Approved")
+    await asyncio.gather(
+        categories.decide(first["proposal_id"], approve, admin),
+        categories.decide(first["proposal_id"], approve, admin),
+    )
+    row = await real_db.pendingrequest.find_unique(where={"id": first["pending_request_id"]})
+    assert row.status == "PUBLISHED"
+    profile = await real_db.customerprofile.find_unique(where={"user_id": customer.id})
+    published = await real_db.request.count(
+        where={"customer_profile_id": profile.id, "item": {"is": {"name": "Graphene flakes"}}}
+    )
+    assert published == 1
