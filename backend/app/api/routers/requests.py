@@ -11,7 +11,15 @@ from db import prisma
 from routers.addresses import matches_name
 from routers.auth import SESSION_COOKIE_NAME, _ensure_db_connection, _get_user_by_session_token, _now
 from routers.ratings import get_computed_reliability
-from services.category_governance import eligible_category, require_verified, validate_attributes, validate_publication, SUPPORTED_UNITS
+from services.category_governance import (
+    SUPPORTED_UNITS,
+    catalogue_lock,
+    eligible_category,
+    require_verified,
+    validate_attributes,
+    validate_identity,
+    validate_publication,
+)
 
 router = APIRouter(dependencies=[Depends(_ensure_db_connection)])
 
@@ -36,9 +44,7 @@ class RequestSummaryResponse(BaseModel):
 
 class CreateRequestBody(BaseModel):
     category_id: str | None = None
-    category_name_text: str | None = Field(default=None, min_length=2, max_length=100)
     item_id: str | None = None
-    requested_name_text: str | None = Field(default=None, min_length=2, max_length=200)
     requested_characteristics_json: dict[str, Any] | None = None
     quantity: float = Field(..., gt=0, allow_inf_nan=False)
     quantity_unit: str = Field(default="pcs", min_length=1, max_length=20)
@@ -88,11 +94,9 @@ class UpdateInventoryEntryStatusBody(BaseModel):
 
 
 class InventoryEntryCreateBody(BaseModel):
-    # Either an existing item_id OR a custom item_name + category_id (backend will find-or-create the catalogue item automatically).
+    # A shared catalogue product; create a missing one first through /catalogue/items.
     item_id: str | None = None
-    item_name: str | None = Field(default=None, min_length=2, max_length=200)
     category_id: str | None = None
-    category_name_text: str | None = Field(default=None, min_length=2, max_length=100)
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     stock_address_id: str | None = None
     stock_country_code: str | None = Field(default=None, min_length=2, max_length=2)
@@ -151,13 +155,6 @@ def _validate_uuid(value: str | None, field_name: str, *, required: bool = False
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"{field_name} must be a valid UUID",
         ) from exc
-
-
-def _slugify_category_name(value: str) -> str:
-    slug = re.sub(r"[^\w]+", "-", value.lower(), flags=re.UNICODE).strip("-")
-    slug = slug.replace("_", "-")
-    slug = re.sub(r"-{2,}", "-", slug)
-    return slug
 
 
 def _norm_text(value: str | None) -> str | None:
@@ -442,49 +439,30 @@ async def create_request(
     if not customer_profile:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Customer profile not found")
 
-    if not payload.item_id and not payload.requested_name_text:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Provide either item_id or requested_name_text",
-        )
+    # New requests name a shared catalogue product by ID (create it first through /catalogue/items
+    # if it is missing); older free-text requests stay readable and keep matching as before.
+    if not payload.item_id:
+        raise HTTPException(422, "Choose a product from the catalogue, or create it first")
+    item_id = _validate_uuid(payload.item_id, "item_id", required=True)
+    item = await prisma.item.find_first(
+        where={"id": item_id, "deleted_at": None, "status": "ACTIVE", "merged_into_id": None}
+    )
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    item_id = _validate_uuid(payload.item_id, "item_id")
-
-    item = None
-    if item_id:
-        item = await prisma.item.find_first(
-            where={"id": item_id, "deleted_at": None, "status": "ACTIVE"}
-        )
-        if not item:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
-
-    category_id = _validate_uuid(payload.category_id, "category_id")
-    category_name_text = payload.category_name_text.strip() if payload.category_name_text else None
-    if not category_id and item:
-        category_id = item.category_id
-
-    if not category_id and category_name_text:
-        raise HTTPException(422, "Request a category for review before using it")
-
-    if not category_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Provide either category_id, category_name_text, or item_id",
-        )
-
+    category_id = _validate_uuid(payload.category_id, "category_id") or item.category_id
+    if category_id != item.category_id:
+        raise HTTPException(422, "Item and category must agree")
     category = await prisma.category.find_first(
         where={"id": category_id, "deleted_at": None, "status": "ACTIVE"}
     )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-
-    if item and item.category_id != category.id:
-        raise HTTPException(422, "Item and category must agree")
     await eligible_category(prisma, category.id)
     validate_attributes(getattr(category, "attributes_schema", None), payload.requested_characteristics_json)
-    if item:
-        validate_attributes(item.characteristics_schema, payload.requested_characteristics_json)
-    if payload.quantity_unit not in SUPPORTED_UNITS or (item and item.unit != payload.quantity_unit):
+    validate_attributes(item.characteristics_schema, payload.requested_characteristics_json)
+    validate_identity(item, payload.requested_characteristics_json)
+    if payload.quantity_unit not in SUPPORTED_UNITS or item.unit != payload.quantity_unit:
         raise HTTPException(422, "Choose the product's supported quantity unit")
 
     destination_address_id = await _resolve_or_create_address(
@@ -525,20 +503,9 @@ async def create_request(
         "preferred_currency": {"connect": {"code": preferred_currency_code}},
         "status": "PENDING",
     }
-    quantity_unit = payload.quantity_unit.strip()
-    if not quantity_unit:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="quantity_unit is required",
-        )
-    if item is not None and item.unit:
-        quantity_unit = item.unit
-    if item is not None:
-        request_data["item"] = {"connect": {"id": item.id}}
-    if payload.requested_name_text is not None:
-        request_data["requested_name_text"] = payload.requested_name_text
+    request_data["item"] = {"connect": {"id": item.id}}
     characteristics_json = dict(payload.requested_characteristics_json or {})
-    characteristics_json["quantity_unit"] = quantity_unit
+    characteristics_json["quantity_unit"] = item.unit
     request_data["requested_characteristics_json"] = Json(characteristics_json)
 
     created_request = await prisma.request.create(data=request_data)
@@ -753,7 +720,7 @@ async def create_inventory_entry(
 ):
     require_verified(user)
     async with prisma.tx() as tx:
-        await tx.execute_raw("SELECT pg_advisory_xact_lock(734901)")
+        await catalogue_lock(tx)
         return await _publish_inventory(payload, user, tx)
 
 
@@ -762,11 +729,8 @@ async def _publish_inventory(payload, user, db):
     if not factory_profile:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Factory profile not found")
 
-    if not payload.item_id and not (payload.item_name and payload.item_name.strip()):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Provide either item_id or item_name",
-        )
+    if not payload.item_id:
+        raise HTTPException(422, "Choose a product from the catalogue, or create it first")
 
     stock_address_id = await _resolve_or_create_address(
         address_id=payload.stock_address_id,
@@ -788,52 +752,10 @@ async def _publish_inventory(payload, user, db):
         )
     provided_unit = payload.unit.strip() if payload.unit else None
 
-    item = None
-    if payload.item_id:
-        item_id = _validate_uuid(payload.item_id, "item_id", required=True)
-        item = await db.item.find_first(where={"id": item_id, "deleted_at": None})
-        if not item:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
-    else:
-        # Custom item name - find or create in the catalogue
-        custom_name = payload.item_name.strip()  # type: ignore[union-attr]
-        if not provided_unit:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="unit is required when adding a custom item by name",
-            )
-        custom_category_id = _validate_uuid(payload.category_id, "category_id")
-        custom_category_name_text = (
-            payload.category_name_text.strip() if payload.category_name_text else None
-        )
-        if not custom_category_id and custom_category_name_text:
-            raise HTTPException(422, "Request a category for review before using it")
-
-        if not custom_category_id:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Provide category_id or category_name_text when adding a custom item",
-            )
-        category_row = await db.category.find_first(
-            where={"id": custom_category_id, "deleted_at": None, "status": "ACTIVE"}
-        )
-        if not category_row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-
-        normalized = custom_name.lower().replace(" ", "-")
-        item = await db.item.find_first(
-            where={"category_id": custom_category_id, "normalized_name": normalized, "deleted_at": None}
-        )
-        if not item:
-            item = await db.item.create(
-                data={
-                    "category": {"connect": {"id": custom_category_id}},
-                    "name": custom_name,
-                    "normalized_name": normalized,
-                    "unit": provided_unit,
-                    "status": "ACTIVE",
-                }
-            )
+    item_id = _validate_uuid(payload.item_id, "item_id", required=True)
+    item = await db.item.find_first(where={"id": item_id, "deleted_at": None, "merged_into_id": None})
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
     require_verified(user)
     if payload.category_id and payload.category_id != item.category_id:

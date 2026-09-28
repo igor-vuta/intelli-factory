@@ -1457,8 +1457,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    async def _random_large_scale(random_seed: int | None) -> None:
+        # The engine queries the shared client from db.py, which the API keeps connected; from
+        # the command line it has to be connected here for the built-in comparison to run.
+        from db import prisma as engine_db
+
+        await engine_db.connect()
+        try:
+            await create_random_large_scale_request(random_seed=random_seed)
+        finally:
+            await engine_db.disconnect()
+
     if args.large and (args.random or args.seed is not None):
-        actual_seed = None if args.random else args.seed
-        asyncio.run(create_random_large_scale_request(random_seed=actual_seed))
+        asyncio.run(_random_large_scale(None if args.random else args.seed))
     else:
         asyncio.run(seed(run_large=args.large))

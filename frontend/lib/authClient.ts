@@ -50,6 +50,37 @@ export type BootstrapItem = {
   unit: string | null;
 };
 
+/** A shared catalogue record as shown in one language (see /api/catalogue). */
+type CatalogueLabel = {
+  id: string;
+  name: string;
+  /** The language `name` is in; null for historical labels of unknown language. */
+  label_locale: Locale | null;
+  /** True when no label exists in the requested language and the original is shown. */
+  fallback: boolean;
+  record_state: 'NEW' | 'ESTABLISHED' | 'MERGED' | 'RETIRED';
+  search_labels: string[];
+};
+export type CatalogueCategory = CatalogueLabel & {
+  parent_id: string | null;
+  slug: string;
+  /** Leaf categories only: parent groups hold subcategories, not products. */
+  selectable: boolean;
+  attributes_schema?: import('../components/CategoryProposalPanel').AttributeSchema;
+};
+export type CatalogueItem = CatalogueLabel & {
+  category_id: string;
+  unit: string;
+  identity_attributes: Record<string, string>;
+  characteristics_schema?: import('../components/CategoryProposalPanel').AttributeSchema;
+  merged_names?: string[];
+};
+export type Catalogue = {
+  categories: CatalogueCategory[];
+  items: CatalogueItem[];
+  units: string[];
+};
+
 export type BootstrapCurrency = {
   code: string;
   name: string;
@@ -99,9 +130,7 @@ export type RequestSummary = {
 
 export type CreateRequestPayload = {
   category_id?: string;
-  category_name_text?: string;
-  item_id?: string;
-  requested_name_text?: string;
+  item_id: string;
   requested_characteristics_json?: Record<string, unknown>;
   quantity: number;
   quantity_unit: string;
@@ -120,10 +149,8 @@ export type CreateRequestResult = {
 };
 
 export type InventoryEntryPayload = {
-  item_id?: string;
-  item_name?: string;
+  item_id: string;
   category_id?: string;
-  category_name_text?: string;
   unit?: string;
   stock_address_id?: string;
   stock_country_code?: string;
@@ -793,5 +820,23 @@ export function categoryApi<T>(path: string, method = 'GET', body?: unknown) {
   return request<T>(`/categories${path}`, {
     method,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+
+export function getCatalogue(locale: Locale) {
+  return request<Catalogue>(`/catalogue?locale=${locale}`);
+}
+
+/** Creates a shared product, or returns the existing one with `created: false`. */
+export function createCatalogueItem(payload: {
+  name: string;
+  locale: Locale;
+  category_id: string;
+  unit: string;
+  attributes: Record<string, string>;
+}) {
+  return request<CatalogueItem & { created: boolean }>('/catalogue/items', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }

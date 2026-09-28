@@ -1,12 +1,4 @@
 import InteractionMotion from '../components/InteractionMotion';
-// IBM Plex ships with the app (Fontsource), so builds never fetch fonts from the network.
-// Each weight declares every subset with a unicode-range, so a page downloads only the subsets
-// its text uses (Latin for English, Cyrillic for Russian and Kazakh).
-import '@fontsource/ibm-plex-sans/400.css';
-import '@fontsource/ibm-plex-sans/500.css';
-import '@fontsource/ibm-plex-sans/600.css';
-import '@fontsource/ibm-plex-mono/400.css';
-import '@fontsource/ibm-plex-mono/500.css';
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
@@ -14,6 +6,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { useColorMode } from '../hooks/useColorMode';
 import { rememberLocale, rememberedLocale, validLocale } from '../lib/localePreference';
 import { me } from '../lib/authClient';
+import { plexMono, plexSans } from '../lib/fonts';
 import '../styles/globals.css';
 import '../styles/experience.css';
 import '../styles/identity.css';
@@ -59,6 +52,13 @@ export default function App({ Component, pageProps }: AppProps) {
   if (!router.isReady || !validLocale(router.query.lang)) return null;
   return (
     <ErrorBoundary>
+      {/* The identity reads these on <html>, so they must be defined at the root. */}
+      <style jsx global>{`
+        :root {
+          --font-plex-sans: ${plexSans};
+          --font-plex-mono: ${plexMono};
+        }
+      `}</style>
       <InteractionMotion />
       <Component {...pageProps} />
     </ErrorBoundary>

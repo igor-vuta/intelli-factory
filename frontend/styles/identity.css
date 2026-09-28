@@ -37,8 +37,8 @@
   --warning: 240 164 58;
   --info: 111 168 220;
 
-  --if-font: 'IBM Plex Sans', system-ui, sans-serif;
-  --if-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --if-font: var(--font-plex-sans), system-ui, sans-serif;
+  --if-font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --if-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --if-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --if-radius-sm: 6px;
@@ -290,4 +290,30 @@
 }
 .status-badge-danger {
   --tone: var(--danger);
+}
+
+/* A quiet, underlined text action (secondary to .if-button). */
+.identity .if-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--if-text);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--if-line);
+  text-underline-offset: 0.3em;
+  cursor: pointer;
+  transition: text-decoration-color 200ms var(--if-ease);
+}
+.identity .if-link:hover {
+  text-decoration-color: currentColor;
+}
+.identity .if-link:disabled {
+  color: var(--if-muted);
+  cursor: default;
+  text-decoration: none;
 }

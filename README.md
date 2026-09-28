@@ -115,8 +115,8 @@ These screenshots show an earlier version of the application, before the redesig
 | Reliability score  | 0.824           | 0.891                      | **+8.1%**                               |
 | Raw cost (avg KZT) | 21,296          | 51,648                     | +142.5% - deliberate trilemma trade-off |
 
-- Deep GA chooses the same offer as Fast on every benchmark scenario, because it searches the same weighted score
-- Deep GA solution-set hypervolume: **0.852 ± 0.12** (normalised), converging by generations 50-60
+- Fast and Deep optimise the same weighted score. Fast ranks every candidate, so Deep can match it but not exceed it; in these pools (8-25 candidates) both select the same offer, which is why they share a column. On much larger pools (150 candidates) the GA can fall slightly short of Fast
+- Deep GA hypervolume of its returned solution set: **0.852 ± 0.12** (normalised, inverted cost against reliability)
 - Feasibility rate: **100%** across all 120 scenarios
 - Deep GA response time: **0.069 s ± 0.015 s**
 - Datasets: 55+ products, 12 manufacturers, 9 logistics providers
@@ -333,7 +333,7 @@ Validated against the OWASP Password Storage and Session Management Cheat Sheets
 
 ## Testing
 
-**146 pytest tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance (against PostgreSQL in CI), and the full transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle.
+**163 pytest tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance and the shared catalogue (against PostgreSQL in CI), and the full transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle.
 
 ```sh
 cd backend/app/api
@@ -407,5 +407,5 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 [nextjs-url]: https://nextjs.org
 [postgres-shield]: https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
 [postgres-url]: https://postgresql.org
-[tests-shield]: https://img.shields.io/badge/pytest-146%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/pytest-163%20passing-brightgreen?style=for-the-badge
 [license-shield]: https://img.shields.io/badge/License-Academic-lightgrey?style=for-the-badge

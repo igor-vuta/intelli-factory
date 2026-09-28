@@ -356,6 +356,9 @@ model Category {
   default_name     String
   parent_id        String?               @db.Uuid
   status           EntityStatus          @default(ACTIVE)
+  // Language of default_name (null for historical labels whose language is unknown).
+  source_locale    String?               @db.VarChar(2)
+  record_state     String                @default("ESTABLISHED")
 
   created_at       DateTime              @default(now())
   updated_at       DateTime              @updatedAt
@@ -379,6 +382,7 @@ model CategoryTranslation {
   category_id  String    @db.Uuid
   locale       String
   name         String
+  aliases      String[]  @default([])
 
   category     Category  @relation(fields: [category_id], references: [id])
 
@@ -394,18 +398,28 @@ model Item {
   characteristics_schema    Json?
   unit                      String?
   status                    EntityStatus       @default(ACTIVE)
+  // Language of name (null for historical labels whose language is unknown).
+  source_locale             String?            @db.VarChar(2)
+  // NEW (just created) · ESTABLISHED · MERGED (see merged_into) · RETIRED
+  record_state              String             @default("ESTABLISHED")
+  // Material, grade/model and dimensions: what makes two products interchangeable.
+  identity_attributes       Json?
+  merged_into_id            String?            @db.Uuid
 
   created_at                DateTime           @default(now())
   updated_at                DateTime           @updatedAt
   deleted_at                DateTime?
 
   category                  Category           @relation(fields: [category_id], references: [id])
+  merged_into               Item?              @relation("ItemMerge", fields: [merged_into_id], references: [id])
+  merged_records            Item[]             @relation("ItemMerge")
   translations              ItemTranslation[]
   inventory_entries         InventoryEntry[]
   requests                  Request[]
 
   @@unique([category_id, normalized_name])
   @@index([status, deleted_at])
+  @@index([merged_into_id])
 }
 
 model ItemTranslation {
@@ -413,6 +427,7 @@ model ItemTranslation {
   item_id  String   @db.Uuid
   locale   String
   name     String
+  aliases  String[] @default([])
 
   item     Item     @relation(fields: [item_id], references: [id])
 
