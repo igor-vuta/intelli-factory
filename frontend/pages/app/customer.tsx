@@ -24,12 +24,16 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import AgreementSignModal from '../../components/AgreementSignModal';
 import PaymentMockupModal from '../../components/PaymentMockupModal';
 import RatingModal from '../../components/RatingModal';
-import { ApiError, type CatalogueItem } from '../../lib/authClient';
+import { ApiError, type CatalogueItem, type ProposedProduct } from '../../lib/authClient';
 import {
   acceptTransactionCompletion,
   captureTransactionPayment,
   type ContractSigningPayload,
   createCustomerRequest,
+  createPendingRequest,
+  listPendingRequests,
+  cancelPendingRequest,
+  type PendingRequest,
   getMyRatingsForTransaction,
   getRequestsBootstrap,
   listMyTransactions,
@@ -246,6 +250,8 @@ function NewRequestModal({
   const locale = getLocaleFromQuery(useRouter().query.lang);
   const [attributes, setAttributes] = useState<Record<string, unknown>>({});
   const [product, setProduct] = useState<CatalogueItem | null>(null);
+  // A product under a proposed category: the request waits for the category's approval.
+  const [proposed, setProposed] = useState<ProposedProduct | null>(null);
   const [quantity, setQuantity] = useState('100');
   const [currencyCode, setCurrencyCode] = useState(currencies[0]?.code ?? 'USD');
   const [addressId, setAddressId] = useState(defaultAddressId ?? addresses[0]?.id ?? '');
@@ -271,24 +277,44 @@ function NewRequestModal({
       setError(e('Quantity must be greater than 0'));
       return;
     }
-    if (!product) {
+    if (!product && !proposed) {
       setError(e('Choose a product from the catalogue, or create it'));
       return;
     }
+    const destination = {
+      destination_address_id: !useManualAddress ? addressId : undefined,
+      destination_country_code: useManualAddress ? countryCode : undefined,
+      destination_region_name: useManualAddress ? regionName.trim() : undefined,
+      destination_city_name: useManualAddress ? cityName.trim() : undefined,
+      destination_street: useManualAddress ? street.trim() : undefined,
+    };
 
     setSubmitting(true);
     try {
+      if (!product && proposed) {
+        await createPendingRequest({
+          ...proposed,
+          ...destination,
+          quantity: qty,
+          requested_characteristics_json: attributes,
+          preferred_currency_code: currencyCode,
+        });
+        setSuccess(
+          e('Saved. Your request goes live as soon as an administrator approves the category.')
+        );
+        setProposed(null);
+        await onCreated();
+        setTimeout(onClose, 2000);
+        return;
+      }
+      if (!product) return;
       const result = await createCustomerRequest({
         category_id: product.category_id,
         requested_characteristics_json: attributes,
         item_id: product.id,
         quantity: qty,
         quantity_unit: product.unit,
-        destination_address_id: !useManualAddress ? addressId : undefined,
-        destination_country_code: useManualAddress ? countryCode : undefined,
-        destination_region_name: useManualAddress ? regionName.trim() : undefined,
-        destination_city_name: useManualAddress ? cityName.trim() : undefined,
-        destination_street: useManualAddress ? street.trim() : undefined,
+        ...destination,
         preferred_currency_code: currencyCode,
       });
       setSuccess(`${e('Request created')} (${result.request_id.slice(0, 8)}…)`);
@@ -334,7 +360,16 @@ function NewRequestModal({
             <h3>{e('What do you need?')}</h3>
           </div>
           <GuidanceHint hint="request" />
-          <ProductPicker locale={locale} value={product?.id ?? ''} onChange={chooseProduct} />
+          <ProductPicker
+            locale={locale}
+            value={product?.id ?? ''}
+            onChange={chooseProduct}
+            proposed={proposed}
+            onPropose={(next) => {
+              setProposed(next);
+              if (next) setProduct(null);
+            }}
+          />
           <AttributeFields
             schema={categories.find((c) => c.id === product?.category_id)?.attributes_schema}
             value={attributes}
@@ -370,7 +405,7 @@ function NewRequestModal({
             <div className="flex flex-col gap-1">
               <span className="text-sm text-[rgb(var(--muted))]">{e('Unit')}</span>
               <p className="request-unit" aria-live="polite">
-                {product?.unit ?? e('Set by the product')}
+                {product?.unit ?? proposed?.product.unit ?? e('Set by the product')}
               </p>
             </div>
 
@@ -536,6 +571,7 @@ export default function CustomerWorkspacePage() {
     registration_address?: string | null;
   }>({});
   const [requests, setRequests] = useState<RequestSummary[]>([]);
+  const [waiting, setWaiting] = useState<PendingRequest[]>([]);
   const [transactions, setTransactions] = useState<WorkflowTransaction[]>([]);
   const [workflowBusyId, setWorkflowBusyId] = useState<string | null>(null);
   const [signingTransaction, setSigningTransaction] = useState<WorkflowTransaction | null>(null);
@@ -615,8 +651,9 @@ export default function CustomerWorkspacePage() {
   }, [transactionsPage, totalTransactionPages]);
 
   const refreshRequests = useCallback(async () => {
-    const rows = await listRequests();
+    const [rows, pending] = await Promise.all([listRequests(), listPendingRequests()]);
     setRequests(rows);
+    setWaiting(pending);
   }, []);
 
   const refreshTransactions = useCallback(async () => {
@@ -691,6 +728,9 @@ export default function CustomerWorkspacePage() {
         });
         setRequests(rows);
         setTransactions(txRows);
+        void listPendingRequests()
+          .then((pending) => !cancelled && setWaiting(pending))
+          .catch(() => undefined);
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
@@ -925,6 +965,15 @@ export default function CustomerWorkspacePage() {
       onCreate={() => setShowModal(true)}
     >
       <div className="workspace-panels">
+        {waiting.length > 0 && (
+          <WaitingRequests
+            rows={waiting}
+            onRemove={async (id) => {
+              await cancelPendingRequest(id);
+              await refreshRequests();
+            }}
+          />
+        )}
         <CategoryProposalPanel locale={locale} />
         <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
           <div className="section-heading-row">
@@ -1492,5 +1541,65 @@ export default function CustomerWorkspacePage() {
       )}
       {confirmation}
     </WorkspaceExperience>
+  );
+}
+
+/** Requests filed against a proposed category, until the category is approved or rejected. */
+function WaitingRequests({
+  rows,
+  onRemove,
+}: {
+  rows: PendingRequest[];
+  onRemove: (id: string) => Promise<void>;
+}) {
+  const e = useExperienceCopy();
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const explain = (row: PendingRequest) =>
+    row.status === 'WAITING'
+      ? e('Waiting for an administrator to approve the category.')
+      : row.status === 'REJECTED'
+        ? `${e('The category was not approved.')}${row.note ? ` ${row.note}` : ''}`
+        : `${e('Could not go live.')}${row.note ? ` ${row.note}` : ''}`;
+  return (
+    <section className="surface-1 rounded-2xl p-6 sm:p-8 waiting-requests" aria-live="polite">
+      <h2 className="text-lg font-semibold">{e('Waiting for a new category')}</h2>
+      <ul>
+        {rows.map((row) => (
+          <li key={row.id} data-status={row.status}>
+            <div>
+              <strong>{row.product_name}</strong>
+              <small>
+                {row.quantity} {row.unit} · {e('New category')}: {row.category_name}
+              </small>
+              <small className="waiting-requests-status">{explain(row)}</small>
+            </div>
+            <button
+              type="button"
+              className="if-link"
+              disabled={busy === row.id}
+              onClick={async () => {
+                setBusy(row.id);
+                setError(null);
+                try {
+                  await onRemove(row.id);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : e('Could not remove it'));
+                } finally {
+                  setBusy('');
+                }
+              }}
+            >
+              {e('Remove')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p className="product-picker-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
