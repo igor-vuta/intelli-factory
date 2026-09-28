@@ -3,7 +3,7 @@ Multi-Objective Optimization Engine for Intelli-Factory.
 
 Two modes:
   fast  - deterministic weighted-sum fast
-  deep  - DEAP NSGA-II 
+  deep  - DEAP genetic search over the same weighted score (it can match fast, not beat it)
 """
 
 from __future__ import annotations
