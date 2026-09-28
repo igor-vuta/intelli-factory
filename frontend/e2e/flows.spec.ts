@@ -13,7 +13,14 @@ const label = (id: string, name: string, label_locale: string | null, fallback =
 });
 const catalogue = {
   categories: [
-    { ...label('metal', 'Metal', 'en'), parent_id: null, slug: 'metal', selectable: true },
+    { ...label('metals', 'Base metals', 'en'), parent_id: null, slug: 'metals', selectable: false },
+    { ...label('metal', 'Metal', 'en'), parent_id: 'metals', slug: 'metal', selectable: true },
+    {
+      ...label('other', 'Other (not listed)', 'en'),
+      parent_id: 'metals',
+      slug: 'other-15',
+      selectable: true,
+    },
     { ...label('wood', 'Wood', 'en'), parent_id: null, slug: 'wood', selectable: true },
   ],
   items: [
@@ -273,7 +280,7 @@ test('the product picker finds, creates and selects products without submitting 
   await search.fill('Bolt M8');
   await dialog.getByRole('button', { name: /create product/i }).click();
   await dialog.getByRole('combobox', { name: /category/i }).click();
-  await page.getByRole('option', { name: 'Metal' }).click();
+  await page.getByRole('option', { name: /^Metal/ }).click();
   await dialog.getByRole('textbox', { name: /characteristic/i }).fill('size');
   await dialog.getByRole('textbox', { name: /value/i }).fill('M8');
   await dialog.getByRole('textbox', { name: /value/i }).press('Enter');
@@ -284,6 +291,54 @@ test('the product picker finds, creates and selects products without submitting 
     attributes: { size: 'M8' },
   });
   await expect(dialog.locator('#request-quantity')).toHaveValue('42');
+  await noOverflow(page);
+});
+
+test('a request can wait for a proposed category instead of being abandoned', async ({ page }) => {
+  await mockApi(page);
+  let sent: Record<string, unknown> | null = null;
+  await page.route('**/api/requests/pending', async (route) => {
+    if (route.request().method() === 'POST') {
+      sent = route.request().postDataJSON();
+      await route.fulfill({
+        status: 201,
+        json: { status: 'success', pending_request_id: 'p1', proposal_id: 'prop1' },
+      });
+    } else await route.fulfill({ json: [] });
+  });
+  await page.goto('/app/customer');
+  await page
+    .getByRole('button', { name: /new request/i })
+    .first()
+    .click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('searchbox', { name: /product/i }).fill('Titanium sheet');
+  await dialog.getByRole('button', { name: /create product/i }).click();
+
+  // The catch-all is offered under its group, next to proposing a new category.
+  await dialog.getByRole('combobox', { name: /^category/i }).click();
+  await expect(page.getByRole('option', { name: /Other \(not listed\)/ })).toContainText(
+    'Base metals'
+  );
+  await page.getByRole('option', { name: /propose a new category/i }).click();
+  await dialog.getByRole('textbox', { name: /new category name/i }).fill('Titanium');
+  await dialog.getByRole('combobox', { name: /group/i }).click();
+  await page.getByRole('option', { name: 'Base metals' }).click();
+  await dialog.getByRole('textbox', { name: /what is it for/i }).fill('Aerospace parts');
+  await dialog.getByRole('button', { name: /continue with the new category/i }).click();
+  await expect(dialog.getByText(/go live on its own/i)).toBeVisible();
+
+  await dialog.locator('#request-quantity').fill('40');
+  await dialog.getByRole('textbox', { name: 'Region' }).fill('Almaty Region');
+  await dialog.getByRole('textbox', { name: 'City' }).fill('Almaty');
+  await dialog.getByRole('textbox', { name: /street/i }).fill('Industrial street 5');
+  await dialog.getByRole('button', { name: /create request/i }).click();
+  await expect(dialog.getByText(/goes live as soon as an administrator approves/i)).toBeVisible();
+  expect(sent).toMatchObject({
+    category: { name: 'Titanium', parent_id: 'metals', description: 'Aerospace parts' },
+    product: { name: 'Titanium sheet', unit: 'pcs' },
+    quantity: 40,
+  });
   await noOverflow(page);
 });
 

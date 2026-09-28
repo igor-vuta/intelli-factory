@@ -10,10 +10,17 @@ reusing the backend of the earlier `feature/universal-catalogue` branch.
   administrator approves; only administrators create categories directly
   (`POST /api/catalogue/categories`). The category tree decides which factories may publish and
   bid, so it changes only through review.
-- **Source.** The repository's existing catalogue (textile, electronics, food, packaging, energy)
-  is the starting point. No external taxonomy is imported and no translation coverage is
-  claimed; importing one would need its own review of coverage, licensing, updates and real
-  EN/RU/KK labels.
+- **Starting taxonomy.** 20 groups and 94 categories following the chapter structure of the
+  Harmonized System, the basis of the EAEU customs nomenclature (ТН ВЭД ЕАЭС) that businesses in
+  Kazakhstan already use. The structure is borrowed; the short EN/RU/KK labels were written for
+  this platform (Kazakh labels deserve a native speaker's review). Arms and explosives (chapters 93
+  and 36) are left out. The original demo categories sit under their matching groups. No official
+  code list or wording is imported, so no licence or translation coverage is claimed.
+- **Never block a request.** Every group has an "Other (not listed)" category that works at once,
+  so a request can always reach factories straight away; an administrator can later move the
+  product into its proper category. A customer who needs a new category instead proposes it from
+  the product picker and submits the request in the same step: it waits, and goes live on its own
+  (with its product created in the new category) when the category is approved.
 - **Product identity.** A product is a category, a name in a stated language, a supported unit and
   optional identity characteristics (material, grade/model, dimensions with their units). Stock
   and requests can't override identity characteristics. Quantity, price, stock location and
@@ -42,6 +49,11 @@ reusing the backend of the earlier `feature/universal-catalogue` branch.
   redirects a duplicate to its canonical product. Stock, requests, bids and contracts keep their
   original references; matching compares canonical products, and the merged names stay
   searchable. Only products merge, and only with the same category, unit and characteristics.
+- A request filed against a proposed category is kept as a `PendingRequest` (product, quantity,
+  currency, destination). Approval publishes each one through the same validation as a normal
+  request; one that no longer validates (for example a deleted address) is marked `FAILED` with
+  the reason instead of blocking the others. Rejection marks them `REJECTED` with the reviewer's
+  note. Customers see and can remove them under "Waiting for a new category".
 - A factory can draft stock under a proposed category. Its product can't exist until the category
   is approved, so the draft keeps a name and unit; publishing it creates or reuses the product.
 
@@ -53,12 +65,17 @@ reusing the backend of the earlier `feature/universal-catalogue` branch.
 | `POST /api/catalogue/items` | `{name, locale, category_id, unit, attributes}`: create or reuse (`created` says which) |
 | `POST /api/catalogue/categories` | Admin: `{name, locale, parent_id?}` |
 | `PUT /api/catalogue/{categories\|items}/{id}/label` | Admin: `{locale, name, aliases}`; the previous name stays an alias |
-| `POST /api/catalogue/{categories\|items}/{id}/maintenance` | Admin: `{action: establish\|retire\|merge, target_id?}` |
+| `POST /api/catalogue/{categories\|items}/{id}/maintenance` | Admin: `{action: establish\|retire\|merge\|move, target_id?}`; `move` files a product in another category and brings requests still looking for offers with it |
+| `POST /api/requests/pending` | Customer: propose a category and keep the request until it is approved |
+| `GET /api/requests/pending`, `DELETE /api/requests/pending/{id}` | Customer: waiting requests, and removing one |
 
 Administrators maintain labels and merges through this API; there is no maintenance screen yet.
 
 ## Migration and rollback
 
+`20260929180000_category_taxonomy` inserts the groups, categories and their RU/KK labels with
+fixed IDs, skipping any slug that already exists, and files the original categories under their
+groups. `20260929190000_pending_requests` adds the waiting-request table.
 `20260929120000_shared_catalogue` only adds columns (source language, lifecycle state, identity
 characteristics, merge link, aliases) and an index. It rewrites no name, unit, stock or commercial
 reference; existing rows become `ESTABLISHED` with an unknown source language.

@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 import json
 import unicodedata
+from types import SimpleNamespace
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -22,6 +23,7 @@ from routers.requests import _require_authenticated_user, require_roles
 from services.category_governance import (
     SUPPORTED_UNITS,
     catalogue_lock,
+    confirm_category,
     eligible_category,
     normalized,
     require_verified,
@@ -358,7 +360,8 @@ async def label(kind: Kind, record_id: UUID, body: LabelBody, user=Depends(requi
 
 
 class MaintenanceBody(BaseModel):
-    action: Literal["establish", "retire", "merge"]
+    action: Literal["establish", "retire", "merge", "move"]
+    # merge: the canonical product; move: the category the product belongs in.
     target_id: UUID | None = None
 
 
@@ -384,9 +387,60 @@ async def maintain(
             data = {"status": "ARCHIVED", "record_state": "RETIRED"}
         if body.action == "merge":
             data = await merge_item(tx, kind, row, body.target_id)
+        if body.action == "move":
+            data = await move_item(tx, kind, row, body.target_id)
         await table(tx, kind).update(where={"id": row.id}, data=data)
         await audit(tx, user, "CATALOGUE_MAINTENANCE", kind, row.id, body.model_dump(mode="json"))
     return {"status": "success"}
+
+
+# Requests that are still looking for offers follow a moved product; later stages keep the
+# category they were agreed in.
+OPEN_REQUEST_STATUSES = ["PENDING", "PAIRING_IN_PROGRESS", "PAUSED"]
+
+
+async def move_item(tx, kind, row, category_id):
+    """File a product (typically one placed under "Other") in the category it belongs in."""
+    if kind != "items" or not category_id or str(category_id) == row.category_id:
+        raise HTTPException(422, "Choose a different category for this product")
+    target = str(category_id)
+    await eligible_category(tx, target)
+    moved = [row] + await tx.item.find_many(where={"merged_into_id": row.id})
+    ids = [item.id for item in moved]
+    # The stored product as it is (legacy rows may not meet today's creation rules).
+    as_created = SimpleNamespace(
+        name=row.name,
+        category_id=target,
+        unit=row.unit,
+        attributes=row.identity_attributes or {},
+    )
+    in_target = await tx.item.find_many(where={"category_id": target})
+    if await duplicates(tx, "items", as_created) or {i.normalized_name for i in in_target} & {
+        i.normalized_name for i in moved
+    }:
+        raise HTTPException(409, "That category already has this product; merge them instead")
+    # Open requests for this product (or products merged into it) move with it.
+    await tx.request.update_many(
+        where={"item_id": {"in": ids}, "status": {"in": OPEN_REQUEST_STATUSES}, "deleted_at": None},
+        data={"category_id": target},
+    )
+    # Factories stocking it keep bidding: a confirmed production category carries over.
+    stocked = await tx.inventoryentry.find_many(
+        where={"item_id": {"in": ids}, "deleted_at": None}
+    )
+    for factory_id in {entry.factory_profile_id for entry in stocked}:
+        declared = await tx.factorycategory.find_first(
+            where={
+                "factory_profile_id": factory_id,
+                "category_id": row.category_id,
+                "is_active": True,
+                "confirmed_at": {"not": None},
+            }
+        )
+        if declared:
+            await confirm_category(tx, factory_id, target)
+    await tx.item.update_many(where={"merged_into_id": row.id}, data={"category_id": target})
+    return {"category_id": target, "record_state": "ESTABLISHED"}
 
 
 async def merge_item(tx, kind, row, target_id):
