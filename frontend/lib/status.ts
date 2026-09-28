@@ -25,9 +25,13 @@ const STATUS: Record<string, { label: string; tone: StatusTone }> = {
   REJECTED: { label: 'Not chosen', tone: 'neutral' },
   EXPIRED: { label: 'Expired', tone: 'neutral' },
   ACTIVE: { label: 'Active', tone: 'success' },
+  PAUSED: { label: 'Paused', tone: 'neutral' },
+  ARCHIVED: { label: 'Archived', tone: 'neutral' },
   SIGNED: { label: 'Signed', tone: 'success' },
   DECLINED: { label: 'Declined', tone: 'danger' },
+  AUTHORIZED: { label: 'Authorised', tone: 'info' },
   CAPTURED: { label: 'Paid', tone: 'success' },
+  REFUNDED: { label: 'Refunded', tone: 'neutral' },
   FAILED: { label: 'Failed', tone: 'danger' },
 };
 
@@ -35,7 +39,8 @@ export function statusTone(status: string): StatusTone {
   return STATUS[status]?.tone ?? 'neutral';
 }
 
-export function statusLabel(locale: Locale, status: string): string {
+export function statusLabel(locale: Locale, status: string | null | undefined): string {
+  if (!status) return '—';
   const english = STATUS[status]?.label ?? status.toLowerCase().replace(/_/g, ' ');
   if (locale === 'en') return english;
   const translated = experienceText(locale, status);

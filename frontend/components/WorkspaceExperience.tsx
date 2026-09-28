@@ -3,7 +3,7 @@ import { useExperienceCopy } from '../hooks/useExperienceCopy';
 import GettingStarted from './GettingStarted';
 import GuidanceHint from './GuidanceHint';
 import { sectionHints } from '../lib/guidance';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Modal from './Modal';
 import ReorderableCards from './ReorderableCards';
 import Link from 'next/link';
@@ -50,11 +50,13 @@ const config = {
     ],
     stats: ['Requests', 'Active orders', 'Completed'],
     primary: 'New request',
+    more: ['requests', 'All requests'],
+    steps: ['Make a request', 'Compare proposals', 'Sign together', 'Track delivery'],
   },
   factory: {
     name: 'Factory floor',
     eyebrow: 'PRODUCTION WORKSPACE',
-    title: 'Make room\nfor what’s next.',
+    title: 'Your factory floor',
     description: 'Turn available stock into your next order.',
     nav: [
       ['home', 'Overview'],
@@ -64,12 +66,14 @@ const config = {
       ['workflow', 'Production'],
     ],
     stats: ['Open requests', 'Inventory lines', 'Active contracts'],
-    primary: 'Manage inventory',
+    primary: 'Add inventory',
+    more: ['requests', 'Demand board'],
+    steps: ['Add stock', 'Bid on requests', 'Sign together', 'Hand to the carrier'],
   },
   logist: {
     name: 'Dispatch',
     eyebrow: 'LOGISTICS OPERATIONS',
-    title: 'Every move.\nIn your hands.',
+    title: 'Your deliveries',
     description: 'From the first quote to the final handover.',
     nav: [
       ['home', 'Dispatch board'],
@@ -78,7 +82,9 @@ const config = {
       ['offers', 'Delivery services'],
     ],
     stats: ['Awaiting quotes', 'Active shipments', 'Delivery services'],
-    primary: 'Review quotes',
+    primary: 'Find your next delivery',
+    more: ['quotes', 'Quote requests'],
+    steps: ['Quote', 'Collect', 'Deliver', 'Complete'],
   },
   admin: {
     name: 'Control room',
@@ -125,9 +131,20 @@ export default function WorkspaceExperience({
       ? requestedView
       : 'home';
   const sectionName = c.nav.find(([id]) => id === view)?.[1] ?? c.nav[0][1];
-  function navigate(next: string) {
+  // On narrow screens the section tabs scroll sideways; keep the current one in view.
+  useEffect(() => {
+    document.querySelectorAll<HTMLElement>('.experience-nav').forEach((bar) => {
+      const current = bar.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!current || bar.scrollWidth <= bar.clientWidth) return;
+      bar.scrollLeft = current.offsetLeft - (bar.clientWidth - current.offsetWidth) / 2;
+    });
+  }, [view]);
+  function navigate(next: string, extra: Record<string, string> = {}) {
     setNavigationOpen(false);
-    const query = { ...router.query, view: next };
+    // `add` only asks the inventory view to open its form once; never carry it along.
+    const { add: _add, ...rest } = router.query;
+    void _add;
+    const query = { ...rest, view: next, ...extra };
     void router.push({ pathname: router.pathname, query }, undefined, {
       shallow: true,
       scroll: false,
@@ -140,7 +157,9 @@ export default function WorkspaceExperience({
   const primary = () =>
     role === 'customer'
       ? onCreate?.()
-      : navigate(role === 'factory' ? 'inventory' : role === 'logist' ? 'quotes' : 'operations');
+      : role === 'factory'
+        ? navigate('inventory', { add: '1' })
+        : navigate(role === 'logist' ? 'quotes' : 'operations');
   const nav = (
     <nav aria-label={e('Workspace sections')} className="experience-nav">
       {c.nav.map(([id, text], index) => (
@@ -237,12 +256,6 @@ export default function WorkspaceExperience({
           </Link>
           <div className="sidebar-label">{e('WORKSPACE / 02')}</div>
           {nav}
-          <div className="sidebar-foot">
-            <div className="sidebar-orbit" aria-hidden />
-            <strong>{e('Built to make.')}</strong>
-            <p>{e('Your supply, connected to demand.')}</p>
-            <span>{e('FACTORY EDITION')}</span>
-          </div>
         </aside>
       )}
       {navigationOpen && (
@@ -291,7 +304,7 @@ export default function WorkspaceExperience({
         {role !== 'factory' && nav}
         {role === 'factory' && <div className="factory-mobile-nav">{nav}</div>}
         <main id="main" className="experience-main" data-view={view} tabIndex={-1}>
-          {view === 'home' && role === 'customer' && (
+          {view === 'home' && 'more' in c && (
             <section className="overview-head" aria-labelledby="overview-title">
               <div>
                 <h1 id="overview-title">{e(c.title)}</h1>
@@ -302,12 +315,8 @@ export default function WorkspaceExperience({
                 </p>
               </div>
               <div className="overview-actions">
-                <button
-                  type="button"
-                  className="overview-more"
-                  onClick={() => navigate('requests')}
-                >
-                  {e('All requests')} <Arrow />
+                <button type="button" className="overview-more" onClick={() => navigate(c.more[0])}>
+                  {e(c.more[1])} <Arrow />
                 </button>
                 <button
                   type="button"
@@ -343,156 +352,22 @@ export default function WorkspaceExperience({
                   <section className="customer-order-grid">
                     {cards(items, 'Your next order starts here.')}
                   </section>
-
-                  <section className="journey-strip">
-                    <span>{e('THE WAY FORWARD')}</span>
-                    {['Make a request', 'Compare proposals', 'Sign together', 'Track delivery'].map(
-                      (text, i) => (
-                        <div key={e(text)}>
-                          <b>0{i + 1}</b>
-                          {e(text)}
-                          <span aria-hidden>→</span>
-                        </div>
-                      )
-                    )}
-                  </section>
                 </>
               )}
               {role === 'factory' && (
                 <>
-                  <section className="factory-intro">
-                    <div>
-                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                      <h1>{e(c.title)}</h1>
-                      <p className="hero-description">{e(c.description)}</p>
-                    </div>
-                    <button type="button" className="experience-primary" onClick={primary}>
-                      {e('＋ Add inventory')} <Arrow />
-                    </button>
+                  <h2 className="overview-subhead">
+                    {e('Needs your attention')}
+                    <span className="num">{loading ? '' : items.length}</span>
+                  </h2>
+                  <section className="customer-order-grid">
+                    {cards(items, 'Nothing needs you right now.')}
                   </section>
-                  <section className="factory-counters">
-                    {c.stats.map((text, i) => (
-                      <button
-                        type="button"
-                        key={e(text)}
-                        onClick={() => navigate(['requests', 'inventory', 'workflow'][i])}
-                      >
-                        <span>
-                          {e(text)}
-                          <Arrow />
-                        </span>
-                        <strong>
-                          {loading ? '—' : (counts[i] ?? 0)}
-                          <small>{e(['opportunities', 'stock lines', 'in progress'][i])}</small>
-                        </strong>
-                        <div className="counter-track">
-                          <i style={{ width: '100%' }} />
-                        </div>
-                      </button>
-                    ))}
-                  </section>
-                  <div className="factory-work-grid">
-                    <section>
-                      <div className="experience-section-heading">
-                        <div>
-                          <p className="experience-eyebrow">{e('DEMAND SIGNAL')}</p>
-                          <h2>{e('Ready for your expertise')}</h2>
-                        </div>
-                        <button type="button" onClick={() => navigate('requests')}>
-                          {e('View board')} <Arrow />
-                        </button>
-                      </div>
-                      <div className="factory-demand-list">
-                        {cards(items, 'Your next opportunity is on its way.')}
-                      </div>
-                    </section>
-                    <aside className="factory-capacity" aria-label={e('Your production cycle')}>
-                      <span className="experience-eyebrow">{e('YOUR PRODUCTION CYCLE')}</span>
-                      <div className="machine-drawing" aria-hidden>
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                      </div>
-                      <h2>
-                        {e('Stock.')} <br />
-                        {e('Bid.')} <br />
-                        {e('Build.')}{' '}
-                      </h2>
-                      <p>{e('A focused workspace for turning inventory into confirmed orders.')}</p>
-                      <button type="button" onClick={() => navigate('bids')}>
-                        {e('Review your bids')} <Arrow />
-                      </button>
-                      <div className="factory-cycle">
-                        <span>{e('01 Inventory')}</span>
-                        <span>{e('02 Proposal')}</span>
-                        <span>{e('03 Handover')}</span>
-                      </div>
-                    </aside>
-                  </div>
                 </>
               )}
               {role === 'logist' && (
                 <>
-                  <section className="dispatch-heading">
-                    <div>
-                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                      <h1>{e(c.title)}</h1>
-                    </div>
-                    <div className="dispatch-counter">
-                      <strong>{loading ? '—' : (counts[1] ?? 0)}</strong>
-                      <span>{e('active shipments')}</span>
-                    </div>
-                  </section>
-                  <section className="dispatch-route">
-                    <div className="route-caption">
-                      <span>{e('THE DELIVERY JOURNEY')}</span>
-                      <span>{e('FACTORY → CUSTOMER')}</span>
-                    </div>
-                    <div className="route-line" aria-hidden>
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                    <div className="route-stops">
-                      <div>
-                        <b>01</b>
-                        <strong>{e('Quote')}</strong>
-                        <span>{e('Set the terms')}</span>
-                      </div>
-                      <div>
-                        <b>02</b>
-                        <strong>{e('Collect')}</strong>
-                        <span>{e('Factory handover')}</span>
-                      </div>
-                      <div>
-                        <b>03</b>
-                        <strong>{e('Deliver')}</strong>
-                        <span>{e('Keep it moving')}</span>
-                      </div>
-                      <div>
-                        <b>04</b>
-                        <strong>{e('Complete')}</strong>
-                        <span>{e('Customer acceptance')}</span>
-                      </div>
-                    </div>
-                    <button type="button" className="experience-primary" onClick={primary}>
-                      {e('Find your next delivery')} <Arrow />
-                    </button>
-                  </section>
-                  <section className="dispatch-toolbar">
-                    <h2>{e('Dispatch board')}</h2>
-                    <div>
-                      <button type="button" onClick={() => navigate('quotes')}>
-                        {e('Quote requests')} <b>{counts[0] ?? 0}</b>
-                      </button>
-                      <button type="button" onClick={() => navigate('offers')}>
-                        {e('Delivery services')} <b>{counts[2] ?? 0}</b>
-                      </button>
-                    </div>
-                  </section>
+                  <h2 className="overview-subhead">{e('Dispatch board')}</h2>
                   <section className="dispatch-lanes">
                     {[
                       [
@@ -646,6 +521,18 @@ export default function WorkspaceExperience({
                     {!items.length && <p>{e('No requests yet. New activity will appear here.')}</p>}
                   </section>
                 </>
+              )}
+              {'steps' in c && (
+                <section className="journey-strip">
+                  <span>{e('THE WAY FORWARD')}</span>
+                  {c.steps.map((text, i) => (
+                    <div key={text}>
+                      <b>0{i + 1}</b>
+                      {e(text)}
+                      <span aria-hidden>→</span>
+                    </div>
+                  ))}
+                </section>
               )}
             </div>
           ) : null}

@@ -127,11 +127,11 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
     await factory.goto('/app/factory?view=workflow&lang=en');
     await txRow(factory).getByRole('button', { name: 'Given to logist' }).click();
     await factory.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(txRow(factory)).toContainText('FULFILLMENT_STARTED');
+    await expect(txRow(factory).locator('[data-status="FULFILLMENT_STARTED"]')).toBeVisible();
     await logist.goto('/app/logist?view=workflow&lang=en');
     await txRow(logist).getByRole('button', { name: 'Delivered', exact: true }).click();
     await logist.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(txRow(logist)).toContainText('IN_PROGRESS');
+    await expect(txRow(logist).locator('[data-status="IN_PROGRESS"]')).toBeVisible();
     await customer.goto('/app/customer?view=workflow&lang=en');
     await txRow(customer).getByRole('button', { name: 'Accept', exact: true }).click();
     await customer
