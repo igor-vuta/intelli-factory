@@ -68,10 +68,16 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
       await login(page, role);
     const name = `UX steel ${Date.now()}`;
     const categoryId = await readyFactory(factory);
-    await post(factory, '/requests/inventory-entries', {
+    const product = await post(factory, '/catalogue/items', {
+      name,
+      locale: 'en',
       category_id: categoryId,
-      item_name: name,
       unit: 'pcs',
+      attributes: {},
+    });
+    expect(product.created).toBe(true);
+    await post(factory, '/requests/inventory-entries', {
+      item_id: product.id,
       stock_country_code: 'KZ',
       stock_region_name: 'Almaty Region',
       stock_city_name: 'Almaty',
@@ -229,10 +235,16 @@ test('real database: record actions keep the lifecycle guards', async ({ browser
       await login(page, role);
     const name = `Record steel ${Date.now()}`;
     const categoryId = await readyFactory(factory);
-    await post(factory, '/requests/inventory-entries', {
+    const product = await post(factory, '/catalogue/items', {
+      name,
+      locale: 'en',
       category_id: categoryId,
-      item_name: name,
       unit: 'pcs',
+      attributes: {},
+    });
+    expect(product.created).toBe(true);
+    await post(factory, '/requests/inventory-entries', {
+      item_id: product.id,
       stock_country_code: 'KZ',
       stock_region_name: 'Almaty Region',
       stock_city_name: 'Almaty',

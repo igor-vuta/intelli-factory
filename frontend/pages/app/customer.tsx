@@ -1,4 +1,3 @@
-import Combobox from '../../components/Combobox';
 import SelectField from '../../components/SelectField';
 import GuidanceHint from '../../components/GuidanceHint';
 import OrderGuidance from '../../components/OrderGuidance';
@@ -6,7 +5,7 @@ import { dissolve } from '../../lib/dissolve';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import CategoryProposalPanel from '../../components/CategoryProposalPanel';
 import AttributeFields from '../../components/AttributeFields';
-import { categoryCopy } from '../../lib/categoryCopy';
+import ProductPicker from '../../components/ProductPicker';
 import ProposalExplorer from '../../components/ProposalExplorer';
 import StatusBadge from '../../components/StatusBadge';
 import RecordRow, { RecordDetail } from '../../components/RecordRow';
@@ -22,12 +21,10 @@ import Modal from '../../components/Modal';
 import { useRouter } from 'next/router';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { type ComboboxOption } from '../../components/Combobox';
 import AgreementSignModal from '../../components/AgreementSignModal';
 import PaymentMockupModal from '../../components/PaymentMockupModal';
 import RatingModal from '../../components/RatingModal';
-import SearchableInput from '../../components/SearchableInput';
-import { ApiError } from '../../lib/authClient';
+import { ApiError, type CatalogueItem } from '../../lib/authClient';
 import {
   acceptTransactionCompletion,
   captureTransactionPayment,
@@ -51,7 +48,6 @@ import {
   type BootstrapCategory,
   type BootstrapCountry,
   type BootstrapCurrency,
-  type BootstrapItem,
   type MatchCandidate,
   type RatingTarget,
   type RequestSummary,
@@ -220,7 +216,6 @@ function ProposalsModal({
 
 type ModalProps = {
   categories: BootstrapCategory[];
-  items: BootstrapItem[];
   currencies: BootstrapCurrency[];
   countries: BootstrapCountry[];
   addresses: BootstrapAddress[];
@@ -233,7 +228,6 @@ type ModalProps = {
 
 function NewRequestModal({
   categories,
-  items,
   currencies,
   countries,
   addresses,
@@ -249,15 +243,10 @@ function NewRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const categoryLocale = getLocaleFromQuery(useRouter().query.lang);
+  const locale = getLocaleFromQuery(useRouter().query.lang);
   const [attributes, setAttributes] = useState<Record<string, unknown>>({});
-  const [, setCategoryText] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [itemText, setItemText] = useState('');
-  const [itemId, setItemId] = useState('');
+  const [product, setProduct] = useState<CatalogueItem | null>(null);
   const [quantity, setQuantity] = useState('100');
-  const [quantityUnitText, setQuantityUnitText] = useState('pcs');
-  const [quantityUnitId, setQuantityUnitId] = useState('pcs');
   const [currencyCode, setCurrencyCode] = useState(currencies[0]?.code ?? 'USD');
   const [addressId, setAddressId] = useState(defaultAddressId ?? addresses[0]?.id ?? '');
   const [useManualAddress, setUseManualAddress] = useState(addresses.length === 0);
@@ -266,84 +255,9 @@ function NewRequestModal({
   const [cityName, setCityName] = useState('');
   const [street, setStreet] = useState(defaultStreet ?? '');
 
-  const categoryOptions = useMemo<ComboboxOption[]>(
-    () =>
-      categories
-        .filter((c) => !categories.some((child) => child.parent_id === c.id))
-        .map((c) => ({
-          id: c.id,
-          label: c.name,
-        })),
-    [categories]
-  );
-
-  const categoryNameById = useMemo(
-    () => new Map(categories.map((c) => [c.id, c.name])),
-    [categories]
-  );
-
-  // Items scoped to selected category
-  const itemSuggestions = useMemo<ComboboxOption[]>(() => {
-    const pool = categoryId ? items.filter((i) => i.category_id === categoryId) : items;
-    return pool.map((i) => ({
-      id: i.id,
-      label: i.name,
-      sublabel: categoryNameById.get(i.category_id) ?? '',
-    }));
-  }, [items, categoryId, categoryNameById]);
-
-  const unitSuggestions = useMemo<ComboboxOption[]>(() => {
-    const fallbackUnits = ['pcs', 'kg', 'g', 'l', 'liters', 'tons', 'boxes', 'roll', 'm', 'cm'];
-    const uniqueUnits = new Map<string, string>();
-
-    for (const item of items) {
-      const raw = item.unit?.trim();
-      if (!raw) continue;
-      const key = raw.toLowerCase();
-      if (!uniqueUnits.has(key)) uniqueUnits.set(key, raw);
-    }
-
-    for (const unit of fallbackUnits) {
-      const key = unit.toLowerCase();
-      if (!uniqueUnits.has(key)) uniqueUnits.set(key, unit);
-    }
-
-    return Array.from(uniqueUnits.values())
-      .sort((a, b) => a.localeCompare(b))
-      .map((unit) => ({ id: unit, label: unit }));
-  }, [items]);
-
-  function handleCategoryChange(text: string, id: string) {
-    setCategoryText(text);
-    setCategoryId(id);
+  function chooseProduct(item: CatalogueItem | null) {
+    setProduct(item);
     setAttributes({});
-    // clear item match only if the matched item doesn't belong to new category
-    if (itemId) {
-      const match = items.find((i) => i.id === itemId);
-      if (match && id && match.category_id !== id) setItemId('');
-    }
-  }
-
-  function handleItemChange(text: string, id: string) {
-    setItemText(text);
-    setItemId(id);
-    // auto-set category and unit from matched suggestion when available
-    if (id) {
-      const match = items.find((i) => i.id === id);
-      if (match?.category_id) {
-        setCategoryId(match.category_id);
-        setCategoryText(categoryNameById.get(match.category_id) ?? '');
-      }
-      if (match?.unit) {
-        setQuantityUnitText(match.unit);
-        setQuantityUnitId(match.unit);
-      }
-    }
-  }
-
-  function handleUnitChange(text: string, id: string) {
-    setQuantityUnitText(text);
-    setQuantityUnitId(id);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -357,28 +271,19 @@ function NewRequestModal({
       setError(e('Quantity must be greater than 0'));
       return;
     }
-    if (!itemText.trim()) {
-      setError(e('Please describe the item you need'));
-      return;
-    }
-    if (!categoryId) {
-      setError(categoryCopy(categoryLocale).select);
-      return;
-    }
-    if (!quantityUnitText.trim()) {
-      setError(e('Please provide a quantity unit (e.g. kg, liters, pcs)'));
+    if (!product) {
+      setError(e('Choose a product from the catalogue, or create it'));
       return;
     }
 
     setSubmitting(true);
     try {
       const result = await createCustomerRequest({
-        category_id: categoryId || undefined,
+        category_id: product.category_id,
         requested_characteristics_json: attributes,
-        item_id: itemId || undefined,
-        requested_name_text: itemText.trim(),
+        item_id: product.id,
         quantity: qty,
-        quantity_unit: quantityUnitText.trim(),
+        quantity_unit: product.unit,
         destination_address_id: !useManualAddress ? addressId : undefined,
         destination_country_code: useManualAddress ? countryCode : undefined,
         destination_region_name: useManualAddress ? regionName.trim() : undefined,
@@ -387,10 +292,7 @@ function NewRequestModal({
         preferred_currency_code: currencyCode,
       });
       setSuccess(`${e('Request created')} (${result.request_id.slice(0, 8)}…)`);
-      setItemText('');
-      setItemId('');
-      setCategoryText('');
-      setCategoryId('');
+      setProduct(null);
       await onCreated();
       setTimeout(onClose, 1200);
     } catch (err) {
@@ -412,9 +314,7 @@ function NewRequestModal({
           <div>
             <h2 className="text-xl font-semibold">{e('New Supply Request')}</h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              {e(
-                'Choose a category, then describe what you need. Start typing to see suggestions.'
-              )}
+              {e('Find the product in the shared catalogue, or add it if it is missing.')}
             </p>
           </div>
           <button
@@ -434,46 +334,17 @@ function NewRequestModal({
             <h3>{e('What do you need?')}</h3>
           </div>
           <GuidanceHint hint="request" />
-          <Combobox
-            options={categoryOptions}
-            value={categoryId}
-            onChange={(id) => handleCategoryChange(categoryNameById.get(id) ?? '', id)}
-            placeholder={categoryCopy(categoryLocale).select}
-            label={e('Category')}
-            required
-          />
-
+          <ProductPicker locale={locale} value={product?.id ?? ''} onChange={chooseProduct} />
           <AttributeFields
-            schema={categories.find((c) => c.id === categoryId)?.attributes_schema}
+            schema={categories.find((c) => c.id === product?.category_id)?.attributes_schema}
             value={attributes}
             onChange={setAttributes}
           />
           <AttributeFields
-            schema={items.find((i) => i.id === itemId)?.characteristics_schema}
+            schema={product?.characteristics_schema}
             value={attributes}
             onChange={setAttributes}
           />
-
-          {/* Step 2 \u2014 Item name: free text with catalogue suggestions */}
-          <SearchableInput
-            suggestions={itemSuggestions}
-            text={itemText}
-            selectedId={itemId}
-            onChange={handleItemChange}
-            placeholder={
-              categoryId
-                ? `${e('Describe item')} · ${categoryNameById.get(categoryId) ?? e('Category')}`
-                : e('Describe item')
-            }
-            label={e('Item name / description')}
-            required
-          />
-
-          {!itemId && itemText && (
-            <p className="-mt-2 text-xs text-[rgb(var(--muted))]">
-              {e('No catalogue match — your description will be used directly.')}
-            </p>
-          )}
 
           <div className="composer-section-title">
             <span>02</span>
@@ -497,16 +368,10 @@ function NewRequestModal({
             </div>
 
             <div className="flex flex-col gap-1">
-              <SearchableInput
-                disabled={!!itemId}
-                suggestions={unitSuggestions}
-                text={quantityUnitText}
-                selectedId={quantityUnitId}
-                onChange={handleUnitChange}
-                placeholder={e('Choose or type a unit (kg, liters, pcs)')}
-                label={e('Unit')}
-                required
-              />
+              <span className="text-sm text-[rgb(var(--muted))]">{e('Unit')}</span>
+              <p className="request-unit" aria-live="polite">
+                {product?.unit ?? e('Set by the product')}
+              </p>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -662,7 +527,6 @@ export default function CustomerWorkspacePage() {
   const [pageError, setPageError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<BootstrapCategory[]>([]);
-  const [items, setItems] = useState<BootstrapItem[]>([]);
   const [currencies, setCurrencies] = useState<BootstrapCurrency[]>([]);
   const [countries, setCountries] = useState<BootstrapCountry[]>([]);
   const [addresses, setAddresses] = useState<BootstrapAddress[]>([]);
@@ -816,7 +680,6 @@ export default function CustomerWorkspacePage() {
         if (cancelled) return;
 
         setCategories(bootstrap.categories);
-        setItems(bootstrap.items);
         setCurrencies(bootstrap.currencies);
         setGuidanceUserId(bootstrap.user.id);
         setCountries(bootstrap.countries ?? []);
@@ -1564,7 +1427,6 @@ export default function CustomerWorkspacePage() {
       {showModal && (
         <NewRequestModal
           categories={categories}
-          items={items}
           currencies={currencies}
           countries={countries}
           addresses={addresses}

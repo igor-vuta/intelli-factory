@@ -136,6 +136,17 @@ async def test_create_request_success_for_verified_customer(monkeypatch):
     fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id=destination_address_id))
     fake_prisma.currency.find_unique = AsyncMock(return_value=SimpleNamespace(code="USD"))
     fake_prisma.request.create = AsyncMock(return_value=SimpleNamespace(id="req-1"))
+    item_id = "33333333-3333-3333-3333-333333333333"
+    fake_prisma.item.find_first = AsyncMock(
+        return_value=SimpleNamespace(
+            id=item_id,
+            category_id=category_id,
+            unit="pcs",
+            characteristics_schema=None,
+            identity_attributes={"material": "cotton"},
+            merged_into_id=None,
+        )
+    )
 
     previous_category = fake_prisma.category.find_first
     async def category_lookup(*, where):
@@ -156,18 +167,45 @@ async def test_create_request_success_for_verified_customer(monkeypatch):
         response = await client.post(
             "/api/requests/",
             json={
-                    "category_id": category_id,
-                "requested_name_text": "Custom textile batch",
+                "item_id": item_id,
                 "quantity": 100,
-                    "destination_address_id": destination_address_id,
+                "quantity_unit": "pcs",
+                "destination_address_id": destination_address_id,
                 "preferred_currency_code": "USD",
             },
         )
 
     assert response.status_code == 200
+    created = fake_prisma.request.create.await_args.kwargs["data"]
+    assert created["item"] == {"connect": {"id": item_id}}
+    assert created["category"] == {"connect": {"id": category_id}}
     payload = response.json()
     assert payload["status"] == "success"
     assert payload["request_id"] == "req-1"
+
+
+@pytest.mark.anyio
+async def test_create_request_requires_a_catalogue_product(monkeypatch):
+    user = SimpleNamespace(id="u1", role="CUSTOMER", is_email_verified=True, deleted_at=None)
+    app = _make_app_with_user(user)
+    fake_prisma = _build_base_prisma_mocks()
+    fake_prisma.customerprofile.find_unique = AsyncMock(
+        return_value=SimpleNamespace(id="cp-1", primary_address_id=None)
+    )
+    monkeypatch.setattr(requests_router, "prisma", fake_prisma)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/api/requests/",
+            json={"requested_name_text": "Custom textile batch", "quantity": 100},
+        )
+
+    assert response.status_code == 422
+    assert "catalogue" in response.json()["detail"]
+    fake_prisma.request.create.assert_not_called()
 
 
 @pytest.mark.anyio
@@ -217,7 +255,7 @@ async def test_factory_can_create_inventory_entry(monkeypatch):
 
     fake_prisma = _build_base_prisma_mocks()
     fake_prisma.factoryprofile.find_unique = AsyncMock(return_value=SimpleNamespace(id="fp-1", legal_name="Factory", contact_name="Contact", phone="123", primary_address_id=stock_address_id, deleted_at=None))
-    fake_prisma.item.find_first = AsyncMock(return_value=SimpleNamespace(id=item_id, category_id="cat", unit="pcs", status="ACTIVE", deleted_at=None, characteristics_schema=None))
+    fake_prisma.item.find_first = AsyncMock(return_value=SimpleNamespace(id=item_id, category_id="cat", unit="pcs", status="ACTIVE", deleted_at=None, characteristics_schema=None, identity_attributes=None, merged_into_id=None))
     fake_prisma.address.find_first = AsyncMock(return_value=SimpleNamespace(id=stock_address_id))
     fake_prisma.currency.find_unique = AsyncMock(return_value=SimpleNamespace(code="USD"))
     fake_prisma.inventoryentry.create = AsyncMock(return_value=SimpleNamespace(id="inv-1"))

@@ -41,6 +41,8 @@ def domain():
         status="ACTIVE",
         deleted_at=None,
         characteristics_schema=None,
+        identity_attributes=None,
+        merged_into_id=None,
     )
     inv = NS(
         id="inventory",
@@ -121,6 +123,10 @@ async def test_whole_request_eligibility(case):
         req.category_id = "other"
     if case == "item":
         req.item_id = "other"
+        other = NS(id="other", merged_into_id=None)
+        db.item.find_unique = AsyncMock(
+            side_effect=lambda where: item if where["id"] == "item" else other
+        )
     if case == "unit":
         item.unit = "pcs"
     if case == "quantity":

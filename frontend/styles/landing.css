@@ -274,31 +274,6 @@
   color: var(--if-muted);
   font-size: 1.125rem;
 }
-.landing .if-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--if-text);
-  font: inherit;
-  font-weight: 500;
-  text-decoration: underline;
-  text-decoration-color: var(--if-line);
-  text-underline-offset: 0.3em;
-  cursor: pointer;
-  transition: text-decoration-color 200ms var(--if-ease);
-}
-.landing .if-link:hover {
-  text-decoration-color: currentColor;
-}
-.landing .if-link:disabled {
-  color: var(--if-muted);
-  cursor: default;
-  text-decoration: none;
-}
-
 /* Lifecycle */
 .lifecycle-track {
   --progress-duration: 2400ms;
