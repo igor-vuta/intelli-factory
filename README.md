@@ -333,7 +333,7 @@ Validated against the OWASP Password Storage and Session Management Cheat Sheets
 
 ## Testing
 
-**146 pytest tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance (against PostgreSQL in CI), and the full transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle.
+**160 pytest tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance and the shared catalogue (against PostgreSQL in CI), and the full transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle.
 
 ```sh
 cd backend/app/api
@@ -407,5 +407,5 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 [nextjs-url]: https://nextjs.org
 [postgres-shield]: https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
 [postgres-url]: https://postgresql.org
-[tests-shield]: https://img.shields.io/badge/pytest-146%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/pytest-160%20passing-brightgreen?style=for-the-badge
 [license-shield]: https://img.shields.io/badge/License-Academic-lightgrey?style=for-the-badge

@@ -1,6 +1,78 @@
 import type { Locale } from './i18n';
 
 export const experienceTranslations = {
+  // Shared catalogue product picker
+  'Add a characteristic': { ru: 'Добавить характеристику', kk: 'Сипаттама қосу' },
+  'Added to the shared catalogue and selected.': {
+    ru: 'Добавлено в общий каталог и выбрано.',
+    kk: 'Ортақ каталогқа қосылып, таңдалды.',
+  },
+  Change: { ru: 'Изменить', kk: 'Өзгерту' },
+  Characteristic: { ru: 'Характеристика', kk: 'Сипаттама' },
+  'Choose a category': { ru: 'Выберите категорию', kk: 'Санатты таңдаңыз' },
+  'Choose a product from the catalogue, or create it': {
+    ru: 'Выберите товар из каталога или создайте его',
+    kk: 'Каталогтан тауарды таңдаңыз немесе оны жасаңыз',
+  },
+  'Choose a unit': { ru: 'Выберите единицу', kk: 'Бірлікті таңдаңыз' },
+  'Could not save the product': {
+    ru: 'Не удалось сохранить товар',
+    kk: 'Тауарды сақтау мүмкін болмады',
+  },
+  'Create and select': { ru: 'Создать и выбрать', kk: 'Жасап, таңдау' },
+  'Create product': { ru: 'Создать товар', kk: 'Тауар жасау' },
+  'Distinguishing characteristics (optional)': {
+    ru: 'Отличительные характеристики (необязательно)',
+    kk: 'Ерекшелейтін сипаттамалар (міндетті емес)',
+  },
+  'Enter the product name': { ru: 'Введите название товара', kk: 'Тауардың атауын енгізіңіз' },
+  'Find the product in the shared catalogue, or add it if it is missing.': {
+    ru: 'Найдите товар в общем каталоге или добавьте его, если его нет.',
+    kk: 'Тауарды ортақ каталогтан табыңыз немесе жоқ болса, қосыңыз.',
+  },
+  'It joins the shared catalogue straight away. Add what makes it a distinct product, such as material, grade or size.':
+    {
+      ru: 'Товар сразу появится в общем каталоге. Укажите, чем он отличается от других: материал, сорт или размер.',
+      kk: 'Тауар ортақ каталогқа бірден қосылады. Оны басқалардан ерекшелейтінін көрсетіңіз: материал, сұрып немесе өлшем.',
+    },
+  'Loading the catalogue…': { ru: 'Загрузка каталога…', kk: 'Каталог жүктелуде…' },
+  'Missing a category? Propose it for review; products follow once it is approved.': {
+    ru: 'Нет нужной категории? Предложите её на проверку; товары можно будет добавить после одобрения.',
+    kk: 'Қажетті санат жоқ па? Оны тексеруге ұсыныңыз; мақұлданғаннан кейін тауарларды қосуға болады.',
+  },
+  Name: { ru: 'Название', kk: 'Атауы' },
+  'New product': { ru: 'Новый товар', kk: 'Жаңа тауар' },
+  'No product matches yet.': {
+    ru: 'Подходящих товаров пока нет.',
+    kk: 'Сәйкес тауарлар әзірге жоқ.',
+  },
+  'Not yet translated; original name': {
+    ru: 'Перевода пока нет; исходное название',
+    kk: 'Аудармасы әзірге жоқ; бастапқы атауы',
+  },
+  'Not yet translated; shown in': {
+    ru: 'Перевода пока нет; показано на языке:',
+    kk: 'Аудармасы әзірге жоқ; көрсетілген тіл:',
+  },
+  Product: { ru: 'Товар', kk: 'Тауар' },
+  Products: { ru: 'Товары', kk: 'Тауарлар' },
+  'Search the catalogue in any language': {
+    ru: 'Поиск по каталогу на любом языке',
+    kk: 'Каталогтан кез келген тілде іздеу',
+  },
+  'Set by the product': { ru: 'Задаётся товаром', kk: 'Тауармен анықталады' },
+  'Similar products already in the catalogue:': {
+    ru: 'Похожие товары уже есть в каталоге:',
+    kk: 'Каталогта ұқсас тауарлар бар:',
+  },
+  'This product is already in the catalogue; selected it.': {
+    ru: 'Этот товар уже есть в каталоге — он выбран.',
+    kk: 'Бұл тауар каталогта бар — ол таңдалды.',
+  },
+  'Use this': { ru: 'Выбрать', kk: 'Таңдау' },
+  Value: { ru: 'Значение', kk: 'Мәні' },
+  'e.g. cotton': { ru: 'например, хлопок', kk: 'мысалы, мақта' },
+  'e.g. material': { ru: 'например, материал', kk: 'мысалы, материал' },
   'Quote status': { ru: 'Статус предложения', kk: 'Ұсыныс күйі' },
   'Payment status': { ru: 'Статус оплаты', kk: 'Төлем күйі' },
   'Proposal stage': { ru: 'Этап предложения', kk: 'Ұсыныс кезеңі' },

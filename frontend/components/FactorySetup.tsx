@@ -10,6 +10,7 @@ import CategoryProposalPanel, {
   type AttributeSchema,
 } from './CategoryProposalPanel';
 import AttributeFields from './AttributeFields';
+import ProductPicker from './ProductPicker';
 import { categoryApi, getRequestsBootstrap, type RequestsBootstrap } from '../lib/authClient';
 import { categoryCopy } from '../lib/categoryCopy';
 import type { Locale } from '../lib/i18n';
@@ -440,52 +441,50 @@ export default function FactorySetup({
                     ))}
                 </SelectField>
               </label>
-              <label>
-                {c.product}
-                <SelectField
-                  aria-label={c.product}
-                  value={data.item_id ?? ''}
-                  onChange={(e) => {
-                    const item = bootstrap?.items.find((x) => x.id === e.target.value);
-                    patch({
-                      item_id: item?.id,
-                      unit: item?.unit || 'pcs',
-                      characteristics_json: {},
-                    });
-                  }}
-                >
-                  <option value="">{c.newProduct}</option>
-                  {bootstrap?.items
-                    .filter((x) => x.category_id === data.category_id)
-                    .map((x) => (
-                      <option key={x.id} value={x.id}>
-                        {x.name}
-                      </option>
-                    ))}
-                </SelectField>
-              </label>
-              {!data.item_id && (
-                <label>
-                  {c.newProduct}
-                  <input
-                    value={data.item_name ?? ''}
-                    onChange={(e) => patch({ item_name: e.target.value })}
-                  />
-                </label>
+              {data.proposal_id ? (
+                // The category awaits approval, so its product can't exist yet: name it here and
+                // it joins the shared catalogue when the draft is published.
+                <>
+                  <label>
+                    {c.newProduct}
+                    <input
+                      value={data.item_name ?? ''}
+                      onChange={(e) => patch({ item_name: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    {c.unit}
+                    <SelectField
+                      aria-label={c.unit}
+                      value={data.unit ?? 'pcs'}
+                      onChange={(e) => patch({ unit: e.target.value })}
+                    >
+                      {['pcs', 'kg', 'g', 't', 'tons', 'l', 'm', 'm2', 'm3', 'roll'].map((u) => (
+                        <option key={u}>{u}</option>
+                      ))}
+                    </SelectField>
+                  </label>
+                </>
+              ) : (
+                data.category_id && (
+                  <div className="sm:col-span-2">
+                    <ProductPicker
+                      key={data.category_id}
+                      locale={locale}
+                      categoryId={data.category_id}
+                      value={data.item_id ?? ''}
+                      onChange={(item) =>
+                        patch({
+                          item_id: item?.id,
+                          item_name: undefined,
+                          unit: item?.unit ?? 'pcs',
+                          characteristics_json: {},
+                        })
+                      }
+                    />
+                  </div>
+                )
               )}
-              <label>
-                {c.unit}
-                <SelectField
-                  aria-label={c.unit}
-                  disabled={!!data.item_id}
-                  value={data.unit ?? 'pcs'}
-                  onChange={(e) => patch({ unit: e.target.value })}
-                >
-                  {['pcs', 'kg', 'g', 't', 'tons', 'l', 'm', 'm2', 'm3', 'roll'].map((u) => (
-                    <option key={u}>{u}</option>
-                  ))}
-                </SelectField>
-              </label>
               <label>
                 {c.quantity} ({data.unit})
                 <input

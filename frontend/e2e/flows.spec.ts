@@ -3,6 +3,30 @@ import { guidanceText } from '../lib/guidance';
 import { test, expect, type Page } from '@playwright/test';
 
 const roles = ['customer', 'factory', 'logist', 'admin'] as const;
+const label = (id: string, name: string, label_locale: string | null, fallback = false) => ({
+  id,
+  name,
+  label_locale,
+  fallback,
+  record_state: 'ESTABLISHED',
+  search_labels: [name],
+});
+const catalogue = {
+  categories: [
+    { ...label('metal', 'Metal', 'en'), parent_id: null, slug: 'metal', selectable: true },
+    { ...label('wood', 'Wood', 'en'), parent_id: null, slug: 'wood', selectable: true },
+  ],
+  items: [
+    {
+      ...label('sheet', 'Стальной лист', 'ru', true),
+      search_labels: ['Стальной лист', 'Steel sheet'],
+      category_id: 'metal',
+      unit: 'kg',
+      identity_attributes: { thickness: '2 mm' },
+    },
+  ],
+  units: ['kg', 'pcs', 't'],
+};
 async function mockApi(page: Page, role = 'CUSTOMER', authorized = true, userId = 'test-user') {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -43,6 +67,10 @@ async function mockApi(page: Page, role = 'CUSTOMER', authorized = true, userId 
       currencies: [{ code: 'KZT', name: 'Tenge' }],
       countries: [{ code: 'KZ', name: 'Kazakhstan' }],
     };
+    if (path === '/api/catalogue') {
+      await route.fulfill({ json: catalogue });
+      return;
+    }
     const data =
       path === '/api/requests/bootstrap'
         ? bootstrap
@@ -202,23 +230,61 @@ test('stored colour mode wins over the system setting and invalid values recover
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
 });
 
-test('autocomplete supports arrow selection without submitting the request', async ({ page }) => {
+test('the product picker finds, creates and selects products without submitting the request', async ({
+  page,
+}) => {
   await mockApi(page);
+  let created: Record<string, unknown> | null = null;
+  await page.route('**/api/catalogue/items', async (route) => {
+    created = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      json: {
+        ...label('bolt', 'Bolt M8', 'en'),
+        record_state: 'NEW',
+        category_id: 'metal',
+        unit: 'pcs',
+        identity_attributes: { size: 'M8' },
+        created: true,
+      },
+    });
+  });
   await page.goto('/app/customer');
   await page
     .getByRole('button', { name: /new request/i })
     .first()
     .click();
-  const field = page.getByRole('combobox', { name: /category/i });
-  await field.focus();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
+  const dialog = page.getByRole('dialog');
+  const search = dialog.getByRole('searchbox', { name: /product/i });
+
+  // A Russian-only label is found by its English alias and marked as untranslated.
+  await search.fill('steel');
   await page.keyboard.press('Enter');
-  await expect(field).toHaveValue('Wood');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await field.fill('Custom category');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(dialog).toBeVisible();
+  const result = dialog.getByRole('button', { name: /Стальной лист/ });
+  await expect(result).toContainText('Not yet translated');
+  await result.click();
+  await expect(dialog.getByText('Стальной лист')).toBeVisible();
+  await expect(dialog.locator('.request-unit')).toHaveText('kg');
+
+  // A missing product is created inline, keeping the rest of the form.
+  await dialog.locator('#request-quantity').fill('42');
+  await dialog.getByRole('button', { name: /change/i }).click();
+  await search.fill('Bolt M8');
+  await dialog.getByRole('button', { name: /create product/i }).click();
+  await dialog.getByRole('combobox', { name: /category/i }).click();
+  await page.getByRole('option', { name: 'Metal' }).click();
+  await dialog.getByRole('textbox', { name: /characteristic/i }).fill('size');
+  await dialog.getByRole('textbox', { name: /value/i }).fill('M8');
+  await dialog.getByRole('textbox', { name: /value/i }).press('Enter');
+  await expect(dialog.getByRole('status')).toContainText('Added to the shared catalogue');
+  expect(created).toMatchObject({
+    name: 'Bolt M8',
+    category_id: 'metal',
+    attributes: { size: 'M8' },
+  });
+  await expect(dialog.locator('#request-quantity')).toHaveValue('42');
+  await noOverflow(page);
 });
 
 test('failed cancellation is visible and the action can be retried', async ({ page }) => {

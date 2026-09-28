@@ -91,9 +91,9 @@ export const guidanceCopy = {
   next: ['What happens next', 'Что дальше', 'Әрі қарай не болады'],
   requestTitle: ['Create a supply request', 'Создайте заявку', 'Өтінім жасаңыз'],
   request: [
-    'Describe the product and category so suppliers can assess it. Add quantity, unit, budget currency and destination so proposals can include the right goods and delivery.',
-    'Опишите товар и категорию, чтобы поставщики могли оценить заявку. Укажите количество, единицу измерения, валюту бюджета и адрес: это нужно для подбора товара и доставки.',
-    'Жеткізушілер бағалай алуы үшін тауар мен санатты сипаттаңыз. Тауар мен жеткізуді дұрыс іріктеу үшін санын, өлшем бірлігін, бюджет валютасын және мекенжайын көрсетіңіз.',
+    'Choose the product from the shared catalogue, in any language, or create it if it is missing; factories stock the same product, so their offers match yours. Add quantity, budget currency and destination so proposals can include the right goods and delivery.',
+    'Выберите товар из общего каталога на любом языке или создайте его, если его нет: заводы размещают тот же товар, поэтому их предложения совпадут с вашей заявкой. Укажите количество, валюту бюджета и адрес, чтобы подобрать товар и доставку.',
+    'Тауарды ортақ каталогтан кез келген тілде таңдаңыз немесе жоқ болса, жасаңыз: зауыттар дәл сол тауарды ұсынады, сондықтан олардың ұсыныстары өтініміңізге сәйкес келеді. Тауар мен жеткізуді іріктеу үшін санын, бюджет валютасын және мекенжайын көрсетіңіз.',
   ],
   quantity: [
     'Check the unit and currency before submitting: 100 kg and 100 pieces are different orders. A budget helps compare costs; it is not a payment.',
@@ -117,9 +117,9 @@ export const guidanceCopy = {
   ],
   inventoryTitle: ['Add available stock', 'Добавьте остатки', 'Қолда бар тауарды қосыңыз'],
   inventory: [
-    'Add the product, category, available quantity, unit price and stock address. These details let buyers compare supply and carriers quote delivery. Keep stock accurate; pause an entry when it is unavailable.',
-    'Укажите товар, категорию, доступное количество, цену за единицу и адрес склада. Эти данные нужны заказчикам для сравнения, а перевозчикам — для расчёта доставки. Обновляйте остатки и приостанавливайте недоступные позиции.',
-    'Тауарды, санатты, қолда бар санын, бірлік бағасын және қойма мекенжайын көрсетіңіз. Бұл сатып алушыларға салыстыруға, тасымалдаушыларға жеткізуді есептеуге қажет. Қорды жаңартып, жоқ позицияларды тоқтатыңыз.',
+    'Choose the product from the shared catalogue, or create it, then add available quantity, unit price and stock address. Buyers request the same catalogue products, so matching stock finds their requests. Keep stock accurate; pause an entry when it is unavailable.',
+    'Выберите товар из общего каталога или создайте его, затем укажите доступное количество, цену за единицу и адрес склада. Заказчики запрашивают те же товары из каталога, поэтому подходящие остатки находят их заявки. Обновляйте остатки и приостанавливайте недоступные позиции.',
+    'Тауарды ортақ каталогтан таңдаңыз немесе жасаңыз, содан кейін қолда бар санын, бірлік бағасын және қойма мекенжайын көрсетіңіз. Сатып алушылар каталогтағы дәл сол тауарларды сұрайды, сондықтан сәйкес қор олардың өтінімдерін табады. Қорды жаңартып, жоқ позицияларды тоқтатыңыз.',
   ],
   bidTitle: [
     'Respond to a customer request',
