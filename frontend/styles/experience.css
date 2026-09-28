@@ -1031,100 +1031,6 @@ a {
     font-size: 34px;
   }
 }
-.record-label {
-  display: none;
-}
-.experience-customer .workspace-panels table {
-  display: block;
-}
-.experience-customer .workspace-panels thead {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-.experience-customer .workspace-panels tbody {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-.experience-customer .workspace-panels tbody tr {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  border: 1px solid rgb(var(--stroke));
-  border-radius: 16px;
-  padding: 24px;
-  background: rgb(var(--card));
-  transition:
-    box-shadow 250ms,
-    border-color 250ms;
-}
-.experience-customer .workspace-panels tbody tr:hover {
-  border-color: rgb(var(--role-accent) / 0.6);
-  box-shadow: 0 10px 28px rgb(0 0 0/0.04);
-}
-.experience-customer .workspace-panels td {
-  padding: 0;
-  background: none;
-  border-radius: 0 !important;
-  white-space: normal;
-  font-size: 12px;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.experience-customer .workspace-panels td:first-child {
-  grid-column: 1/-1;
-  font-size: 10px;
-  color: rgb(var(--muted));
-  letter-spacing: 1px;
-}
-.experience-customer .record-label {
-  display: block;
-  color: rgb(var(--muted));
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 5px;
-  font-family: var(--if-font);
-  font-weight: 400;
-}
-.experience-customer [data-section='requests'] td:nth-child(3),
-.experience-customer [data-section='workflow'] td:nth-child(2) {
-  grid-column: 1/-1;
-  font-size: 24px;
-  letter-spacing: -0.7px;
-  line-height: 1.3;
-  order: -1;
-  padding-right: 25px;
-}
-.experience-customer [data-section='requests'] td:nth-child(7),
-.experience-customer [data-section='workflow'] td:last-child {
-  grid-column: 1/-1;
-  border-top: 1px solid rgb(var(--stroke));
-  padding-top: 15px;
-  order: 2;
-  margin-top: 4px;
-}
-.experience-customer [data-section='workflow'] td:nth-child(3) {
-  grid-column: 1/-1;
-  font-size: 10px;
-}
-.experience-customer .workspace-panels td button {
-  background: rgb(var(--panel));
-  border: 1px solid rgb(var(--stroke));
-  color: rgb(var(--text));
-  min-height: 38px;
-  padding: 8px 16px;
-}
-.experience-customer .workspace-panels td button:hover {
-  background: rgb(var(--role-accent));
-  color: rgb(var(--role-ink));
-  border-color: transparent;
-}
 .order-progress {
   display: flex;
   list-style: none;
@@ -1171,14 +1077,6 @@ a {
 }
 .order-progress [aria-current] i {
   box-shadow: 0 0 0 4px rgb(var(--role-accent) / 0.12);
-}
-@media (max-width: 900px) {
-  .experience-customer .workspace-panels tbody {
-    grid-template-columns: 1fr;
-  }
-  .experience-customer .workspace-panels tbody tr {
-    padding: 20px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2443,5 +2341,209 @@ td .guidance-hint {
 @media (max-width: 720px) {
   .optimisation-controls {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* More air in every workspace: roomier sections, rows and controls. */
+.experience-detail .surface-1 {
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+}
+.workspace-panels > section {
+  margin-bottom: 2rem;
+}
+.experience-detail .record-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+.record-table td {
+  padding: 1.1rem 0.9rem;
+  line-height: 1.5;
+}
+.record-table th {
+  padding: 0.9rem 0.9rem 0.7rem;
+}
+.table-filters {
+  gap: 0.75rem;
+  margin: 1.5rem 0 1rem;
+}
+.table-pager {
+  margin-top: 1.25rem;
+}
+.customer-order-grid {
+  gap: 1.5rem;
+}
+.overview-subhead {
+  margin: 1.5rem 0 1.25rem;
+}
+.journey-strip {
+  margin-top: 2.5rem;
+}
+
+/* Records that open: the title is the disclosure, the detail row sits under its record. */
+.record-row {
+  cursor: pointer;
+}
+.record-row.is-open td {
+  border-bottom-color: transparent;
+  background: rgb(var(--panel) / 0.5);
+}
+.record-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.record-toggle:hover span:last-child {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.record-chevron {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid rgb(var(--muted));
+  border-bottom: 2px solid rgb(var(--muted));
+  transform: translateY(-0.15rem) rotate(-45deg);
+  transition: transform 200ms var(--if-ease-out, ease-out);
+}
+.record-toggle[aria-expanded='true'] .record-chevron {
+  transform: translateY(-0.25rem) rotate(45deg);
+}
+.record-title > small {
+  margin-left: 1.05rem;
+}
+.record-detail > td {
+  padding: 0 0.9rem 1.5rem !important;
+  background: rgb(var(--panel) / 0.5);
+  border-bottom: 1px solid rgb(var(--stroke) / 0.7);
+  cursor: default;
+}
+.record-detail-body {
+  /* Detail values wrap even where table cells are kept on one line. */
+  white-space: normal;
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid rgb(var(--stroke));
+  border-radius: 12px;
+  background: rgb(var(--card));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .record-detail-body {
+    animation: record-open 260ms var(--if-ease-out, ease-out);
+  }
+}
+@keyframes record-open {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}
+.record-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 1rem 1.5rem;
+  margin: 0;
+}
+.record-facts dt {
+  color: rgb(var(--muted));
+  font-size: 0.75rem;
+}
+.record-facts > div {
+  min-width: 0;
+}
+.record-facts dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
+.record-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(var(--stroke));
+}
+.record-detail-actions .if-button {
+  min-height: 2.5rem;
+}
+.if-button.is-danger {
+  border-color: rgb(var(--danger) / 0.5);
+  color: rgb(var(--danger));
+}
+.record-edit {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  align-items: end;
+  gap: 0.75rem 1rem;
+}
+.record-edit label,
+.record-edit-field {
+  display: grid;
+  gap: 0.3rem;
+  color: rgb(var(--muted));
+  font-size: 0.8125rem;
+}
+.record-edit input,
+.record-edit textarea {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgb(var(--stroke));
+  border-radius: 10px;
+  background: rgb(var(--panel));
+  color: rgb(var(--text));
+  font: inherit;
+}
+.record-edit .record-edit-wide {
+  grid-column: 1 / -1;
+}
+.record-notice {
+  margin: 0;
+  color: rgb(var(--muted));
+  font-size: 0.875rem;
+}
+@media (max-width: 720px) {
+  .record-table tbody tr.record-detail {
+    display: block;
+    margin-top: -1.1rem;
+    padding: 0;
+    border: 1px solid rgb(var(--stroke));
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+  }
+  .record-table tbody tr.record-row.is-open {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .record-detail > td {
+    display: block;
+    padding: 0 0.75rem 0.75rem !important;
+  }
+  .record-title > small {
+    margin-left: 0;
+  }
+  .record-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* On phones the whole card is the row; tint the card, not each cell. */
+  .record-table tbody tr.record-row.is-open td {
+    background: none;
+  }
+  .record-table tbody tr.record-row.is-open {
+    background: rgb(var(--panel) / 0.5);
+  }
+  .record-detail > td,
+  .record-detail-body {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .record-detail-actions .if-button {
+    flex: 1 1 100%;
   }
 }

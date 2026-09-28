@@ -6,6 +6,9 @@ import { useModalDismiss } from '../../hooks/useModalDismiss';
 import WorkspaceExperience, { type WorkItem } from '../../components/WorkspaceExperience';
 import SignatureList from '../../components/SignatureList';
 import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
+import { orderFacts } from '../../lib/orderFacts';
 import TablePager from '../../components/TablePager';
 import { workspacePath } from '../../lib/navigation';
 import Modal from '../../components/Modal';
@@ -29,6 +32,8 @@ import {
   logout,
   me,
   signTransaction,
+  updateInventoryEntry,
+  withdrawFactoryBid,
   updateInventoryEntryStatus,
   type BootstrapAddress,
   type BootstrapCategory,
@@ -51,6 +56,8 @@ import { getLocaleFromQuery, t } from '../../lib/i18n';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 
 const TABLE_PAGE_SIZE = 5;
+// A bid can be withdrawn while its request is still open to offers.
+const WITHDRAWABLE = ['PENDING', 'PAIRING_IN_PROGRESS', 'PAUSED'];
 
 type BidModalProps = {
   request: OpenRequest;
@@ -789,6 +796,79 @@ export default function FactoryWorkspacePage() {
     </option>
   );
 
+  const demandRecords = useExpandedRecords(
+    filteredOpenRequests.map((row) => row.id),
+    TABLE_PAGE_SIZE,
+    setOpenRequestsPage
+  );
+  const bidRecords = useExpandedRecords(
+    filteredMyBids.map((bid) => bid.id),
+    TABLE_PAGE_SIZE,
+    setMyBidsPage
+  );
+  const orderRecords = useExpandedRecords(
+    filteredTransactions.map((tx) => tx.id),
+    TABLE_PAGE_SIZE,
+    setTransactionsPage
+  );
+  const stockRecords = useExpandedRecords(
+    filteredInventory.map((entry) => entry.id),
+    TABLE_PAGE_SIZE,
+    setInventoryPage
+  );
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [stockEdit, setStockEdit] = useState<{
+    id: string;
+    quantity: string;
+    price: string;
+  } | null>(null);
+
+  function openView(view: string, focus?: string, extra: Record<string, string> = {}) {
+    const { add: _add, focus: _focus, ...query } = router.query;
+    void _add;
+    void _focus;
+    void router.push(
+      {
+        pathname: router.pathname,
+        query: { ...query, view, ...(focus ? { focus } : {}), ...extra },
+      },
+      undefined,
+      { shallow: true, scroll: false }
+    );
+  }
+
+  async function withdrawBid(candidateId: string) {
+    if (busyId || !(await confirm('Withdraw my bid'))) return;
+    setBusyId(candidateId);
+    setError(null);
+    try {
+      await withdrawFactoryBid(candidateId);
+      await Promise.all([refreshBids(), refreshOpenRequests()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not withdraw the bid');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveStock(entryId: string) {
+    if (!stockEdit || busyId) return;
+    setBusyId(entryId);
+    setError(null);
+    try {
+      await updateInventoryEntry(entryId, {
+        quantity_available: Number(stockEdit.quantity),
+        price_per_unit: Number(stockEdit.price),
+      });
+      setStockEdit(null);
+      await refreshInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update the stock');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleToggleInventoryStatus(entryId: string, currentStatus: string) {
     setError(null);
     setSuccess(null);
@@ -907,42 +987,118 @@ export default function FactoryWorkspacePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedOpenRequests.map((row) => (
-                          <tr key={row.id}>
-                            <td className="record-title">
-                              {row.item_name ?? row.requested_name_text ?? '—'}
-                              <small>{row.category_name ?? ''}</small>
-                            </td>
-                            <td data-label={e('Quantity')} className="num">
-                              {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
-                              <small>{row.preferred_currency_code}</small>
-                            </td>
-                            <td data-label={e('Status')}>
-                              <StatusBadge status={row.status} />
-                              {hasFactoryBidForRequest.has(row.id) && (
-                                <small>{e('You have bid')}</small>
-                              )}
-                            </td>
-                            <td data-label={e('Placed')}>
-                              {formatDateTime(locale, row.created_at)}
-                            </td>
-                            <td className="record-actions">
-                              {inventory.length > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setBidTarget(row)}
-                                  className="if-button if-button-primary"
-                                >
-                                  {copy.actionBid}
-                                </button>
-                              ) : (
-                                <span className="text-xs text-[rgb(var(--muted))]">
-                                  {e('Add inventory first')}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {paginatedOpenRequests.map((row) => {
+                          const myBid = myBids.find(
+                            (bid) => bid.request_id === row.id && !bid.logistic_offer_id
+                          );
+                          return (
+                            <RecordRow
+                              key={row.id}
+                              id={row.id}
+                              open={demandRecords.isOpen(row.id)}
+                              onToggle={() => demandRecords.toggle(row.id)}
+                              colSpan={5}
+                              title={
+                                row.item_name ?? row.requested_name_text ?? e('Supply request')
+                              }
+                              subtitle={<small>{row.category_name ?? ''}</small>}
+                              detail={
+                                <RecordDetail
+                                  facts={[
+                                    [e('Category'), row.category_name],
+                                    [
+                                      e('Quantity'),
+                                      formatQuantityWithUnit(row.quantity, row.quantity_unit),
+                                    ],
+                                    [e('Currency'), row.preferred_currency_code],
+                                    [e('Status'), statusLabel(locale, row.status)],
+                                    [e('Placed'), formatDateTime(locale, row.created_at)],
+                                    [
+                                      e('Your bid'),
+                                      myBid
+                                        ? formatQuantityWithUnit(
+                                            myBid.quoted_quantity,
+                                            myBid.quantity_unit
+                                          )
+                                        : e('Not yet'),
+                                    ],
+                                  ]}
+                                  actions={
+                                    <>
+                                      {inventory.length > 0 ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setBidTarget(row)}
+                                          className="if-button if-button-primary"
+                                        >
+                                          {myBid ? e('Bid with other stock') : copy.actionBid}
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openView('inventory', undefined, { add: '1' })
+                                          }
+                                          className="if-button if-button-primary"
+                                        >
+                                          {e('Add inventory first')}
+                                        </button>
+                                      )}
+                                      {myBid && (
+                                        <button
+                                          type="button"
+                                          className="if-button"
+                                          onClick={() => openView('bids', myBid.id)}
+                                        >
+                                          {e('See my bid')}
+                                        </button>
+                                      )}
+                                      {myBid && myBid.status === 'PENDING' && (
+                                        <button
+                                          type="button"
+                                          className="if-button is-danger"
+                                          disabled={busyId !== null}
+                                          onClick={() => void withdrawBid(myBid.id)}
+                                        >
+                                          {e('Withdraw my bid')}
+                                        </button>
+                                      )}
+                                    </>
+                                  }
+                                />
+                              }
+                            >
+                              <td data-label={e('Quantity')} className="num">
+                                {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                                <small>{row.preferred_currency_code}</small>
+                              </td>
+                              <td data-label={e('Status')}>
+                                <StatusBadge status={row.status} />
+                                {hasFactoryBidForRequest.has(row.id) && (
+                                  <small>{e('You have bid')}</small>
+                                )}
+                              </td>
+                              <td data-label={e('Placed')}>
+                                {formatDateTime(locale, row.created_at)}
+                              </td>
+                              <td className="record-actions">
+                                {inventory.length > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setBidTarget(row)}
+                                    className="if-button if-button-primary"
+                                  >
+                                    {copy.actionBid}
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-[rgb(var(--muted))]">
+                                    {e('Add inventory first')}
+                                  </span>
+                                )}
+                              </td>
+                            </RecordRow>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1030,8 +1186,80 @@ export default function FactoryWorkspacePage() {
                       </thead>
                       <tbody>
                         {paginatedMyBids.map((bid) => (
-                          <tr key={bid.id}>
-                            <td className="record-title">{bid.item_name ?? '—'}</td>
+                          <RecordRow
+                            key={bid.id}
+                            id={bid.id}
+                            open={bidRecords.isOpen(bid.id)}
+                            onToggle={() => bidRecords.toggle(bid.id)}
+                            colSpan={5}
+                            title={bid.item_name ?? '—'}
+                            subtitle={
+                              bid.logist_legal_name ? (
+                                <small>{bid.logist_legal_name}</small>
+                              ) : undefined
+                            }
+                            detail={
+                              <RecordDetail
+                                facts={[
+                                  [e('Request'), statusLabel(locale, bid.request_status)],
+                                  [
+                                    e('Your offer'),
+                                    formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit),
+                                  ],
+                                  [
+                                    e('Price per unit'),
+                                    formatMoney(
+                                      locale,
+                                      bid.inventory_price_per_unit,
+                                      bid.currency_code
+                                    ),
+                                  ],
+                                  [e('Pickup'), bid.source_address_label],
+                                  [e('Destination'), bid.destination_address_label],
+                                  [e('Your note'), bid.factory_note],
+                                  [
+                                    e('Carrier'),
+                                    bid.logist_legal_name ?? e('Waiting for delivery quote'),
+                                  ],
+                                  [
+                                    e('Delivery'),
+                                    bid.logistic_offer_id
+                                      ? `${formatMoney(locale, bid.delivery_price, bid.currency_code)} · ${bid.delivery_days} ${e('days')}`
+                                      : null,
+                                  ],
+                                  [
+                                    e('Total'),
+                                    bid.total_cost
+                                      ? formatMoney(locale, bid.total_cost, bid.currency_code)
+                                      : null,
+                                  ],
+                                  [e('Placed'), formatDateTime(locale, bid.created_at)],
+                                ]}
+                                actions={
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="if-button"
+                                      onClick={() => openView('requests', bid.request_id)}
+                                    >
+                                      {e('View the request')}
+                                    </button>
+                                    {bid.status === 'PENDING' &&
+                                      WITHDRAWABLE.includes(bid.request_status ?? '') && (
+                                        <button
+                                          type="button"
+                                          className="if-button is-danger"
+                                          disabled={busyId !== null}
+                                          onClick={() => void withdrawBid(bid.id)}
+                                        >
+                                          {e('Withdraw my bid')}
+                                        </button>
+                                      )}
+                                  </>
+                                }
+                              />
+                            }
+                          >
                             <td data-label={e('Your offer')} className="num">
                               {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
                               <small>
@@ -1065,7 +1293,7 @@ export default function FactoryWorkspacePage() {
                             <td data-label={e('Status')}>
                               <StatusBadge status={bid.status} />
                             </td>
-                          </tr>
+                          </RecordRow>
                         ))}
                       </tbody>
                     </table>
@@ -1147,12 +1375,62 @@ export default function FactoryWorkspacePage() {
                         {paginatedTransactions.map((tx) => {
                           const canAct =
                             tx.can_sign || tx.can_start_fulfillment || tx.can_mark_in_progress;
+                          const actions = (
+                            <>
+                              {tx.can_sign && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                  disabled={workflowBusyId === tx.id + 'SIGN'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'SIGN' ? e('Signing…') : e('Sign')}
+                                </button>
+                              )}
+                              {tx.can_start_fulfillment && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'START')}
+                                  disabled={workflowBusyId === tx.id + 'START'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'START'
+                                    ? e('Submitting…')
+                                    : e('Given to logist')}
+                                </button>
+                              )}
+                              {tx.can_mark_in_progress && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
+                                  }
+                                  disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
+                                    ? e('Updating…')
+                                    : e('Mark in delivery')}
+                                </button>
+                              )}
+                            </>
+                          );
                           return (
-                            <tr key={tx.id}>
-                              <td className="record-title">
-                                {tx.item_name ?? '—'}
-                                <small className="font-mono">{tx.id.slice(0, 8)}</small>
-                              </td>
+                            <RecordRow
+                              key={tx.id}
+                              id={tx.id}
+                              open={orderRecords.isOpen(tx.id)}
+                              onToggle={() => orderRecords.toggle(tx.id)}
+                              colSpan={4}
+                              title={tx.item_name ?? e('Order')}
+                              subtitle={<small className="font-mono">{tx.id.slice(0, 8)}</small>}
+                              detail={
+                                <RecordDetail
+                                  facts={orderFacts(tx, e, locale)}
+                                  actions={canAct ? actions : undefined}
+                                />
+                              }
+                            >
                               <td data-label={e('Status')}>
                                 <StatusBadge status={tx.status} />
                                 <small>
@@ -1165,44 +1443,7 @@ export default function FactoryWorkspacePage() {
                               <td className="record-actions record-next">
                                 <OrderGuidance transaction={tx} />
                                 <div className="flex flex-wrap gap-2">
-                                  {tx.can_sign && (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                      disabled={workflowBusyId === tx.id + 'SIGN'}
-                                      className="if-button if-button-primary"
-                                    >
-                                      {workflowBusyId === tx.id + 'SIGN'
-                                        ? e('Signing…')
-                                        : e('Sign')}
-                                    </button>
-                                  )}
-                                  {tx.can_start_fulfillment && (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleWorkflowAction(tx.id, 'START')}
-                                      disabled={workflowBusyId === tx.id + 'START'}
-                                      className="if-button if-button-primary"
-                                    >
-                                      {workflowBusyId === tx.id + 'START'
-                                        ? e('Submitting…')
-                                        : e('Given to logist')}
-                                    </button>
-                                  )}
-                                  {tx.can_mark_in_progress && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
-                                      }
-                                      disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                      className="if-button if-button-primary"
-                                    >
-                                      {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
-                                        ? e('Updating…')
-                                        : e('Mark in delivery')}
-                                    </button>
-                                  )}
+                                  {actions}
                                   {!canAct && tx.status !== 'COMPLETED' && (
                                     <span className="text-xs text-[rgb(var(--muted))]">
                                       {e('Awaiting others')}
@@ -1210,7 +1451,7 @@ export default function FactoryWorkspacePage() {
                                   )}
                                 </div>
                               </td>
-                            </tr>
+                            </RecordRow>
                           );
                         })}
                       </tbody>
@@ -1534,8 +1775,135 @@ export default function FactoryWorkspacePage() {
                           </thead>
                           <tbody>
                             {paginatedInventory.map((entry) => (
-                              <tr key={entry.id}>
-                                <td className="record-title">{entry.item_name}</td>
+                              <RecordRow
+                                key={entry.id}
+                                id={entry.id}
+                                open={stockRecords.isOpen(entry.id)}
+                                onToggle={() => stockRecords.toggle(entry.id)}
+                                colSpan={5}
+                                title={entry.item_name}
+                                detail={
+                                  <RecordDetail
+                                    facts={[
+                                      [
+                                        e('Available'),
+                                        formatQuantityWithUnit(
+                                          entry.quantity_available,
+                                          entry.unit
+                                        ),
+                                      ],
+                                      [
+                                        e('Price per unit'),
+                                        formatMoney(
+                                          locale,
+                                          entry.price_per_unit,
+                                          entry.currency_code
+                                        ),
+                                      ],
+                                      [e('Status'), statusLabel(locale, entry.status)],
+                                      [e('Added'), formatDateTime(locale, entry.created_at)],
+                                      [
+                                        e('Open bids'),
+                                        myBids.filter(
+                                          (bid) =>
+                                            bid.inventory_entry_id === entry.id &&
+                                            bid.status === 'PENDING' &&
+                                            !bid.logistic_offer_id
+                                        ).length,
+                                      ],
+                                    ]}
+                                    actions={
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="if-button"
+                                          aria-expanded={stockEdit?.id === entry.id}
+                                          onClick={() =>
+                                            setStockEdit(
+                                              stockEdit?.id === entry.id
+                                                ? null
+                                                : {
+                                                    id: entry.id,
+                                                    quantity: entry.quantity_available,
+                                                    price: entry.price_per_unit,
+                                                  }
+                                            )
+                                          }
+                                        >
+                                          {e('Edit')}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={inventoryStatusBusyId === entry.id}
+                                          onClick={() =>
+                                            void handleToggleInventoryStatus(entry.id, entry.status)
+                                          }
+                                          className="if-button"
+                                        >
+                                          {entry.status === 'ACTIVE'
+                                            ? copy.actionPause
+                                            : copy.actionActivate}
+                                        </button>
+                                      </>
+                                    }
+                                  >
+                                    {stockEdit?.id === entry.id && (
+                                      <form
+                                        className="record-edit"
+                                        onSubmit={(event) => {
+                                          event.preventDefault();
+                                          void saveStock(entry.id);
+                                        }}
+                                      >
+                                        <label>
+                                          {e('Available')} ({entry.unit ?? 'pcs'})
+                                          <input
+                                            type="number"
+                                            min="0.01"
+                                            step="any"
+                                            required
+                                            value={stockEdit.quantity}
+                                            onChange={(event) =>
+                                              setStockEdit({
+                                                ...stockEdit,
+                                                quantity: event.target.value,
+                                              })
+                                            }
+                                          />
+                                        </label>
+                                        <label>
+                                          {e('Price per unit')} ({entry.currency_code})
+                                          <input
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            required
+                                            value={stockEdit.price}
+                                            onChange={(event) =>
+                                              setStockEdit({
+                                                ...stockEdit,
+                                                price: event.target.value,
+                                              })
+                                            }
+                                          />
+                                        </label>
+                                        <button
+                                          type="submit"
+                                          className="if-button if-button-primary"
+                                          disabled={busyId !== null}
+                                        >
+                                          {e('Save changes')}
+                                        </button>
+                                        <p className="record-notice record-edit-wide">
+                                          {e(
+                                            'The price is locked while open bids use this stock; the quantity can always change.'
+                                          )}
+                                        </p>
+                                      </form>
+                                    )}
+                                  </RecordDetail>
+                                }
+                              >
                                 <td data-label={e('Available')} className="num">
                                   {formatQuantityWithUnit(entry.quantity_available, entry.unit)}
                                 </td>
@@ -1561,7 +1929,7 @@ export default function FactoryWorkspacePage() {
                                         : copy.actionActivate}
                                   </button>
                                 </td>
-                              </tr>
+                              </RecordRow>
                             ))}
                           </tbody>
                         </table>

@@ -134,9 +134,10 @@ export default function WorkspaceExperience({
   }, [view]);
   function navigate(next: string, extra: Record<string, string> = {}) {
     setNavigationOpen(false);
-    // `add` only asks the inventory view to open its form once; never carry it along.
-    const { add: _add, ...rest } = router.query;
+    // `add` (open a form) and `focus` (open a record) apply once; never carry them along.
+    const { add: _add, focus: _focus, ...rest } = router.query;
     void _add;
+    void _focus;
     const query = { ...rest, view: next, ...extra };
     void router.push({ pathname: router.pathname, query }, undefined, {
       shallow: true,
@@ -210,7 +211,9 @@ export default function WorkspaceExperience({
                           ? 'requests'
                           : role === 'logist'
                             ? 'workflow'
-                            : 'operations')
+                            : 'operations'),
+                    // Land on this record, opened.
+                    { focus: item.id }
                   ))
               }
             >
@@ -416,7 +419,7 @@ export default function WorkspaceExperience({
                       </div>
                       {[
                         ['Pending', ['PENDING']],
-                        ['Matching', ['PAIRING_IN_PROGRESS', 'MATCHED']],
+                        ['Matching', ['PAIRING_IN_PROGRESS', 'PAUSED', 'MATCHED']],
                         [
                           'Execution',
                           [

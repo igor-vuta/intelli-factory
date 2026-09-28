@@ -37,7 +37,8 @@ export function formatQuantityWithUnit(
 }
 
 /** A timestamp in the reader's language and time zone, e.g. "28 Sept 2026, 14:05". */
-export function formatDateTime(locale: string, value: string | Date): string {
+export function formatDateTime(locale: string, value: string | Date | null | undefined): string {
+  if (!value) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);

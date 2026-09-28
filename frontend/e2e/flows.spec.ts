@@ -225,6 +225,8 @@ test('failed cancellation is visible and the action can be retried', async ({ pa
   );
   await page.goto('/app/customer');
   await page.getByRole('button', { name: 'My requests', exact: false }).click();
+  // Actions live inside the opened request.
+  await page.getByRole('button', { name: 'Steel', exact: true }).click();
   const cancel = page.getByRole('button', { name: /cancel/i });
   await cancel.click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
@@ -1097,5 +1099,125 @@ test('admin comparison plots the real pool, marks each pick and says when Deep m
   await page.getByRole('tab', { name: 'Fast' }).click();
   await expect(page.getByRole('tab', { name: 'Fast' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('tabpanel').locator('tbody tr')).toHaveCount(2);
+  await noOverflow(page);
+});
+
+test('a customer opens a request from the overview and edits, pauses and deletes it', async ({
+  page,
+}) => {
+  await mockApi(page);
+  const request = {
+    id: 'request-9',
+    item_name: 'Copper wire',
+    category_name: 'Metal',
+    quantity: '40',
+    quantity_unit: 'kg',
+    preferred_currency_code: 'KZT',
+    status: 'PENDING',
+    created_at: '2026-09-14T00:00:00Z',
+  };
+  await page.route('**/api/requests/', (route) => route.fulfill({ json: [request] }));
+  const calls: string[] = [];
+  await page.route('**/api/requests/request-9**', async (route) => {
+    const req = route.request();
+    calls.push(`${req.method()} ${new URL(req.url()).pathname} ${req.postData() ?? ''}`.trim());
+    await route.fulfill({ json: { status: 'success', message: 'ok' } });
+  });
+
+  // The overview card lands on the request, already open.
+  await page.goto('/app/customer?lang=en');
+  await page.locator('.work-card').filter({ hasText: 'Copper wire' }).getByRole('button').click();
+  await expect(page).toHaveURL(/view=requests/);
+  const toggle = page.getByRole('button', { name: 'Copper wire', exact: true });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const detail = page.locator('.record-detail');
+  await expect(detail).toContainText('Waiting for the first factory to bid.');
+
+  await detail.getByRole('button', { name: 'Edit', exact: true }).click();
+  await detail.getByLabel(/Quantity/).fill('55');
+  await detail.getByRole('button', { name: 'Save changes' }).click();
+  await expect.poll(() => calls.find((c) => c.startsWith('PATCH'))).toContain('"quantity":55');
+
+  await detail.getByRole('button', { name: 'Stop searching' }).click();
+  await expect.poll(() => calls).toContain('POST /api/requests/request-9/pause');
+
+  await detail.getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect.poll(() => calls).toContain('DELETE /api/requests/request-9');
+
+  // Clicking the row itself (not a control) closes it again.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await noOverflow(page);
+});
+
+test('a factory withdraws a bid and a carrier edits and pauses a delivery service', async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  const record = async (route: import('@playwright/test').Route) => {
+    const req = route.request();
+    calls.push(`${req.method()} ${new URL(req.url()).pathname} ${req.postData() ?? ''}`.trim());
+    await route.fulfill({ json: { status: 'success', message: 'ok' } });
+  };
+
+  await mockApi(page, 'FACTORY');
+  await page.route('**/api/pairing/factory-bids/mine', (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...offer('bid-1', 'Steel works', null, null, null, 'KZT'),
+          item_name: 'Steel',
+          logistic_offer_id: null,
+          logist_legal_name: null,
+          request_status: 'PAIRING_IN_PROGRESS',
+          source_address_label: 'Almaty',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/factory-bids/bid-1', record);
+  await page.goto('/app/factory?view=bids&lang=en');
+  await page.getByRole('button', { name: 'Steel', exact: true }).click();
+  const bidDetail = page.locator('.record-detail');
+  await expect(bidDetail).toContainText('Pickup');
+  await bidDetail.getByRole('button', { name: 'Withdraw my bid' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect.poll(() => calls).toContain('DELETE /api/pairing/factory-bids/bid-1');
+
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await mockApi(page, 'LOGIST');
+  await page.route('**/api/requests/logistic-offers/mine', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'offer-1',
+          title: 'City courier',
+          description: null,
+          base_price: '50',
+          currency_code: 'KZT',
+          estimated_days_min: 1,
+          estimated_days_max: 3,
+          reliability_score: 0.9,
+          status: 'ACTIVE',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/requests/logistic-offers/offer-1**', record);
+  await page.goto('/app/logist?view=offers&lang=en');
+  await page.getByRole('button', { name: 'City courier', exact: true }).click();
+  const offerDetail = page.locator('.record-detail');
+  await offerDetail.getByRole('button', { name: 'Edit', exact: true }).click();
+  await offerDetail.getByLabel(/Base price/).fill('65');
+  await offerDetail.getByRole('button', { name: 'Save changes' }).click();
+  await expect
+    .poll(() => calls.find((c) => c.startsWith('PATCH /api/requests/logistic-offers/offer-1 ')))
+    .toContain('"base_price":65');
+  await offerDetail.getByRole('button', { name: 'Pause the service' }).click();
+  await expect
+    .poll(() => calls)
+    .toContain('PATCH /api/requests/logistic-offers/offer-1/status {"status":"PAUSED"}');
   await noOverflow(page);
 });

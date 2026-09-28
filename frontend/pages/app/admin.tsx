@@ -1,5 +1,7 @@
 import SelectField from '../../components/SelectField';
 import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
 import TablePager from '../../components/TablePager';
 import TradeoffPlot from '../../components/TradeoffPlot';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
@@ -287,6 +289,12 @@ export default function AdminWorkspacePage() {
     if (requestsPage > requestsTotalPages) setRequestsPage(requestsTotalPages);
   }, [requestsPage, requestsTotalPages]);
 
+  const requestRecords = useExpandedRecords(
+    filteredRequests.map((row) => row.id),
+    REQUESTS_PAGE_SIZE,
+    setRequestsPage
+  );
+
   const STRATEGIES = [
     {
       key: 'greedy',
@@ -428,11 +436,51 @@ export default function AdminWorkspacePage() {
                       </thead>
                       <tbody>
                         {paginatedRequests.map((row) => (
-                          <tr key={row.id}>
-                            <td className="record-title">
-                              {requestName(row)}
-                              <small className="font-mono">{row.id.slice(0, 8)}</small>
-                            </td>
+                          <RecordRow
+                            key={row.id}
+                            id={row.id}
+                            open={requestRecords.isOpen(row.id)}
+                            onToggle={() => requestRecords.toggle(row.id)}
+                            colSpan={5}
+                            title={requestName(row)}
+                            subtitle={<small className="font-mono">{row.id.slice(0, 8)}</small>}
+                            detail={
+                              <RecordDetail
+                                facts={[
+                                  [e('Reference'), <code key="ref">{row.id}</code>],
+                                  [
+                                    e('Customer'),
+                                    <code key="customer">{row.customer_profile_id}</code>,
+                                  ],
+                                  [e('Category'), row.category_name],
+                                  [
+                                    e('Quantity'),
+                                    formatQuantityWithUnit(row.quantity, row.quantity_unit),
+                                  ],
+                                  [e('Currency'), row.preferred_currency_code],
+                                  [e('Status'), statusLabel(locale, row.status)],
+                                  [e('Created'), formatDateTime(locale, row.created_at)],
+                                ]}
+                                actions={
+                                  row.status === 'PAIRING_IN_PROGRESS' ? (
+                                    <button
+                                      type="button"
+                                      className="if-button if-button-primary"
+                                      onClick={() => {
+                                        setSelectedRequestId(row.id);
+                                        setCompareData(null);
+                                        document
+                                          .getElementById('optimization')
+                                          ?.scrollIntoView({ block: 'start' });
+                                      }}
+                                    >
+                                      {e('Compare strategies')}
+                                    </button>
+                                  ) : undefined
+                                }
+                              />
+                            }
+                          >
                             <td data-label={e('Customer')} className="font-mono text-xs">
                               {row.customer_profile_id.slice(0, 8)}
                             </td>
@@ -446,7 +494,7 @@ export default function AdminWorkspacePage() {
                             <td data-label={e('Created')}>
                               {formatDateTime(locale, row.created_at)}
                             </td>
-                          </tr>
+                          </RecordRow>
                         ))}
                       </tbody>
                     </table>

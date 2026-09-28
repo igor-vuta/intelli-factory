@@ -5,6 +5,10 @@ import { dissolve } from '../../lib/dissolve';
 import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import ProposalExplorer from '../../components/ProposalExplorer';
 import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import SignatureList from '../../components/SignatureList';
+import TablePager from '../../components/TablePager';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import OrderProgress from '../../components/OrderProgress';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -35,6 +39,10 @@ import {
   signTransaction,
   selectCandidate,
   updateRequestStatus,
+  updateRequest,
+  pauseRequest,
+  resumeRequest,
+  deleteRequest,
   type BootstrapAddress,
   type BootstrapCategory,
   type BootstrapCountry,
@@ -51,8 +59,33 @@ import {
   formatQuantityWithUnit,
 } from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
+import { orderFacts } from '../../lib/orderFacts';
 
 const REQUESTS_PAGE_SIZE = 5;
+
+// What a customer can do with a request, by status (the API enforces the same rules).
+const SEARCHING_STATUSES = ['PENDING', 'PAIRING_IN_PROGRESS'];
+const PROPOSAL_STATUSES = ['PAIRING_IN_PROGRESS', 'MATCHED', 'PAUSED'];
+const EDITABLE_STATUSES = ['PENDING', 'PAUSED'];
+const CANCELLABLE_STATUSES = [...SEARCHING_STATUSES, 'PAUSED', 'MATCHED'];
+const DELETABLE_STATUSES = ['PENDING', 'CANCELLED'];
+
+function requestExplanation(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return 'Waiting for the first factory to bid.';
+    case 'PAIRING_IN_PROGRESS':
+      return 'Factories have bid; complete proposals appear once a carrier quotes.';
+    case 'PAUSED':
+      return 'Paused: no new bids or quotes until you resume searching.';
+    case 'CANCELLED':
+      return 'Cancelled. You can delete it from your list.';
+    case 'COMPLETED':
+      return 'Delivered and accepted.';
+    default:
+      return 'A proposal was chosen; this request continues as an order.';
+  }
+}
 
 /** The one action a request card offers, matching where the order is in its lifecycle. */
 function nextStep(status: string): { actionLabel: string; actionView?: string } {
@@ -905,7 +938,6 @@ export default function CustomerWorkspacePage() {
     setPageError(null);
     try {
       await updateRequestStatus(requestId, 'CANCELLED');
-      await dissolve(document.getElementById(`request-${requestId}`));
       await refreshRequests();
     } catch (cause) {
       setPageError(
@@ -913,6 +945,56 @@ export default function CustomerWorkspacePage() {
       );
     } finally {
       setCancellingRequest(null);
+    }
+  }
+
+  const [editing, setEditing] = useState<{ id: string; quantity: string; currency: string } | null>(
+    null
+  );
+  const [requestBusy, setRequestBusy] = useState<string | null>(null);
+  const requestRecords = useExpandedRecords(
+    filteredRequests.map((row) => row.id),
+    REQUESTS_PAGE_SIZE,
+    setRequestsPage
+  );
+  const orderRecords = useExpandedRecords(
+    transactions.map((tx) => tx.id),
+    REQUESTS_PAGE_SIZE,
+    setTransactionsPage
+  );
+
+  function openView(view: string, focus: string) {
+    void router.push(
+      { pathname: router.pathname, query: { ...router.query, view, focus } },
+      undefined,
+      {
+        shallow: true,
+        scroll: false,
+      }
+    );
+  }
+
+  /** Runs one request action, confirming the destructive ones; true when it succeeded. */
+  async function runRequestAction(
+    requestId: string,
+    action: string,
+    call: () => Promise<unknown>,
+    confirmLabel?: string
+  ) {
+    if (requestBusy) return false;
+    if (confirmLabel && !(await confirm(confirmLabel))) return false;
+    setRequestBusy(`${requestId}:${action}`);
+    setPageError(null);
+    try {
+      await call();
+      if (action === 'delete') await dissolve(document.getElementById(`record-${requestId}`));
+      await refreshRequests();
+      return true;
+    } catch (cause) {
+      setPageError(cause instanceof Error ? cause.message : 'Could not update the request.');
+      return false;
+    } finally {
+      setRequestBusy(null);
     }
   }
 
@@ -947,410 +1029,511 @@ export default function CustomerWorkspacePage() {
         title: row.item_name ?? row.requested_name_text ?? row.category_name ?? 'Supply request',
         status: row.status,
         detail: `${row.quantity} ${row.quantity_unit} · ${row.preferred_currency_code}`,
+        ...nextStep(row.status),
         action: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
           ? () => void openProposals(row.id)
-          : undefined,
-        ...nextStep(row.status),
+          : // Contract-stage cards open the order itself, not just the orders list.
+            (() => {
+              const order = transactions.find((tx) => tx.request_id === row.id);
+              return order ? () => openView('workflow', order.id) : undefined;
+            })(),
       }))}
       onLogout={handleLogout}
       onCreate={() => setShowModal(true)}
     >
       <div className="workspace-panels">
         <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="section-heading-row">
             <div>
-              <h2 id="requests" className="slide-up text-2xl font-semibold sm:text-3xl">
+              <h2 id="requests" className="text-lg font-semibold">
                 {copy.myRequestsTitle}
               </h2>
-              <p className="mt-1 text-sm text-[rgb(var(--muted))]">{copy.myRequestsSubtitle}</p>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
+                {e('Open a request to see its details and everything you can do with it.')}
+              </p>
             </div>
             {!loading && (
               <button
                 type="button"
                 onClick={() => setShowModal(true)}
-                className="btn btn-primary text-sm"
+                className="if-button if-button-primary"
               >
                 {copy.newRequestAction}
               </button>
             )}
           </div>
 
-          {loading && <p className="mt-6 text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
-
-          {!loading && (
-            <div className="mt-6">
-              {requests.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[rgb(var(--stroke))] py-14 text-center">
-                  <p className="text-sm text-[rgb(var(--muted))]">No requests yet.</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(true)}
-                    className="btn btn-primary mt-4 text-sm"
-                  >
-                    Create your first request
-                  </button>
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[rgb(var(--stroke))] py-10 text-center">
-                  <p className="text-sm text-[rgb(var(--muted))]">
-                    No requests match your current filters.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRequestSearch('');
-                      setRequestStatusFilter('ALL');
-                      setRequestCurrencyFilter('ALL');
-                    }}
-                    className="btn btn-ghost mt-3 text-sm"
-                  >
-                    Clear filters
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-                    <input
-                      value={requestSearch}
-                      onChange={(e) => setRequestSearch(e.target.value)}
-                      placeholder="Search by name/category/id"
-                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm lg:col-span-2"
-                    />
-                    <SelectField
-                      aria-label="Status"
-                      value={requestStatusFilter}
-                      onChange={(e) => setRequestStatusFilter(e.target.value)}
-                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    >
-                      <option value="ALL">All statuses</option>
-                      {requestStatusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </SelectField>
-                    <SelectField
-                      aria-label="Currency"
-                      value={requestCurrencyFilter}
-                      onChange={(e) => setRequestCurrencyFilter(e.target.value)}
-                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    >
-                      <option value="ALL">All currencies</option>
-                      {requestCurrencyOptions.map((currency) => (
-                        <option key={currency} value={currency}>
-                          {currency}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </div>
-
-                  <div
-                    className="overflow-x-auto"
-                    tabIndex={0}
-                    role="region"
-                    aria-label={copy.myRequestsTitle}
-                  >
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-4">{copy.colId}</th>
-                          <th className="py-2 pr-4">{copy.colCategory}</th>
-                          <th className="py-2 pr-4">{copy.colItemDescription}</th>
-                          <th className="py-2 pr-4">{copy.colQty}</th>
-                          <th className="py-2 pr-4">{copy.colCurrency}</th>
-                          <th className="py-2 pr-4">{copy.colStatus}</th>
-                          <th className="py-2 pr-4">{copy.colAction}</th>
-                          <th className="py-2">{copy.colCreated}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedRequests.map((row) => (
-                          <tr
-                            id={`request-${row.id}`}
-                            key={row.id}
-                            className="border-b border-[rgb(var(--stroke))]/40"
-                          >
-                            <td className="py-2 pr-4 font-mono text-xs">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Reference')}{' '}
-                              </span>
-                              {row.id.slice(0, 8)}…
-                            </td>
-                            <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Category')}{' '}
-                              </span>
-                              {row.category_name ?? '\u2014'}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Item')}{' '}
-                              </span>
-                              {row.item_name ?? row.requested_name_text ?? '\u2014'}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Quantity')}{' '}
-                              </span>
-                              {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                Currency
-                              </span>
-                              {row.preferred_currency_code}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Status')}{' '}
-                              </span>
-                              <StatusBadge status={row.status} />
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Next step')}{' '}
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {row.status === 'PENDING' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleCancelRequest(row.id)}
-                                    disabled={cancellingRequest !== null}
-                                    className="rounded-md border border-danger/40 px-2 py-1 text-xs text-danger hover:bg-danger/10"
-                                  >
-                                    {copy.cancelRequest}
-                                  </button>
-                                )}
-                                {(row.status === 'PAIRING_IN_PROGRESS' ||
-                                  row.status === 'MATCHED') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void openProposals(row.id)}
-                                    className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10"
-                                  >
-                                    {copy.viewProposals}
-                                  </button>
-                                )}
-                                {row.status !== 'PENDING' &&
-                                  row.status !== 'PAIRING_IN_PROGRESS' &&
-                                  row.status !== 'MATCHED' && (
-                                    <span className="text-xs text-[rgb(var(--muted))]">-</span>
-                                  )}
-                              </div>
-                            </td>
-                            <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Created')}{' '}
-                              </span>
-                              {formatDateTime(locale, row.created_at)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <span>
-                      Showing {(requestsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                      {' - '}
-                      {Math.min(requestsPage * REQUESTS_PAGE_SIZE, filteredRequests.length)} of{' '}
-                      {filteredRequests.length}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={requestsPage <= 1}
-                        onClick={() => setRequestsPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <span>
-                        Page {requestsPage} / {totalRequestPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={requestsPage >= totalRequestPages}
-                        onClick={() =>
-                          setRequestsPage((prev) => Math.min(totalRequestPages, prev + 1))
-                        }
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+          {loading && (
+            <p className="mt-6 text-sm text-[rgb(var(--muted))]">{e('Loading workspace…')}</p>
           )}
+
+          {!loading &&
+            (requests.length === 0 ? (
+              <div className="mt-6 rounded-xl border border-dashed border-[rgb(var(--stroke))] py-14 text-center">
+                <p className="text-sm text-[rgb(var(--muted))]">{e('No requests yet.')}</p>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(true)}
+                  className="if-button if-button-primary mt-4"
+                >
+                  {e('Create your first request')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="table-filters">
+                  <input
+                    type="search"
+                    aria-label={e('Search item, category or reference')}
+                    value={requestSearch}
+                    onChange={(e) => setRequestSearch(e.target.value)}
+                    placeholder={e('Search item, category or reference')}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  />
+                  <SelectField
+                    aria-label="Status"
+                    value={requestStatusFilter}
+                    onChange={(e) => setRequestStatusFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">{e('All statuses')}</option>
+                    {requestStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <SelectField
+                    aria-label={e('Currency')}
+                    value={requestCurrencyFilter}
+                    onChange={(e) => setRequestCurrencyFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">{e('All currencies')}</option>
+                    {requestCurrencyOptions.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </SelectField>
+                </div>
+
+                {filteredRequests.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[rgb(var(--stroke))] py-10 text-center">
+                    <p className="text-sm text-[rgb(var(--muted))]">
+                      {e('No requests match your current filters.')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequestSearch('');
+                        setRequestStatusFilter('ALL');
+                        setRequestCurrencyFilter('ALL');
+                      }}
+                      className="if-button mt-3"
+                    >
+                      {e('Clear filters')}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className="record-scroll"
+                      tabIndex={0}
+                      role="region"
+                      aria-label={copy.myRequestsTitle}
+                    >
+                      <table className="record-table">
+                        <thead>
+                          <tr>
+                            <th>{e('Item')}</th>
+                            <th>{e('Quantity')}</th>
+                            <th>{e('Status')}</th>
+                            <th>{e('Created')}</th>
+                            <th>
+                              <span className="sr-only">{e('Next step')}</span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedRequests.map((row) => {
+                            const order = transactions.find((tx) => tx.request_id === row.id);
+                            const hasProposals = PROPOSAL_STATUSES.includes(row.status);
+                            const busy = requestBusy?.startsWith(row.id) ?? false;
+                            return (
+                              <RecordRow
+                                key={row.id}
+                                id={row.id}
+                                open={requestRecords.isOpen(row.id)}
+                                onToggle={() => requestRecords.toggle(row.id)}
+                                colSpan={5}
+                                title={
+                                  row.item_name ?? row.requested_name_text ?? e('Supply request')
+                                }
+                                subtitle={<small>{row.category_name ?? ''}</small>}
+                                detail={
+                                  <RecordDetail
+                                    facts={[
+                                      [e('Status'), e(requestExplanation(row.status))],
+                                      [e('Reference'), <code key="ref">{row.id.slice(0, 8)}</code>],
+                                      [e('Category'), row.category_name],
+                                      [
+                                        e('Quantity'),
+                                        formatQuantityWithUnit(row.quantity, row.quantity_unit),
+                                      ],
+                                      [e('Currency'), row.preferred_currency_code],
+                                      [e('Created'), formatDateTime(locale, row.created_at)],
+                                    ]}
+                                    actions={
+                                      <>
+                                        {hasProposals && (
+                                          <button
+                                            type="button"
+                                            className="if-button if-button-primary"
+                                            onClick={() => void openProposals(row.id)}
+                                          >
+                                            {e('Compare proposals')}
+                                          </button>
+                                        )}
+                                        {order && (
+                                          <button
+                                            type="button"
+                                            className="if-button if-button-primary"
+                                            onClick={() => openView('workflow', order.id)}
+                                          >
+                                            {e('Open the order')}
+                                          </button>
+                                        )}
+                                        {EDITABLE_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            className="if-button"
+                                            aria-expanded={editing?.id === row.id}
+                                            onClick={() =>
+                                              setEditing(
+                                                editing?.id === row.id
+                                                  ? null
+                                                  : {
+                                                      id: row.id,
+                                                      quantity: row.quantity,
+                                                      currency: row.preferred_currency_code,
+                                                    }
+                                              )
+                                            }
+                                          >
+                                            {e('Edit')}
+                                          </button>
+                                        )}
+                                        {SEARCHING_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            className="if-button"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void runRequestAction(row.id, 'pause', () =>
+                                                pauseRequest(row.id)
+                                              )
+                                            }
+                                          >
+                                            {e('Stop searching')}
+                                          </button>
+                                        )}
+                                        {row.status === 'PAUSED' && (
+                                          <button
+                                            type="button"
+                                            className="if-button"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void runRequestAction(row.id, 'resume', () =>
+                                                resumeRequest(row.id)
+                                              )
+                                            }
+                                          >
+                                            {e('Resume searching')}
+                                          </button>
+                                        )}
+                                        {CANCELLABLE_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => void handleCancelRequest(row.id)}
+                                            disabled={cancellingRequest !== null}
+                                            className="if-button is-danger"
+                                          >
+                                            {copy.cancelRequest}
+                                          </button>
+                                        )}
+                                        {DELETABLE_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            className="if-button is-danger"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void runRequestAction(
+                                                row.id,
+                                                'delete',
+                                                () => deleteRequest(row.id),
+                                                'Delete request'
+                                              )
+                                            }
+                                          >
+                                            {e('Delete')}
+                                          </button>
+                                        )}
+                                      </>
+                                    }
+                                  >
+                                    {editing?.id === row.id && (
+                                      <form
+                                        className="record-edit"
+                                        onSubmit={(event) => {
+                                          event.preventDefault();
+                                          void runRequestAction(row.id, 'edit', () =>
+                                            updateRequest(row.id, {
+                                              quantity: Number(editing.quantity),
+                                              preferred_currency_code: editing.currency,
+                                            })
+                                          ).then((ok) => ok && setEditing(null));
+                                        }}
+                                      >
+                                        <label>
+                                          {e('Quantity')} ({row.quantity_unit})
+                                          <input
+                                            type="number"
+                                            min="0.01"
+                                            step="any"
+                                            required
+                                            value={editing.quantity}
+                                            onChange={(event) =>
+                                              setEditing({
+                                                ...editing,
+                                                quantity: event.target.value,
+                                              })
+                                            }
+                                          />
+                                        </label>
+                                        <div className="record-edit-field">
+                                          <span>{e('Currency')}</span>
+                                          <SelectField
+                                            aria-label={e('Currency')}
+                                            value={editing.currency}
+                                            onChange={(event) =>
+                                              setEditing({
+                                                ...editing,
+                                                currency: event.target.value,
+                                              })
+                                            }
+                                            className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                                          >
+                                            {currencies.map((c) => (
+                                              <option key={c.code} value={c.code}>
+                                                {formatCurrencyOptionLabel(c.code, c.name)}
+                                              </option>
+                                            ))}
+                                          </SelectField>
+                                        </div>
+                                        <button
+                                          type="submit"
+                                          className="if-button if-button-primary"
+                                          disabled={busy}
+                                        >
+                                          {e('Save changes')}
+                                        </button>
+                                        <p className="record-notice record-edit-wide">
+                                          {e(
+                                            'A request can be edited until the first factory bids on it.'
+                                          )}
+                                        </p>
+                                      </form>
+                                    )}
+                                  </RecordDetail>
+                                }
+                              >
+                                <td data-label={e('Quantity')} className="num">
+                                  {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                                  <small>{row.preferred_currency_code}</small>
+                                </td>
+                                <td data-label={e('Status')}>
+                                  <StatusBadge status={row.status} />
+                                </td>
+                                <td data-label={e('Created')}>
+                                  {formatDateTime(locale, row.created_at)}
+                                </td>
+                                <td className="record-actions">
+                                  {hasProposals ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void openProposals(row.id)}
+                                      className="if-button"
+                                    >
+                                      {copy.viewProposals}
+                                    </button>
+                                  ) : order ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openView('workflow', order.id)}
+                                      className="if-button"
+                                    >
+                                      {e('Open the order')}
+                                    </button>
+                                  ) : null}
+                                </td>
+                              </RecordRow>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <TablePager
+                      page={requestsPage}
+                      pageSize={REQUESTS_PAGE_SIZE}
+                      total={filteredRequests.length}
+                      onPage={setRequestsPage}
+                    />
+                  </>
+                )}
+              </>
+            ))}
         </section>
 
         {!loading && (
           <section data-section="workflow" className="surface-1 rounded-2xl p-6 sm:p-8">
             <h2 id="workflow" className="text-lg font-semibold">
-              {e('Contract, Payment & Acceptance')}{' '}
+              {e('Contract, Payment & Acceptance')}
             </h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               {e(
                 'Continue matched requests: sign contract, pay after all signatures, then accept completion at the end of delivery.'
-              )}{' '}
+              )}
             </p>
 
             {transactions.length === 0 ? (
-              <p className="mt-3 text-sm text-[rgb(var(--muted))]">No active transactions yet.</p>
+              <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                {e('No active transactions yet.')}
+              </p>
             ) : (
               <>
                 <div
-                  className="mt-3 overflow-x-auto"
+                  className="record-scroll"
                   tabIndex={0}
                   role="region"
                   aria-label={e('Contract, Payment & Acceptance')}
                 >
-                  <table className="w-full text-left text-sm">
+                  <table className="record-table">
                     <thead>
-                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">Transaction</th>
-                        <th className="py-2 pr-4">{e('Item')}</th>
-                        <th className="py-2 pr-4">{e('Status')}</th>
-                        <th className="py-2 pr-4">{e('Signatures')}</th>
-                        <th className="py-2 pr-4">{e('Payment')}</th>
-                        <th className="py-2">{e('Actions')}</th>
+                      <tr>
+                        <th>{e('Order')}</th>
+                        <th>{e('Status')}</th>
+                        <th>{e('Signatures')}</th>
+                        <th>{e('Next step')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedTransactions.map((tx) => (
-                        <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-mono text-xs">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Reference')}{' '}
-                            </span>
-                            {tx.id.slice(0, 8)}...
-                          </td>
-                          <td className="py-2 pr-4">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Item')}{' '}
-                            </span>
-                            {tx.item_name ?? '-'}
-                          </td>
-                          <td className="py-2 pr-4">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Status')}{' '}
-                            </span>
-                            <StatusBadge status={tx.status} />
-                            <OrderProgress status={tx.status} />
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Signatures')}{' '}
-                            </span>
-                            C:{e(tx.signature_status.CUSTOMER)} F:{e(tx.signature_status.FACTORY)}{' '}
-                            L:
-                            {e(tx.signature_status.LOGIST)}
-                          </td>
-                          <td className="py-2 pr-4 text-xs">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Payment')}{' '}
-                            </span>
-                            {tx.total_cost ? `${tx.total_cost} ${tx.currency_code ?? ''}` : '-'} (
-                            {e(tx.payment_status)})
-                          </td>
-                          <td className="py-2">
-                            <OrderGuidance transaction={tx} />
-                            <span className="record-label" aria-hidden="true">
-                              {e('Next step')}{' '}
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {tx.can_sign && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                  disabled={workflowBusyId === tx.id + 'SIGN'}
-                                  className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
-                                </button>
-                              )}
-                              {tx.can_pay && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
-                                  disabled={workflowBusyId === tx.id + 'PAY'}
-                                  className="rounded-md border border-success/40 px-2 py-1 text-xs text-success hover:bg-success/10 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'PAY' ? 'Paying...' : 'Pay'}
-                                </button>
-                              )}
-                              {tx.can_accept_completion && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')
-                                  }
-                                  disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
-                                  className="rounded-md border border-info/40 px-2 py-1 text-xs text-info hover:bg-info/10 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
-                                    ? 'Accepting...'
-                                    : 'Accept'}
-                                </button>
-                              )}
-                              {tx.status === 'COMPLETED' && (
-                                <button
-                                  type="button"
-                                  onClick={() => setRatingTransaction(tx)}
-                                  className="rounded-md border border-warning/40 px-2 py-1 text-xs text-warning hover:bg-warning/10"
-                                >
-                                  {e('Rate')}{' '}
-                                </button>
-                              )}
-                              {!tx.can_sign &&
-                                !tx.can_pay &&
-                                !tx.can_accept_completion &&
-                                tx.status !== 'COMPLETED' && (
+                      {paginatedTransactions.map((tx) => {
+                        const canAct = tx.can_sign || tx.can_pay || tx.can_accept_completion;
+                        const actions = (
+                          <>
+                            {tx.can_sign && (
+                              <button
+                                type="button"
+                                onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                disabled={workflowBusyId === tx.id + 'SIGN'}
+                                className="if-button if-button-primary"
+                              >
+                                {workflowBusyId === tx.id + 'SIGN' ? e('Signing…') : e('Sign')}
+                              </button>
+                            )}
+                            {tx.can_pay && (
+                              <button
+                                type="button"
+                                onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
+                                disabled={workflowBusyId === tx.id + 'PAY'}
+                                className="if-button if-button-primary"
+                              >
+                                {workflowBusyId === tx.id + 'PAY' ? e('Paying…') : e('Pay')}
+                              </button>
+                            )}
+                            {tx.can_accept_completion && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')
+                                }
+                                disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
+                                className="if-button if-button-primary"
+                              >
+                                {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
+                                  ? e('Accepting…')
+                                  : e('Accept')}
+                              </button>
+                            )}
+                            {tx.status === 'COMPLETED' && (
+                              <button
+                                type="button"
+                                onClick={() => setRatingTransaction(tx)}
+                                className="if-button"
+                              >
+                                {e('Rate')}
+                              </button>
+                            )}
+                          </>
+                        );
+                        return (
+                          <RecordRow
+                            key={tx.id}
+                            id={tx.id}
+                            open={orderRecords.isOpen(tx.id)}
+                            onToggle={() => orderRecords.toggle(tx.id)}
+                            colSpan={4}
+                            title={tx.item_name ?? e('Order')}
+                            subtitle={<small className="font-mono">{tx.id.slice(0, 8)}</small>}
+                            detail={
+                              <RecordDetail
+                                facts={orderFacts(tx, e, locale)}
+                                actions={
+                                  <>
+                                    {actions}
+                                    <button
+                                      type="button"
+                                      className="if-button"
+                                      onClick={() => openView('requests', tx.request_id)}
+                                    >
+                                      {e('View the request')}
+                                    </button>
+                                  </>
+                                }
+                              />
+                            }
+                          >
+                            <td data-label={e('Status')}>
+                              <StatusBadge status={tx.status} />
+                              <OrderProgress status={tx.status} />
+                            </td>
+                            <td data-label={e('Signatures')}>
+                              <SignatureList status={tx.signature_status} />
+                            </td>
+                            <td className="record-actions record-next">
+                              <OrderGuidance transaction={tx} />
+                              <div className="flex flex-wrap gap-2">
+                                {actions}
+                                {!canAct && tx.status !== 'COMPLETED' && (
                                   <span className="text-xs text-[rgb(var(--muted))]">
                                     {e('Awaiting others')}
                                   </span>
                                 )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              </div>
+                            </td>
+                          </RecordRow>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                  <span>
-                    Showing {(transactionsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                    {' - '}
-                    {Math.min(transactionsPage * REQUESTS_PAGE_SIZE, transactions.length)} of{' '}
-                    {transactions.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={transactionsPage <= 1}
-                      onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {transactionsPage} / {totalTransactionPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={transactionsPage >= totalTransactionPages}
-                      onClick={() =>
-                        setTransactionsPage((prev) => Math.min(totalTransactionPages, prev + 1))
-                      }
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
+                <TablePager
+                  page={transactionsPage}
+                  pageSize={REQUESTS_PAGE_SIZE}
+                  total={transactions.length}
+                  onPage={setTransactionsPage}
+                />
               </>
             )}
           </section>

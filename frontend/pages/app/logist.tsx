@@ -7,6 +7,9 @@ import { useModalDismiss } from '../../hooks/useModalDismiss';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
 import SignatureList from '../../components/SignatureList';
 import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
+import { orderFacts } from '../../lib/orderFacts';
 import TablePager from '../../components/TablePager';
 import { workspacePath } from '../../lib/navigation';
 import Modal from '../../components/Modal';
@@ -27,6 +30,9 @@ import {
   logout,
   me,
   signTransaction,
+  updateLogisticOffer,
+  updateLogisticOfferStatus,
+  withdrawLogistQuote,
   type BootstrapCurrency,
   type LogisticOfferItem,
   type MatchCandidate,
@@ -34,6 +40,7 @@ import {
 } from '../../lib/authClient';
 import {
   formatCurrencyOptionLabel,
+  formatDateTime,
   formatMoney,
   formatQuantityWithUnit,
 } from '../../lib/formatting';
@@ -746,6 +753,89 @@ export default function LogistWorkspacePage() {
     </option>
   );
 
+  const quoteRecords = useExpandedRecords(
+    filteredFactoryBids.map((bid) => bid.id),
+    TABLE_PAGE_SIZE,
+    setFactoryBidsPage
+  );
+  const orderRecords = useExpandedRecords(
+    filteredTransactions.map((tx) => tx.id),
+    TABLE_PAGE_SIZE,
+    setTransactionsPage
+  );
+  const offerRecords = useExpandedRecords(
+    logisticOffers.map((offer) => offer.id),
+    logisticOffers.length || 1,
+    () => undefined
+  );
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [offerEdit, setOfferEdit] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    basePrice: string;
+    daysMin: string;
+    daysMax: string;
+  } | null>(null);
+  const daysText = (min: number | null, max: number | null) =>
+    min != null && max != null
+      ? `${min}–${max} ${e('days')}`
+      : min != null
+        ? `${min}+ ${e('days')}`
+        : max != null
+          ? `≤ ${max} ${e('days')}`
+          : '—';
+
+  async function runOfferAction(
+    id: string,
+    call: () => Promise<unknown>,
+    after: () => Promise<void>
+  ) {
+    if (busyId) return false;
+    setBusyId(id);
+    setError(null);
+    try {
+      await call();
+      await after();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The update failed');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function withdrawQuote(candidateId: string) {
+    if (!(await confirm('Withdraw my quote'))) return;
+    await runOfferAction(candidateId, () => withdrawLogistQuote(candidateId), refreshFactoryBids);
+  }
+
+  async function toggleOffer(offerId: string, status: string) {
+    await runOfferAction(
+      offerId,
+      () => updateLogisticOfferStatus(offerId, status === 'PAUSED' ? 'ACTIVE' : 'PAUSED'),
+      refreshOffers
+    );
+  }
+
+  async function saveOffer(offerId: string) {
+    if (!offerEdit) return;
+    const ok = await runOfferAction(
+      offerId,
+      () =>
+        updateLogisticOffer(offerId, {
+          title: offerEdit.title.trim(),
+          description: offerEdit.description.trim(),
+          base_price: Number(offerEdit.basePrice),
+          ...(offerEdit.daysMin !== '' ? { estimated_days_min: Number(offerEdit.daysMin) } : {}),
+          ...(offerEdit.daysMax !== '' ? { estimated_days_max: Number(offerEdit.daysMax) } : {}),
+        }),
+      refreshOffers
+    );
+    if (ok) setOfferEdit(null);
+  }
+
   async function handleLogout() {
     try {
       await logout();
@@ -897,13 +987,65 @@ export default function LogistWorkspacePage() {
                               ? parseFloat(bid.quoted_quantity) *
                                 parseFloat(bid.inventory_price_per_unit)
                               : null;
+                          const quoteButton = (
+                            <button
+                              type="button"
+                              onClick={() => setQuoteTarget(bid)}
+                              className={`if-button ${bid.has_my_quote ? '' : 'if-button-primary'}`}
+                            >
+                              {bid.has_my_quote ? e('Update quote') : copy.quoteDelivery}
+                            </button>
+                          );
                           return (
-                            <tr key={bid.id}>
-                              <td className="record-title">
-                                {bid.item_name ?? '—'}
-                                <small>{bid.factory_legal_name ?? ''}</small>
-                                {bid.factory_note && <small>{bid.factory_note}</small>}
-                              </td>
+                            <RecordRow
+                              key={bid.id}
+                              id={bid.id}
+                              open={quoteRecords.isOpen(bid.id)}
+                              onToggle={() => quoteRecords.toggle(bid.id)}
+                              colSpan={5}
+                              title={bid.item_name ?? '—'}
+                              subtitle={<small>{bid.factory_legal_name ?? ''}</small>}
+                              detail={
+                                <RecordDetail
+                                  facts={[
+                                    [e('Factory'), bid.factory_legal_name],
+                                    [e('Pickup'), bid.source_address_label],
+                                    [e('Destination'), bid.destination_address_label],
+                                    [
+                                      e('Quantity'),
+                                      formatQuantityWithUnit(
+                                        bid.quoted_quantity,
+                                        bid.quantity_unit
+                                      ),
+                                    ],
+                                    [
+                                      e('Goods cost'),
+                                      formatMoney(locale, goodsCost, bid.currency_code),
+                                    ],
+                                    [e('Factory note'), bid.factory_note],
+                                    [e('Request'), statusLabel(locale, bid.request_status)],
+                                    [e('Your quote'), bid.has_my_quote ? e('Sent') : e('Not yet')],
+                                  ]}
+                                  actions={
+                                    <>
+                                      {quoteButton}
+                                      {bid.my_quote_candidate_id && (
+                                        <button
+                                          type="button"
+                                          className="if-button is-danger"
+                                          disabled={busyId !== null}
+                                          onClick={() =>
+                                            void withdrawQuote(bid.my_quote_candidate_id!)
+                                          }
+                                        >
+                                          {e('Withdraw my quote')}
+                                        </button>
+                                      )}
+                                    </>
+                                  }
+                                />
+                              }
+                            >
                               <td data-label={e('Quantity')} className="num">
                                 {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
                               </td>
@@ -914,16 +1056,8 @@ export default function LogistWorkspacePage() {
                                 <StatusBadge status={bid.request_status ?? 'PAIRING_IN_PROGRESS'} />
                                 {bid.has_my_quote && <small>{e('You have quoted')}</small>}
                               </td>
-                              <td className="record-actions">
-                                <button
-                                  type="button"
-                                  onClick={() => setQuoteTarget(bid)}
-                                  className={`if-button ${bid.has_my_quote ? '' : 'if-button-primary'}`}
-                                >
-                                  {bid.has_my_quote ? e('Update quote') : copy.quoteDelivery}
-                                </button>
-                              </td>
-                            </tr>
+                              <td className="record-actions">{quoteButton}</td>
+                            </RecordRow>
                           );
                         })}
                       </tbody>
@@ -1179,19 +1313,166 @@ export default function LogistWorkspacePage() {
                     </thead>
                     <tbody>
                       {logisticOffers.map((offer) => (
-                        <tr key={offer.id}>
-                          <td className="record-title">{offer.title}</td>
+                        <RecordRow
+                          key={offer.id}
+                          id={offer.id}
+                          open={offerRecords.isOpen(offer.id)}
+                          onToggle={() => offerRecords.toggle(offer.id)}
+                          colSpan={5}
+                          title={offer.title}
+                          detail={
+                            <RecordDetail
+                              facts={[
+                                [e('Description'), offer.description],
+                                [
+                                  e('Base price'),
+                                  formatMoney(locale, offer.base_price, offer.currency_code),
+                                ],
+                                [
+                                  e('Delivery time'),
+                                  daysText(offer.estimated_days_min, offer.estimated_days_max),
+                                ],
+                                [
+                                  e('Reliability'),
+                                  offer.reliability_score
+                                    ? `${(offer.reliability_score * 100).toFixed(0)}%`
+                                    : null,
+                                ],
+                                [e('Status'), statusLabel(locale, offer.status)],
+                                [e('Added'), formatDateTime(locale, offer.created_at)],
+                              ]}
+                              actions={
+                                <>
+                                  <button
+                                    type="button"
+                                    className="if-button"
+                                    aria-expanded={offerEdit?.id === offer.id}
+                                    onClick={() =>
+                                      setOfferEdit(
+                                        offerEdit?.id === offer.id
+                                          ? null
+                                          : {
+                                              id: offer.id,
+                                              title: offer.title,
+                                              description: offer.description ?? '',
+                                              basePrice: offer.base_price,
+                                              daysMin: offer.estimated_days_min?.toString() ?? '',
+                                              daysMax: offer.estimated_days_max?.toString() ?? '',
+                                            }
+                                      )
+                                    }
+                                  >
+                                    {e('Edit')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="if-button"
+                                    disabled={busyId !== null}
+                                    onClick={() => void toggleOffer(offer.id, offer.status)}
+                                  >
+                                    {offer.status === 'PAUSED'
+                                      ? e('Resume the service')
+                                      : e('Pause the service')}
+                                  </button>
+                                </>
+                              }
+                            >
+                              {offerEdit?.id === offer.id && (
+                                <form
+                                  className="record-edit"
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void saveOffer(offer.id);
+                                  }}
+                                >
+                                  <label className="record-edit-wide">
+                                    {e('Service name')}
+                                    <input
+                                      required
+                                      minLength={2}
+                                      maxLength={120}
+                                      value={offerEdit.title}
+                                      onChange={(event) =>
+                                        setOfferEdit({ ...offerEdit, title: event.target.value })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    {e('Base price')} ({offer.currency_code})
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      required
+                                      value={offerEdit.basePrice}
+                                      onChange={(event) =>
+                                        setOfferEdit({
+                                          ...offerEdit,
+                                          basePrice: event.target.value,
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    {e('Fewest days')}
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={offerEdit.daysMin}
+                                      onChange={(event) =>
+                                        setOfferEdit({ ...offerEdit, daysMin: event.target.value })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    {e('Most days')}
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={offerEdit.daysMax}
+                                      onChange={(event) =>
+                                        setOfferEdit({ ...offerEdit, daysMax: event.target.value })
+                                      }
+                                    />
+                                  </label>
+                                  <label className="record-edit-wide">
+                                    {e('Description')}
+                                    <textarea
+                                      rows={2}
+                                      maxLength={2000}
+                                      value={offerEdit.description}
+                                      onChange={(event) =>
+                                        setOfferEdit({
+                                          ...offerEdit,
+                                          description: event.target.value,
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                  <button
+                                    type="submit"
+                                    className="if-button if-button-primary"
+                                    disabled={busyId !== null}
+                                  >
+                                    {e('Save changes')}
+                                  </button>
+                                  <p className="record-notice record-edit-wide">
+                                    {e(
+                                      'Quotes you already sent keep their price and days; changes apply to new quotes.'
+                                    )}
+                                  </p>
+                                </form>
+                              )}
+                            </RecordDetail>
+                          }
+                        >
                           <td data-label={e('Base price')} className="num">
                             {formatMoney(locale, offer.base_price, offer.currency_code)}
                           </td>
                           <td data-label={e('Delivery time')} className="num">
-                            {offer.estimated_days_min != null && offer.estimated_days_max != null
-                              ? `${offer.estimated_days_min}–${offer.estimated_days_max} ${e('days')}`
-                              : offer.estimated_days_min != null
-                                ? `${offer.estimated_days_min}+ ${e('days')}`
-                                : offer.estimated_days_max != null
-                                  ? `≤ ${offer.estimated_days_max} ${e('days')}`
-                                  : '—'}
+                            {daysText(offer.estimated_days_min, offer.estimated_days_max)}
                           </td>
                           <td data-label={e('Reliability')} className="num">
                             {offer.reliability_score
@@ -1201,7 +1482,7 @@ export default function LogistWorkspacePage() {
                           <td data-label={e('Status')}>
                             <StatusBadge status={offer.status} />
                           </td>
-                        </tr>
+                        </RecordRow>
                       ))}
                     </tbody>
                   </table>
@@ -1276,12 +1557,62 @@ export default function LogistWorkspacePage() {
                         {paginatedTransactions.map((tx) => {
                           const canAct =
                             tx.can_sign || tx.can_start_fulfillment || tx.can_mark_in_progress;
+                          const actions = (
+                            <>
+                              {tx.can_sign && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                  disabled={workflowBusyId === tx.id + 'SIGN'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'SIGN' ? e('Signing…') : e('Sign')}
+                                </button>
+                              )}
+                              {tx.can_start_fulfillment && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'START')}
+                                  disabled={workflowBusyId === tx.id + 'START'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'START'
+                                    ? e('Starting…')
+                                    : e('Start delivery')}
+                                </button>
+                              )}
+                              {tx.can_mark_in_progress && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
+                                  }
+                                  disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
+                                    ? e('Submitting…')
+                                    : e('Delivered')}
+                                </button>
+                              )}
+                            </>
+                          );
                           return (
-                            <tr key={tx.id}>
-                              <td className="record-title">
-                                {tx.item_name ?? '—'}
-                                <small className="font-mono">{tx.id.slice(0, 8)}</small>
-                              </td>
+                            <RecordRow
+                              key={tx.id}
+                              id={tx.id}
+                              open={orderRecords.isOpen(tx.id)}
+                              onToggle={() => orderRecords.toggle(tx.id)}
+                              colSpan={4}
+                              title={tx.item_name ?? e('Order')}
+                              subtitle={<small className="font-mono">{tx.id.slice(0, 8)}</small>}
+                              detail={
+                                <RecordDetail
+                                  facts={orderFacts(tx, e, locale)}
+                                  actions={canAct ? actions : undefined}
+                                />
+                              }
+                            >
                               <td data-label={e('Status')}>
                                 <StatusBadge status={tx.status} />
                                 <small>
@@ -1294,44 +1625,7 @@ export default function LogistWorkspacePage() {
                               <td className="record-actions record-next">
                                 <OrderGuidance transaction={tx} />
                                 <div className="flex flex-wrap gap-2">
-                                  {tx.can_sign && (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                      disabled={workflowBusyId === tx.id + 'SIGN'}
-                                      className="if-button if-button-primary"
-                                    >
-                                      {workflowBusyId === tx.id + 'SIGN'
-                                        ? e('Signing…')
-                                        : e('Sign')}
-                                    </button>
-                                  )}
-                                  {tx.can_start_fulfillment && (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleWorkflowAction(tx.id, 'START')}
-                                      disabled={workflowBusyId === tx.id + 'START'}
-                                      className="if-button if-button-primary"
-                                    >
-                                      {workflowBusyId === tx.id + 'START'
-                                        ? e('Starting…')
-                                        : e('Start delivery')}
-                                    </button>
-                                  )}
-                                  {tx.can_mark_in_progress && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
-                                      }
-                                      disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                      className="if-button if-button-primary"
-                                    >
-                                      {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
-                                        ? e('Submitting…')
-                                        : e('Delivered')}
-                                    </button>
-                                  )}
+                                  {actions}
                                   {!canAct && tx.status !== 'COMPLETED' && (
                                     <span className="text-xs text-[rgb(var(--muted))]">
                                       {e('Awaiting others')}
@@ -1339,7 +1633,7 @@ export default function LogistWorkspacePage() {
                                   )}
                                 </div>
                               </td>
-                            </tr>
+                            </RecordRow>
                           );
                         })}
                       </tbody>

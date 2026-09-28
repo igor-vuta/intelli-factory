@@ -25,6 +25,7 @@ enum EntityStatus {
 enum RequestStatus {
   PENDING
   PAIRING_IN_PROGRESS
+  PAUSED
   MATCHED
   CONTRACT_DRAFTED
   CONTRACT_SIGNING

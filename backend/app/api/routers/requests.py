@@ -64,6 +64,24 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class UpdateRequestBody(BaseModel):
+    quantity: float | None = Field(default=None, gt=0)
+    preferred_currency_code: str | None = Field(default=None, min_length=3, max_length=3)
+
+
+class UpdateInventoryEntryBody(BaseModel):
+    quantity_available: float | None = Field(default=None, gt=0)
+    price_per_unit: float | None = Field(default=None, gt=0)
+
+
+class UpdateLogisticOfferBody(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    base_price: float | None = Field(default=None, ge=0)
+    estimated_days_min: int | None = Field(default=None, ge=0)
+    estimated_days_max: int | None = Field(default=None, ge=0)
+
+
 class UpdateInventoryEntryStatusBody(BaseModel):
     status: str = Field(..., min_length=3, max_length=40)
 
@@ -587,6 +605,31 @@ async def list_requests(
     ]
 
 
+# Before a contract exists a customer may pause, resume, edit (until the first bid), cancel or
+# delete their request. From CONTRACT_DRAFTED on, the transaction owns the lifecycle.
+SEARCHING_STATUSES = ("PENDING", "PAIRING_IN_PROGRESS")
+PRE_CONTRACT_STATUSES = (*SEARCHING_STATUSES, "PAUSED", "MATCHED")
+
+
+async def _own_request(request_id: str, user):
+    """The customer's own, not deleted request, or 404/403."""
+    target = await prisma.request.find_unique(
+        where={"id": request_id},
+        include={"customer_profile": True},
+    )
+    if not target or target.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    if target.customer_profile.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return target
+
+
+async def _live_candidate_count(request_id: str) -> int:
+    return await prisma.matchcandidate.count(
+        where={"request_id": request_id, "deleted_at": None, "status": "PENDING"}
+    )
+
+
 @router.patch("/{request_id}/status", response_model=MessageResponse)
 async def update_request_status(
     request_id: str,
@@ -610,19 +653,118 @@ async def update_request_status(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Customers can only set request status to CANCELLED",
             )
+        if target_request.status not in PRE_CONTRACT_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A request can only be cancelled before a contract is drafted",
+            )
 
-    if user.role in {"FACTORY", "LOGIST"} and new_status != "PAIRING_IN_PROGRESS":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Factory/Logistics roles can only set status to PAIRING_IN_PROGRESS",
-        )
+    if user.role in {"FACTORY", "LOGIST"}:
+        if new_status != "PAIRING_IN_PROGRESS":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Factory/Logistics roles can only set status to PAIRING_IN_PROGRESS",
+            )
+        # Only a waiting request can start pairing; never reopen a paused, cancelled or
+        # contracted one.
+        if target_request.status != "PENDING":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only a waiting request can move to pairing",
+            )
 
     await prisma.request.update(
         where={"id": request_id},
         data={"status": new_status},
     )
+    if new_status == "CANCELLED":
+        # Open bids and quotes for a cancelled request can no longer be chosen.
+        await prisma.matchcandidate.update_many(
+            where={"request_id": request_id, "deleted_at": None, "status": "PENDING"},
+            data={"status": "EXPIRED"},
+        )
 
     return MessageResponse(status="success", message=f"Request status updated to {new_status}")
+
+
+@router.patch("/{request_id}", response_model=MessageResponse)
+async def update_request(
+    request_id: str,
+    payload: UpdateRequestBody,
+    user=Depends(require_roles("CUSTOMER")),
+):
+    target = await _own_request(request_id, user)
+    if target.status not in (*SEARCHING_STATUSES, "PAUSED") or await _live_candidate_count(
+        request_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A request can only be edited before any factory has bid on it",
+        )
+    data: dict[str, Any] = {}
+    if payload.quantity is not None:
+        data["quantity"] = _to_decimal(payload.quantity)
+    if payload.preferred_currency_code is not None:
+        currency_code = payload.preferred_currency_code.upper()
+        if not await prisma.currency.find_unique(where={"code": currency_code}):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Currency not found")
+        data["preferred_currency"] = {"connect": {"code": currency_code}}
+    if not data:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Nothing to update")
+    await prisma.request.update(where={"id": request_id}, data=data)
+    return MessageResponse(status="success", message="Request updated")
+
+
+@router.post("/{request_id}/pause", response_model=MessageResponse)
+async def pause_request(request_id: str, user=Depends(require_roles("CUSTOMER"))):
+    target = await _own_request(request_id, user)
+    if target.status not in SEARCHING_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only a request that is still collecting offers can be paused",
+        )
+    await prisma.request.update(where={"id": request_id}, data={"status": "PAUSED"})
+    return MessageResponse(status="success", message="Request paused")
+
+
+@router.post("/{request_id}/resume", response_model=MessageResponse)
+async def resume_request(request_id: str, user=Depends(require_roles("CUSTOMER"))):
+    target = await _own_request(request_id, user)
+    if target.status != "PAUSED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The request is not paused")
+    # Back to where it was: collecting proposals if bids exist, otherwise waiting for the first.
+    resumed = "PAIRING_IN_PROGRESS" if await _live_candidate_count(request_id) else "PENDING"
+    await prisma.request.update(where={"id": request_id}, data={"status": resumed})
+    return MessageResponse(status="success", message=f"Request resumed as {resumed}")
+
+
+@router.delete("/{request_id}", response_model=MessageResponse)
+async def delete_request(request_id: str, user=Depends(require_roles("CUSTOMER"))):
+    target = await _own_request(request_id, user)
+    untouched = target.status in (*SEARCHING_STATUSES, "PAUSED") and not await _live_candidate_count(
+        request_id
+    )
+    if target.status != "CANCELLED" and not untouched:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only a cancelled request, or one nobody has bid on, can be deleted",
+        )
+    # A request that ever reached a contract keeps its record for the order's parties.
+    if await prisma.transaction.find_unique(where={"request_id": request_id}):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A request with an order cannot be deleted",
+        )
+    await prisma.request.update(where={"id": request_id}, data={"deleted_at": _now()})
+    await prisma.matchcandidate.update_many(
+        where={
+            "request_id": request_id,
+            "deleted_at": None,
+            "status": {"in": ["PENDING", "EXPIRED"]},
+        },
+        data={"deleted_at": _now()},
+    )
+    return MessageResponse(status="success", message="Request deleted")
 
 
 @router.post("/inventory-entries", response_model=MessageResponse)
@@ -822,6 +964,109 @@ async def update_inventory_entry_status(
     return MessageResponse(status="success", message=f"Inventory status updated to {new_status}")
 
 
+@router.patch("/inventory-entries/{inventory_entry_id}", response_model=MessageResponse)
+async def update_inventory_entry(
+    inventory_entry_id: str,
+    payload: UpdateInventoryEntryBody,
+    user=Depends(require_roles("FACTORY")),
+):
+    factory_profile = await prisma.factoryprofile.find_unique(where={"user_id": user.id})
+    if not factory_profile:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Factory profile not found")
+    entry = await prisma.inventoryentry.find_first(
+        where={"id": inventory_entry_id, "factory_profile_id": factory_profile.id, "deleted_at": None}
+    )
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory entry not found")
+    data: dict[str, Any] = {}
+    if payload.quantity_available is not None:
+        data["quantity_available"] = _to_decimal(payload.quantity_available)
+    if payload.price_per_unit is not None and _to_decimal(payload.price_per_unit) != entry.price_per_unit:
+        # Open bids were priced from this line; changing it under them would misstate their totals.
+        open_bids = await prisma.matchcandidate.count(
+            where={"inventory_entry_id": entry.id, "deleted_at": None, "status": "PENDING"}
+        )
+        if open_bids:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The price is locked while open bids use this stock; withdraw them first",
+            )
+        data["price_per_unit"] = _to_decimal(payload.price_per_unit)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Nothing to update")
+    await prisma.inventoryentry.update(where={"id": entry.id}, data=data)
+    return MessageResponse(status="success", message="Inventory entry updated")
+
+
+async def _own_offer(offer_id: str, user):
+    logist_profile = await prisma.logistprofile.find_unique(where={"user_id": user.id})
+    if not logist_profile:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Logistics profile not found")
+    offer = await prisma.logisticoffer.find_first(
+        where={"id": offer_id, "logist_profile_id": logist_profile.id, "deleted_at": None}
+    )
+    if not offer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Logistic offer not found")
+    return offer
+
+
+@router.patch("/logistic-offers/{offer_id}", response_model=MessageResponse)
+async def update_logistic_offer(
+    offer_id: str,
+    payload: UpdateLogisticOfferBody,
+    user=Depends(require_roles("LOGIST")),
+):
+    # Quotes already given keep their own price and days; this changes the service going forward.
+    offer = await _own_offer(offer_id, user)
+    days_min = (
+        payload.estimated_days_min
+        if payload.estimated_days_min is not None
+        else offer.estimated_days_min
+    )
+    days_max = (
+        payload.estimated_days_max
+        if payload.estimated_days_max is not None
+        else offer.estimated_days_max
+    )
+    if days_min is not None and days_max is not None and days_min > days_max:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="estimated_days_min cannot be greater than estimated_days_max",
+        )
+    data: dict[str, Any] = {}
+    if payload.title is not None:
+        data["title"] = payload.title
+    if payload.description is not None:
+        data["description"] = payload.description
+    if payload.base_price is not None:
+        data["base_price"] = _to_decimal(payload.base_price)
+    if payload.estimated_days_min is not None:
+        data["estimated_days_min"] = payload.estimated_days_min
+    if payload.estimated_days_max is not None:
+        data["estimated_days_max"] = payload.estimated_days_max
+    if not data:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Nothing to update")
+    await prisma.logisticoffer.update(where={"id": offer.id}, data=data)
+    return MessageResponse(status="success", message="Logistic offer updated")
+
+
+@router.patch("/logistic-offers/{offer_id}/status", response_model=MessageResponse)
+async def update_logistic_offer_status(
+    offer_id: str,
+    payload: UpdateInventoryEntryStatusBody,
+    user=Depends(require_roles("LOGIST")),
+):
+    offer = await _own_offer(offer_id, user)
+    new_status = payload.status.upper()
+    if new_status not in {"ACTIVE", "PAUSED"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Logistic offer status must be ACTIVE or PAUSED",
+        )
+    await prisma.logisticoffer.update(where={"id": offer.id}, data={"status": new_status})
+    return MessageResponse(status="success", message=f"Logistic offer status updated to {new_status}")
+
+
 @router.post("/logistic-offers", response_model=MessageResponse)
 async def create_logistic_offer(
     payload: LogisticOfferCreateBody,
@@ -889,6 +1134,7 @@ async def list_my_logistic_offers(user=Depends(require_roles("LOGIST"))):
         {
             "id": offer.id,
             "title": offer.title,
+            "description": offer.description,
             "base_price": str(offer.base_price),
             "currency_code": offer.currency_code,
             "estimated_days_min": offer.estimated_days_min,
