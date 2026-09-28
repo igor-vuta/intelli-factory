@@ -40,9 +40,7 @@ type Props = {
 const config = {
   customer: {
     name: 'Purchasing studio',
-    eyebrow: 'YOUR NEXT POSSIBILITY',
     title: 'Your requests',
-    description: 'Find the right supply. Choose your partners. Follow every step.',
     nav: [
       ['home', 'For you'],
       ['requests', 'My requests'],
@@ -55,9 +53,7 @@ const config = {
   },
   factory: {
     name: 'Factory floor',
-    eyebrow: 'PRODUCTION WORKSPACE',
     title: 'Your factory floor',
-    description: 'Turn available stock into your next order.',
     nav: [
       ['home', 'Overview'],
       ['requests', 'Demand board'],
@@ -72,9 +68,7 @@ const config = {
   },
   logist: {
     name: 'Dispatch',
-    eyebrow: 'LOGISTICS OPERATIONS',
     title: 'Your deliveries',
-    description: 'From the first quote to the final handover.',
     nav: [
       ['home', 'Dispatch board'],
       ['quotes', 'Quote requests'],
@@ -88,15 +82,14 @@ const config = {
   },
   admin: {
     name: 'Control room',
-    eyebrow: 'NETWORK INTELLIGENCE',
-    title: 'The whole picture.\nA clearer decision.',
-    description: 'Understand the pipeline. Compare outcomes. Move the network forward.',
+    title: 'Network overview',
     nav: [
       ['home', 'Network overview'],
       ['operations', 'Requests & optimisation'],
     ],
     stats: ['Total requests', 'In matching', 'Completed'],
-    primary: 'Open optimisation',
+    primary: 'Compare strategies',
+    more: ['operations', 'All requests'],
   },
 } as const;
 
@@ -413,41 +406,10 @@ export default function WorkspaceExperience({
               )}
               {role === 'admin' && (
                 <>
-                  <section className="control-intro">
-                    <div>
-                      <p className="experience-eyebrow">{e(c.eyebrow)}</p>
-                      <h1>{e(c.title)}</h1>
-                      <p className="hero-description">{e(c.description)}</p>
-                    </div>
-                    <div className="control-emblem" aria-hidden>
-                      <span />
-                      <span />
-                      <span />
-                      <PresetIcon src="/presets/admin.svg" alt="" size={52} />
-                    </div>
-                  </section>
-                  <section className="control-metrics">
-                    {c.stats.map((text, i) => (
-                      <div key={e(text)}>
-                        <span>
-                          0{i + 1} / {e(text)}
-                        </span>
-                        <strong>{loading ? '—' : (counts[i] ?? 0)}</strong>
-                        <div className="metric-bars" aria-hidden>
-                          {Array.from({ length: 18 }, (_, n) => (
-                            <i key={n} style={{ height: '3px' }} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </section>
                   <div className="control-grid">
                     <section className="control-pipeline">
                       <div className="experience-section-heading">
-                        <div>
-                          <p className="experience-eyebrow">{e('REQUEST DISTRIBUTION')}</p>
-                          <h2>{e('Inside the network')}</h2>
-                        </div>
+                        <h2>{e('Requests by stage')}</h2>
                         <span>
                           {counts[0] ?? 0} {e('requests')}
                         </span>
@@ -458,6 +420,7 @@ export default function WorkspaceExperience({
                         [
                           'Execution',
                           [
+                            'CONTRACT_DRAFTED',
                             'CONTRACT_SIGNING',
                             'FULLY_SIGNED',
                             'AWAITING_PAYMENT',
@@ -467,6 +430,8 @@ export default function WorkspaceExperience({
                           ],
                         ],
                         ['Completed', ['COMPLETED']],
+                        // Every status belongs to exactly one row, so the rows add up to the total.
+                        ['Stopped', ['CANCELLED', 'DISPUTED']],
                       ].map(([name, statuses]) => {
                         const total = items.filter((item) =>
                           (statuses as string[]).includes(item.status)
@@ -483,24 +448,6 @@ export default function WorkspaceExperience({
                           </div>
                         );
                       })}
-                    </section>
-                    <section className="control-optimizer">
-                      <span className="experience-eyebrow">{e('DECISION ENGINE')}</span>
-                      <div className="optimizer-nodes" aria-hidden>
-                        <i>01</i>
-                        <i>02</i>
-                        <i>03</i>
-                      </div>
-                      <h2>
-                        {e('One pool.')} <br />
-                        {e('Three perspectives.')}{' '}
-                      </h2>
-                      <p>
-                        {e('Compare Greedy, Fast and Deep strategies against the same request.')}
-                      </p>
-                      <button type="button" className="experience-primary" onClick={primary}>
-                        {e('Explore optimisation')} <Arrow />
-                      </button>
                     </section>
                   </div>
                   <div className="experience-section-heading">

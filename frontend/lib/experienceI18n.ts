@@ -100,17 +100,9 @@ export const experienceTranslations = {
     ru: 'Закупки',
     kk: 'Сатып алу',
   },
-  'YOUR NEXT POSSIBILITY': {
-    ru: 'НОВЫЕ ВОЗМОЖНОСТИ',
-    kk: 'ЖАҢА МҮМКІНДІКТЕР',
-  },
   'Good things,\nset in motion.': {
     ru: 'Большие дела\nначинаются здесь.',
     kk: 'Үлкен істер\nосында басталады.',
-  },
-  'Find the right supply. Choose your partners. Follow every step.': {
-    ru: 'Находите товары. Выбирайте партнёров. Следите за каждым этапом.',
-    kk: 'Тауар табыңыз. Серіктес таңдаңыз. Әр кезеңді бақылаңыз.',
   },
   'For you': {
     ru: 'Для вас',
@@ -143,14 +135,6 @@ export const experienceTranslations = {
   'Factory floor': {
     ru: 'Производство',
     kk: 'Өндіріс',
-  },
-  'PRODUCTION WORKSPACE': {
-    ru: 'УПРАВЛЕНИЕ ПРОИЗВОДСТВОМ',
-    kk: 'ӨНДІРІСТІ БАСҚАРУ',
-  },
-  'Turn available stock into your next order.': {
-    ru: 'Превращайте доступные запасы в новые заказы.',
-    kk: 'Қоймадағы тауарды жаңа тапсырысқа айналдырыңыз.',
   },
   Overview: {
     ru: 'Обзор',
@@ -188,14 +172,6 @@ export const experienceTranslations = {
     ru: 'Диспетчерская',
     kk: 'Диспетчерлік',
   },
-  'LOGISTICS OPERATIONS': {
-    ru: 'УПРАВЛЕНИЕ ДОСТАВКОЙ',
-    kk: 'ЖЕТКІЗУДІ БАСҚАРУ',
-  },
-  'From the first quote to the final handover.': {
-    ru: 'От расчёта стоимости до передачи груза.',
-    kk: 'Баға ұсынудан жүкті тапсыруға дейін.',
-  },
   'Dispatch board': {
     ru: 'Панель доставок',
     kk: 'Жеткізу тақтасы',
@@ -224,18 +200,6 @@ export const experienceTranslations = {
     ru: 'Центр управления',
     kk: 'Басқару орталығы',
   },
-  'NETWORK INTELLIGENCE': {
-    ru: 'АНАЛИТИКА ПЛАТФОРМЫ',
-    kk: 'ПЛАТФОРМА ТАЛДАУЫ',
-  },
-  'The whole picture.\nA clearer decision.': {
-    ru: 'Полная картина.\nТочные решения.',
-    kk: 'Толық көрініс.\nНақты шешімдер.',
-  },
-  'Understand the pipeline. Compare outcomes. Move the network forward.': {
-    ru: 'Следите за заявками. Сравнивайте результаты. Улучшайте работу платформы.',
-    kk: 'Өтінімдерді бақылаңыз. Нәтижелерді салыстырыңыз. Платформа жұмысын жақсартыңыз.',
-  },
   'Network overview': {
     ru: 'Обзор платформы',
     kk: 'Платформаға шолу',
@@ -251,10 +215,6 @@ export const experienceTranslations = {
   'In matching': {
     ru: 'Подбор партнёров',
     kk: 'Серіктестер ізделуде',
-  },
-  'Open optimisation': {
-    ru: 'Открыть оптимизацию',
-    kk: 'Оңтайландыруды ашу',
   },
   'Workspace sections': {
     ru: 'Разделы рабочего пространства',
@@ -396,14 +356,6 @@ export const experienceTranslations = {
     ru: 'Здесь появятся завершённые доставки.',
     kk: 'Аяқталған жеткізулер осында көрсетіледі.',
   },
-  'REQUEST DISTRIBUTION': {
-    ru: 'РАСПРЕДЕЛЕНИЕ ЗАЯВОК',
-    kk: 'ӨТІНІМДЕРДІҢ БӨЛІНУІ',
-  },
-  'Inside the network': {
-    ru: 'Состояние платформы',
-    kk: 'Платформа күйі',
-  },
   requests: {
     ru: 'заявок',
     kk: 'өтінім',
@@ -419,26 +371,6 @@ export const experienceTranslations = {
   Execution: {
     ru: 'Исполнение',
     kk: 'Орындалу',
-  },
-  'DECISION ENGINE': {
-    ru: 'ИНСТРУМЕНТЫ ПОДБОРА',
-    kk: 'ІРІКТЕУ ҚҰРАЛДАРЫ',
-  },
-  'One pool.': {
-    ru: 'Одна заявка.',
-    kk: 'Бір өтінім.',
-  },
-  'Three perspectives.': {
-    ru: 'Три подхода.',
-    kk: 'Үш тәсіл.',
-  },
-  'Compare Greedy, Fast and Deep strategies against the same request.': {
-    ru: 'Сравните стратегии Greedy, Fast и Deep для одной заявки.',
-    kk: 'Бір өтінім үшін Greedy, Fast және Deep стратегияларын салыстырыңыз.',
-  },
-  'Explore optimisation': {
-    ru: 'Перейти к оптимизации',
-    kk: 'Оңтайландыруға өту',
   },
   'Latest activity in the pipeline': {
     ru: 'Последние заявки',
@@ -1227,6 +1159,84 @@ export const experienceTranslations = {
     },
   'Starting…': { ru: 'Запуск…', kk: 'Басталуда…' },
   'Your deliveries': { ru: 'Ваши доставки', kk: 'Сіздің жеткізулеріңіз' },
+  // Admin workspace (M3)
+  time: { ru: 'срок', kk: 'мерзім' },
+  'Search reference, customer or item': {
+    ru: 'Поиск по номеру, заказчику или товару',
+    kk: 'Нөмір, тапсырыс беруші немесе тауар бойынша іздеу',
+  },
+  'No requests available.': { ru: 'Заявок пока нет.', kk: 'Әзірге өтінімдер жоқ.' },
+  'Compare the optimisation strategies': {
+    ru: 'Сравнение стратегий оптимизации',
+    kk: 'Оңтайландыру стратегияларын салыстыру',
+  },
+  'Run Greedy, Fast and Deep on the same candidate pool for one request and see where each pick sits among all the offers.':
+    {
+      ru: 'Запустите Greedy, Fast и Deep на одном наборе предложений по заявке и посмотрите, где каждый выбор находится среди всех предложений.',
+      kk: 'Бір өтінім бойынша бір ұсыныстар жиынында Greedy, Fast және Deep іске қосып, әр таңдаудың барлық ұсыныстар арасындағы орнын көріңіз.',
+    },
+  'Generating…': { ru: 'Создание…', kk: 'Жасалуда…' },
+  'Generate a 150-offer test request': {
+    ru: 'Создать тестовую заявку на 150 предложений',
+    kk: '150 ұсынысы бар сынақ өтінімін жасау',
+  },
+  'Request collecting proposals': {
+    ru: 'Заявка, собирающая предложения',
+    kk: 'Ұсыныстар жинап жатқан өтінім',
+  },
+  'Running the three strategies…': {
+    ru: 'Запуск трёх стратегий…',
+    kk: 'Үш стратегия іске қосылуда…',
+  },
+  'Run the comparison': { ru: 'Запустить сравнение', kk: 'Салыстыруды іске қосу' },
+  'Offers in the pool': { ru: 'Предложений в наборе', kk: 'Жиындағы ұсыныстар' },
+  'Only one offer so far, so there is no trade-off to chart yet.': {
+    ru: 'Пока есть только одно предложение, сравнивать на графике нечего.',
+    kk: 'Әзірге бір ғана ұсыныс бар, графикте салыстыратын ештеңе жоқ.',
+  },
+  'Each strategy’s top pick': {
+    ru: 'Лучший выбор каждой стратегии',
+    kk: 'Әр стратегияның үздік таңдауы',
+  },
+  Strategy: { ru: 'Стратегия', kk: 'Стратегия' },
+  'Weighted score': { ru: 'Взвешенная оценка', kk: 'Салмақталған баға' },
+  'Same offer as Fast.': { ru: 'То же предложение, что у Fast.', kk: 'Fast-пен бірдей ұсыныс.' },
+  'All offers in the pool by total cost and delivery days, with each strategy’s pick marked. Use the arrow keys to move between offers.':
+    {
+      ru: 'Все предложения набора по общей стоимости и сроку доставки, с отмеченным выбором каждой стратегии. Стрелки переключают предложения.',
+      kk: 'Жиындағы барлық ұсыныстар жалпы құн мен жеткізу мерзімі бойынша, әр стратегияның таңдауы белгіленген. Ұсыныстар арасында көрсеткі пернелерімен жылжыңыз.',
+    },
+  'Greedy pick': { ru: 'Выбор Greedy', kk: 'Greedy таңдауы' },
+  'Fast and Deep pick': { ru: 'Выбор Fast и Deep', kk: 'Fast пен Deep таңдауы' },
+  'Fast pick': { ru: 'Выбор Fast', kk: 'Fast таңдауы' },
+  'Deep pick': { ru: 'Выбор Deep', kk: 'Deep таңдауы' },
+  'Ranked offers by strategy': {
+    ru: 'Ранжированные предложения по стратегиям',
+    kk: 'Стратегиялар бойынша реттелген ұсыныстар',
+  },
+  'No solutions returned for this strategy.': {
+    ru: 'Эта стратегия не вернула решений.',
+    kk: 'Бұл стратегия шешім қайтармады.',
+  },
+  Rank: { ru: 'Место', kk: 'Орын' },
+  'Requests by stage': { ru: 'Заявки по этапам', kk: 'Кезеңдер бойынша өтінімдер' },
+  Greedy: { ru: 'Greedy', kk: 'Greedy' },
+  'Takes the cheapest offer; the baseline.': {
+    ru: 'Берёт самое дешёвое предложение; базовый вариант.',
+    kk: 'Ең арзан ұсынысты алады; базалық нұсқа.',
+  },
+  Fast: { ru: 'Fast', kk: 'Fast' },
+  'Ranks the whole pool by the weighted score.': {
+    ru: 'Ранжирует весь набор по взвешенной оценке.',
+    kk: 'Бүкіл жиынды салмақталған баға бойынша реттейді.',
+  },
+  Deep: { ru: 'Deep', kk: 'Deep' },
+  'A genetic search (DEAP) over the same weighted score, so it can match Fast but not beat it.': {
+    ru: 'Генетический поиск (DEAP) по той же взвешенной оценке: он может совпасть с Fast, но не превзойти его.',
+    kk: 'Сол салмақталған баға бойынша генетикалық іздеу (DEAP): Fast-пен сәйкес келуі мүмкін, бірақ одан озбайды.',
+  },
+  'Compare strategies': { ru: 'Сравнить стратегии', kk: 'Стратегияларды салыстыру' },
+  Stopped: { ru: 'Остановлены', kk: 'Тоқтатылған' },
   // Status labels (M3)
   DISPUTED: { ru: 'Спор', kk: 'Дау' },
   PAUSED: { ru: 'Приостановлено', kk: 'Тоқтатылды' },

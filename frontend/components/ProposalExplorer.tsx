@@ -13,6 +13,7 @@ import {
   weightedScores,
 } from '../lib/tradeoff';
 import StatusBadge from './StatusBadge';
+import TradeoffPlot from './TradeoffPlot';
 
 const PROFILES: { id: Profile; label: string }[] = [
   { id: 'balanced', label: 'Balanced' },
@@ -21,9 +22,6 @@ const PROFILES: { id: Profile; label: string }[] = [
   { id: 'reliability', label: 'Most reliable' },
 ];
 
-const W = 560;
-const H = 320;
-const PAD = { left: 60, right: 16, top: 16, bottom: 48 };
 const DASH = '—';
 
 const toNumber = (value: string | number | null | undefined) => {
@@ -113,7 +111,6 @@ export default function ProposalExplorer({
     currency,
     maximumFractionDigits: 0,
   });
-  const compact = new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 });
   const decimal = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
   const rating = new Intl.NumberFormat(locale, {
@@ -122,27 +119,6 @@ export default function ProposalExplorer({
   });
   const moneyOrDash = (value: string | null) =>
     toNumber(value) != null ? money.format(Number(value)) : DASH;
-
-  const scale = useMemo(() => {
-    if (!points.length) return null;
-    const costs = points.map((p) => p.cost);
-    const days = points.map((p) => p.days);
-    const rels = points.map((p) => p.reliability);
-    const [c0, c1] = [Math.min(...costs), Math.max(...costs)];
-    const [d0, d1] = [Math.min(...days), Math.max(...days)];
-    const [r0, r1] = [Math.min(...rels), Math.max(...rels)];
-    const padC = (c1 - c0) * 0.12 || c0 * 0.1 || 1;
-    const padD = (d1 - d0) * 0.15 || 1;
-    return {
-      x: (v: number) =>
-        PAD.left + ((v - (c0 - padC)) / (c1 - c0 + 2 * padC)) * (W - PAD.left - PAD.right),
-      y: (v: number) =>
-        H - PAD.bottom - ((v - (d0 - padD)) / (d1 - d0 + 2 * padD)) * (H - PAD.top - PAD.bottom),
-      r: (v: number) => 6 + ((v - r0) / (r1 - r0 || 1)) * 6,
-      xTicks: [c0 - padC / 2, (c0 + c1) / 2, c1 + padC / 2],
-      yTicks: [Math.max(0, d0 - padD / 2), (d0 + d1) / 2, d1 + padD / 2],
-    };
-  }, [points]);
 
   if (!rows.length) return null;
 
@@ -153,7 +129,6 @@ export default function ProposalExplorer({
         : e('figures incomplete')
     }`;
 
-  const byCost = [...scored].sort((a, b) => a.point.cost - b.point.cost);
   const selectedScore = selected ? scoreOf(selected) : null;
 
   return (
@@ -210,97 +185,25 @@ export default function ProposalExplorer({
             </p>
           )}
 
-          {scale && (
+          {scored.length > 0 && (
             <figure className="proposal-chart">
-              <svg
-                viewBox={`0 0 ${W} ${H}`}
-                role="group"
-                tabIndex={0}
-                aria-label={e(
+              <TradeoffPlot
+                points={points}
+                currency={currency}
+                label={e(
                   'Offers by total cost and delivery days. Use the arrow keys to move between offers.'
                 )}
-                onKeyDown={(event) => {
-                  const steps: Record<string, number> = {
-                    ArrowRight: 1,
-                    ArrowDown: 1,
-                    ArrowLeft: -1,
-                    ArrowUp: -1,
-                  };
-                  if (event.key === 'Enter' && shown) {
-                    setSelectedId(shown.candidate.id);
-                    return;
-                  }
-                  const step = steps[event.key];
-                  if (step === undefined) return;
-                  event.preventDefault();
-                  const at = byCost.findIndex((r) => r.candidate.id === shown?.candidate.id);
-                  const next = byCost[Math.min(byCost.length - 1, Math.max(0, at + step))];
-                  setActiveId(next.candidate.id);
-                }}
-                onBlur={() => setActiveId(null)}
-              >
-                <g className="chart-axis" aria-hidden="true">
-                  {scale.xTicks.map((t) => (
-                    <g key={`x${t}`} transform={`translate(${scale.x(t)} ${H - PAD.bottom})`}>
-                      <line y2={6} />
-                      <text y={22} textAnchor="middle">
-                        {compact.format(t)}
-                      </text>
-                    </g>
-                  ))}
-                  {scale.yTicks.map((t) => (
-                    <g key={`y${t}`} transform={`translate(${PAD.left} ${scale.y(t)})`}>
-                      <line x2={W - PAD.left - PAD.right} className="chart-gridline" />
-                      <text x={-10} dy="0.32em" textAnchor="end">
-                        {decimal.format(t)}
-                      </text>
-                    </g>
-                  ))}
-                  <text
-                    x={(W + PAD.left) / 2}
-                    y={H - 6}
-                    textAnchor="middle"
-                    className="chart-title"
-                  >
-                    {`${e('Total cost')} (${currency})`}
-                  </text>
-                  <text
-                    transform={`translate(14 ${(H - PAD.bottom) / 2}) rotate(-90)`}
-                    textAnchor="middle"
-                    className="chart-title"
-                  >
-                    {e('Delivery days')}
-                  </text>
-                </g>
-                <g aria-hidden="true">
-                  {scored.map((r, i) => {
-                    const classes = [
-                      'offer',
-                      front.has(i) && 'is-front',
-                      r === recommended && 'is-pick',
-                      r === cheapest && 'is-cheapest',
-                      r === selected && 'is-selected',
-                      r === shown && 'is-active',
-                    ]
-                      .filter(Boolean)
-                      .join(' ');
-                    return (
-                      <g
-                        key={r.candidate.id}
-                        className={classes}
-                        style={{
-                          transform: `translate(${scale.x(r.point.cost)}px, ${scale.y(r.point.days)}px)`,
-                        }}
-                        onPointerEnter={() => setActiveId(r.candidate.id)}
-                        onPointerLeave={() => setActiveId(null)}
-                        onClick={() => setSelectedId(r.candidate.id)}
-                      >
-                        <circle r={scale.r(r.point.reliability)} />
-                      </g>
-                    );
-                  })}
-                </g>
-              </svg>
+                current={shown ? scored.indexOf(shown as ScoredRow) : null}
+                classesOf={(i) => [
+                  front.has(i) && 'is-front',
+                  scored[i] === recommended && 'is-pick',
+                  scored[i] === cheapest && 'is-cheapest',
+                  scored[i] === selected && 'is-selected',
+                  scored[i] === shown && 'is-active',
+                ]}
+                onActive={(i) => setActiveId(i == null ? null : scored[i].candidate.id)}
+                onSelect={(i) => setSelectedId(scored[i].candidate.id)}
+              />
               <figcaption className="proposal-legend">
                 <span className="legend-pick">{e('Recommended')}</span>
                 <span className="legend-cheapest">{e('Cheapest')}</span>

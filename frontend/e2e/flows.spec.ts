@@ -393,8 +393,13 @@ for (const locale of ['ru', 'kk'] as const) {
     }
     const headings =
       locale === 'ru'
-        ? ['Ваши заявки', 'Ваше производство', 'Ваши доставки', 'Полная картина']
-        : ['Сіздің өтінімдеріңіз', 'Сіздің өндірісіңіз', 'Сіздің жеткізулеріңіз', 'Толық көрініс'];
+        ? ['Ваши заявки', 'Ваше производство', 'Ваши доставки', 'Обзор платформы']
+        : [
+            'Сіздің өтінімдеріңіз',
+            'Сіздің өндірісіңіз',
+            'Сіздің жеткізулеріңіз',
+            'Платформаға шолу',
+          ];
     for (const [index, role] of roles.entries()) {
       await mockApi(page, role.toUpperCase());
       await page.goto(`/app/${role}?lang=${locale}`);
@@ -1007,5 +1012,90 @@ test('workflow story follows scroll, jumps by chapter and can pause', async ({ p
   const list = story.locator('.story-proposals');
   await expect(list.locator('li')).toHaveCount(5);
   await expect(list.locator('li.is-balanced')).toContainText('Balanced pick');
+  await noOverflow(page);
+});
+
+test('admin comparison plots the real pool, marks each pick and says when Deep matches Fast', async ({
+  page,
+}) => {
+  await mockApi(page, 'ADMIN');
+  const request = {
+    id: 'req-compare',
+    customer_profile_id: 'customer-1',
+    category_id: 'metal',
+    category_name: 'Metal',
+    item_id: 'item-1',
+    item_name: 'Steel',
+    requested_name_text: null,
+    quantity: '10',
+    quantity_unit: 'pcs',
+    destination_address_id: 'addr-1',
+    preferred_currency_code: 'KZT',
+    status: 'PAIRING_IN_PROGRESS',
+    created_at: '2026-09-14T00:00:00Z',
+  };
+  await page.route('**/api/requests/', (route) => route.fulfill({ json: [request] }));
+  // A, B and C are not beaten on all three objectives; D is beaten by A and E by B.
+  const pool = [
+    { id: 'A', total_cost: 100, delivery_days: 10, reliability: 0.8 },
+    { id: 'B', total_cost: 150, delivery_days: 4, reliability: 0.95 },
+    { id: 'C', total_cost: 300, delivery_days: 3, reliability: 0.9 },
+    { id: 'D', total_cost: 200, delivery_days: 12, reliability: 0.7 },
+    { id: 'E', total_cost: 160, delivery_days: 5, reliability: 0.85 },
+  ];
+  const entry = (id: string, rank: number, fitness_score: number) => ({
+    ...pool.find((p) => p.id === id)!,
+    rank,
+    fitness_score,
+    currency_code: 'KZT',
+  });
+  let calls = 0;
+  await page.route('**/api/automations/optimize/compare', (route) => {
+    calls += 1;
+    return route.fulfill({
+      json: {
+        request_id: request.id,
+        optimization_profile: 'balanced',
+        weights: { cost: 0.4, time: 0.3, reliability: 0.3 },
+        candidate_pool_size: pool.length,
+        pool,
+        greedy: [entry('A', 1, 0.61)],
+        fast: [entry('B', 1, 0.83), entry('C', 2, 0.7)],
+        deep: [entry('B', 1, 0.83)],
+      },
+    });
+  });
+  await page.goto('/app/admin?view=operations&lang=en');
+  await expect(
+    page.getByRole('heading', { name: 'Compare the optimisation strategies' })
+  ).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('NSGA');
+
+  await page.getByRole('combobox', { name: 'Request collecting proposals', exact: true }).click();
+  await page.getByRole('option', { name: /Steel/ }).click();
+  await page.getByRole('button', { name: 'Run the comparison' }).click();
+  await expect.poll(() => calls).toBe(1);
+
+  const strategies = page.locator('.strategy-table tbody tr');
+  await expect(strategies).toHaveCount(3);
+  await expect(strategies.nth(2)).toContainText('Same offer as Fast.');
+  await expect(strategies.nth(0)).not.toContainText('Same offer as Fast.');
+
+  const chart = page.locator('.optimisation-chart');
+  await expect(chart.locator('.offer')).toHaveCount(5);
+  await expect(chart.locator('.offer.is-front')).toHaveCount(3);
+  await expect(chart.locator('.offer.is-cheapest')).toHaveCount(1);
+  await expect(chart.locator('.offer.is-pick')).toHaveCount(1);
+  await expect(chart.locator('.offer.is-deep')).toHaveCount(0);
+  await expect(chart.locator('figcaption')).toContainText('Fast and Deep pick');
+
+  // The keyboard walks the pool by cost, starting with the cheapest offer.
+  await chart.locator('svg').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(chart.locator('.proposal-readout')).toContainText('100');
+
+  await page.getByRole('tab', { name: 'Fast' }).click();
+  await expect(page.getByRole('tab', { name: 'Fast' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel').locator('tbody tr')).toHaveCount(2);
   await noOverflow(page);
 });
