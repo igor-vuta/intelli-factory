@@ -115,8 +115,8 @@ These screenshots show an earlier version of the application, before the redesig
 | Reliability score  | 0.824           | 0.891                      | **+8.1%**                               |
 | Raw cost (avg KZT) | 21,296          | 51,648                     | +142.5% - deliberate trilemma trade-off |
 
-- Deep GA chooses the same offer as Fast on every benchmark scenario, because it searches the same weighted score
-- Deep GA solution-set hypervolume: **0.852 ± 0.12** (normalised), converging by generations 50-60
+- Fast and Deep optimise the same weighted score. Fast ranks every candidate, so Deep can match it but not exceed it; in these pools (8-25 candidates) both select the same offer, which is why they share a column. On much larger pools (150 candidates) the GA can fall slightly short of Fast
+- Deep GA hypervolume of its returned solution set: **0.852 ± 0.12** (normalised, inverted cost against reliability)
 - Feasibility rate: **100%** across all 120 scenarios
 - Deep GA response time: **0.069 s ± 0.015 s**
 - Datasets: 55+ products, 12 manufacturers, 9 logistics providers

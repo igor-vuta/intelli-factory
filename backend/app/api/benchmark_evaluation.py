@@ -299,7 +299,7 @@ def run_benchmark() -> None:
 
     print("\nNote: Greedy selects lowest raw cost by design; multi-objective")
     print("  methods deliberately trade higher cost for better time/reliability,")
-    print("  yielding superior Fitness Scores and Pareto diversity (hypervolume).")
+    print("  yielding higher weighted fitness scores.")
     print("\n" + "=" * 70)
     print("  Benchmark complete.")
     print("=" * 70)
