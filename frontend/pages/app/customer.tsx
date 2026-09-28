@@ -7,6 +7,12 @@ import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import CategoryProposalPanel from '../../components/CategoryProposalPanel';
 import AttributeFields from '../../components/AttributeFields';
 import { categoryCopy } from '../../lib/categoryCopy';
+import ProposalExplorer from '../../components/ProposalExplorer';
+import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import SignatureList from '../../components/SignatureList';
+import TablePager from '../../components/TablePager';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import OrderProgress from '../../components/OrderProgress';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -37,6 +43,10 @@ import {
   signTransaction,
   selectCandidate,
   updateRequestStatus,
+  updateRequest,
+  pauseRequest,
+  resumeRequest,
+  deleteRequest,
   type BootstrapAddress,
   type BootstrapCategory,
   type BootstrapCountry,
@@ -47,24 +57,52 @@ import {
   type RequestSummary,
   type WorkflowTransaction,
 } from '../../lib/authClient';
-import { formatCurrencyOptionLabel, formatQuantityWithUnit } from '../../lib/formatting';
+import {
+  formatCurrencyOptionLabel,
+  formatDateTime,
+  formatQuantityWithUnit,
+} from '../../lib/formatting';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
-
-const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'text-amber-300',
-  PAIRING_IN_PROGRESS: 'text-sky-300',
-  MATCHED: 'text-emerald-300',
-  CONTRACT_DRAFTED: 'text-indigo-300',
-  CONTRACT_SIGNING: 'text-indigo-300',
-  FULLY_SIGNED: 'text-violet-300',
-  PAYMENT_CONFIRMED: 'text-emerald-300',
-  FULFILLMENT_STARTED: 'text-amber-300',
-  IN_PROGRESS: 'text-sky-300',
-  COMPLETED: 'text-emerald-300',
-  CANCELLED: 'text-red-400',
-};
+import { orderFacts } from '../../lib/orderFacts';
 
 const REQUESTS_PAGE_SIZE = 5;
+
+// What a customer can do with a request, by status (the API enforces the same rules).
+const SEARCHING_STATUSES = ['PENDING', 'PAIRING_IN_PROGRESS'];
+const PROPOSAL_STATUSES = ['PAIRING_IN_PROGRESS', 'MATCHED', 'PAUSED'];
+const EDITABLE_STATUSES = ['PENDING', 'PAUSED'];
+const CANCELLABLE_STATUSES = [...SEARCHING_STATUSES, 'PAUSED', 'MATCHED'];
+const DELETABLE_STATUSES = ['PENDING', 'CANCELLED'];
+
+function requestExplanation(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return 'Waiting for the first factory to bid.';
+    case 'PAIRING_IN_PROGRESS':
+      return 'Factories have bid; complete proposals appear once a carrier quotes.';
+    case 'PAUSED':
+      return 'Paused: no new bids or quotes until you resume searching.';
+    case 'CANCELLED':
+      return 'Cancelled. You can delete it from your list.';
+    case 'COMPLETED':
+      return 'Delivered and accepted.';
+    default:
+      return 'A proposal was chosen; this request continues as an order.';
+  }
+}
+
+/** The one action a request card offers, matching where the order is in its lifecycle. */
+function nextStep(status: string): { actionLabel: string; actionView?: string } {
+  if (['PAIRING_IN_PROGRESS', 'MATCHED'].includes(status))
+    return { actionLabel: 'Compare proposals' };
+  if (['CONTRACT_DRAFTED', 'CONTRACT_SIGNING'].includes(status))
+    return { actionLabel: 'Review and sign', actionView: 'workflow' };
+  if (['FULLY_SIGNED', 'AWAITING_PAYMENT'].includes(status))
+    return { actionLabel: 'Pay', actionView: 'workflow' };
+  if (['PAYMENT_CONFIRMED', 'FULFILLMENT_STARTED', 'IN_PROGRESS'].includes(status))
+    return { actionLabel: 'Track delivery', actionView: 'workflow' };
+  return { actionLabel: 'View request' };
+}
 
 type ProposalsModalProps = {
   requestId: string;
@@ -76,14 +114,6 @@ type ProposalsModalProps = {
   onClose: () => void;
   onSelected: () => Promise<void>;
 };
-
-type RecommendationGoal = 'RELIABILITY' | 'COST' | 'TIME';
-
-function _toNum(value: string | number | null | undefined): number | null {
-  if (value == null) return null;
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function ProposalsModal({
   requestId,
@@ -99,44 +129,10 @@ function ProposalsModal({
   const { dialogId, onClose } = useModalDismiss(onDismiss);
   const [selecting, setSelecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [recommendationGoal, setRecommendationGoal] = useState<RecommendationGoal>('RELIABILITY');
   const acceptedCandidate = useMemo(
     () => candidates.find((c) => c.status === 'ACCEPTED'),
     [candidates]
   );
-
-  const recommendedCandidate = useMemo(() => {
-    const available = candidates.filter((c) => c.status === 'PENDING' || c.status === 'ACCEPTED');
-    if (available.length === 0) return null;
-
-    const byReliability = available
-      .filter((c) => _toNum(c.reliability_score) != null)
-      .sort((a, b) => (_toNum(b.reliability_score) ?? -1) - (_toNum(a.reliability_score) ?? -1));
-    const byCost = available
-      .filter((c) => _toNum(c.total_cost) != null)
-      .sort(
-        (a, b) =>
-          (_toNum(a.total_cost) ?? Number.MAX_SAFE_INTEGER) -
-          (_toNum(b.total_cost) ?? Number.MAX_SAFE_INTEGER)
-      );
-    const byTime = available
-      .filter((c) => _toNum(c.delivery_days) != null)
-      .sort(
-        (a, b) =>
-          (_toNum(a.delivery_days) ?? Number.MAX_SAFE_INTEGER) -
-          (_toNum(b.delivery_days) ?? Number.MAX_SAFE_INTEGER)
-      );
-
-    if (recommendationGoal === 'RELIABILITY') return byReliability[0] ?? null;
-    if (recommendationGoal === 'COST') return byCost[0] ?? null;
-    return byTime[0] ?? null;
-  }, [candidates, recommendationGoal]);
-
-  const sortedCandidates = useMemo(() => {
-    if (!recommendedCandidate) return candidates;
-    const rest = candidates.filter((c) => c.id !== recommendedCandidate.id);
-    return [recommendedCandidate, ...rest];
-  }, [candidates, recommendedCandidate]);
 
   async function handleSelect(candidateId: string) {
     setError(null);
@@ -153,18 +149,14 @@ function ProposalsModal({
   }
 
   return (
-    <Modal
-      id={dialogId}
-      onClose={onClose}
-      className="fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-8 backdrop-blur-sm"
-    >
-      <div className="slide-up my-auto flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-[rgb(var(--stroke))] bg-[rgb(var(--bg))] shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] p-6 sm:p-8">
+    <Modal id={dialogId} onClose={onClose} className="modal-wide">
+      <div className="flex flex-col">
+        <div className="flex items-start justify-between gap-4 border-b border-[rgb(var(--stroke))] pb-6">
           <div>
-            <h2 className="text-lg font-semibold">Proposals for your request</h2>
+            <h2 className="text-lg font-semibold">{e('Compare proposals')}</h2>
             <GuidanceHint hint="proposals" />
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-              {e('Request')} {requestId.slice(0, 8)}… &mdash; Select the best offer.
+              {e('Request')} {requestId.slice(0, 8)}…
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -173,11 +165,12 @@ function ProposalsModal({
               onClick={() => void onRefresh()}
               className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 text-xs text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/20"
             >
-              Refresh
+              {e('Refresh')}
             </button>
             <button
               type="button"
               onClick={onClose}
+              aria-label={e('Close')}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[rgb(var(--muted))] hover:bg-[rgb(var(--stroke))]/40"
             >
               ×
@@ -185,220 +178,39 @@ function ProposalsModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+        <div className="pt-6">
           {error && (
-            <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
+            <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
 
           {loadError && (
-            <p className="mb-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {loadError}
             </p>
           )}
 
           {acceptedCandidate && (
-            <p className="mb-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
-              A proposal is already selected for this request.
+            <p className="mb-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+              {e('A proposal is already selected for this request.')}
             </p>
-          )}
-
-          {!loadingCandidates && candidates.length > 0 && (
-            <div className="mb-4 rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-3">
-              <p className="mb-2 text-xs text-[rgb(var(--muted))]">Recommendation engine</p>
-              <div className="mb-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRecommendationGoal('RELIABILITY')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs ${
-                    recommendationGoal === 'RELIABILITY'
-                      ? 'border-emerald-700/80 text-emerald-300'
-                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                  }`}
-                >
-                  [R] Reliability
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRecommendationGoal('COST')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs ${
-                    recommendationGoal === 'COST'
-                      ? 'border-amber-700/80 text-amber-300'
-                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                  }`}
-                >
-                  [$] Cost
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRecommendationGoal('TIME')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs ${
-                    recommendationGoal === 'TIME'
-                      ? 'border-sky-700/80 text-sky-300'
-                      : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
-                  }`}
-                >
-                  [T] Time
-                </button>
-              </div>
-
-              {recommendedCandidate ? (
-                <div className="rounded-lg border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-sm">
-                  <div className="font-medium text-sky-200">Recommended proposal</div>
-                  <div className="mt-1 text-xs text-[rgb(var(--muted))]">
-                    Factory: {recommendedCandidate.factory_legal_name ?? '-'} | Total:{' '}
-                    {recommendedCandidate.total_cost ?? '-'} {recommendedCandidate.currency_code} |
-                    Days: {recommendedCandidate.delivery_days ?? '-'} | Reliability:{' '}
-                    {recommendedCandidate.reliability_score != null
-                      ? `${Math.round(recommendedCandidate.reliability_score * 100)}%`
-                      : '-'}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-[rgb(var(--muted))]">
-                  No recommendation can be computed because required fields are missing.
-                </p>
-              )}
-            </div>
           )}
 
           {loadingCandidates ? (
-            <p className="text-sm text-[rgb(var(--muted))]">Loading proposals…</p>
+            <p className="text-sm text-[rgb(var(--muted))]">{e('Loading proposals…')}</p>
           ) : candidates.length === 0 ? (
             <p className="text-sm text-[rgb(var(--muted))]">
               {requestStatus === 'MATCHED'
-                ? 'Request is matched, but no proposal rows were returned. Try refresh.'
-                : 'No complete proposals yet. Factories have bid but logistics quotes are pending.'}
+                ? e('Request is matched, but no proposal rows were returned. Try refresh.')
+                : e(
+                    'No complete proposals yet. Factories have bid but logistics quotes are pending.'
+                  )}
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                    <th className="py-2 pr-3">Factory</th>
-                    <th className="py-2 pr-3">From</th>
-                    <th className="py-2 pr-3">{e('Item')}</th>
-                    <th className="py-2 pr-3">Qty</th>
-                    <th className="py-2 pr-3">Logist</th>
-                    <th className="py-2 pr-3">Goods cost</th>
-                    <th className="py-2 pr-3">{e('Delivery')}</th>
-                    <th className="py-2 pr-3">Total</th>
-                    <th className="py-2 pr-3">Days</th>
-                    <th className="py-2 pr-3">Score</th>
-                    <th className="py-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCandidates.map((c) => {
-                    const goodsCost =
-                      c.quoted_quantity && c.inventory_price_per_unit
-                        ? (
-                            parseFloat(c.quoted_quantity) * parseFloat(c.inventory_price_per_unit)
-                          ).toFixed(2)
-                        : '-';
-                    return (
-                      <tr
-                        key={c.id}
-                        className={`border-b border-[rgb(var(--stroke))]/40 ${
-                          recommendedCandidate?.id === c.id ? 'bg-sky-950/20' : ''
-                        }`}
-                      >
-                        <td className="py-2 pr-3 text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            <span>{c.factory_legal_name ?? '-'}</span>
-                            {c.factory_avg_rating != null && (
-                              <span
-                                className={`text-[10px] font-medium ${
-                                  c.factory_avg_rating >= 4.25
-                                    ? 'text-emerald-400'
-                                    : c.factory_avg_rating >= 3.25
-                                      ? 'text-amber-400'
-                                      : 'text-red-400'
-                                }`}
-                              >
-                                ★ {c.factory_avg_rating.toFixed(1)}/5
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td
-                          className="py-2 pr-3 text-xs text-[rgb(var(--muted))]"
-                          title={c.source_address_label ?? undefined}
-                        >
-                          {c.source_address_label
-                            ? c.source_address_label.split(',').slice(1, 3).join(',').trim() ||
-                              c.source_address_label
-                            : '-'}
-                        </td>
-                        <td className="py-2 pr-3">{c.item_name ?? '-'}</td>
-                        <td className="py-2 pr-3">
-                          {formatQuantityWithUnit(c.quoted_quantity, c.quantity_unit)}
-                        </td>
-                        <td className="py-2 pr-3 text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            <span>{c.logist_legal_name ?? '-'}</span>
-                            {c.logistic_title && c.logistic_title !== c.logist_legal_name && (
-                              <span className="text-[10px] text-[rgb(var(--muted))]">
-                                {c.logistic_title}
-                              </span>
-                            )}
-                            {c.logist_avg_rating != null && (
-                              <span
-                                className={`text-[10px] font-medium ${
-                                  c.logist_avg_rating >= 4.25
-                                    ? 'text-emerald-400'
-                                    : c.logist_avg_rating >= 3.25
-                                      ? 'text-amber-400'
-                                      : 'text-red-400'
-                                }`}
-                              >
-                                ★ {c.logist_avg_rating.toFixed(1)}/5
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 pr-3">
-                          {goodsCost} {c.currency_code}
-                        </td>
-                        <td className="py-2 pr-3">
-                          {c.delivery_price ?? '-'} {c.currency_code}
-                        </td>
-                        <td className="py-2 pr-3 font-medium">
-                          {c.total_cost ?? '-'} {c.currency_code}
-                        </td>
-                        <td className="py-2 pr-3">{c.delivery_days ?? '-'}d</td>
-                        <td className="py-2 pr-3 text-xs text-sky-300">
-                          {c.fitness_score != null ? c.fitness_score.toFixed(4) : '-'}
-                        </td>
-                        <td className="py-2">
-                          <div className="flex items-center gap-2">
-                            {recommendedCandidate?.id === c.id && (
-                              <span className="rounded-md border border-sky-700/60 px-2 py-1 text-[10px] text-sky-300">
-                                Recommended
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              disabled={
-                                selecting === c.id ||
-                                (acceptedCandidate != null && acceptedCandidate.id !== c.id)
-                              }
-                              onClick={() => void handleSelect(c.id)}
-                              className="rounded-md border border-emerald-700/60 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-50"
-                            >
-                              {c.status === 'ACCEPTED'
-                                ? 'Selected'
-                                : selecting === c.id
-                                  ? 'Selecting…'
-                                  : 'Select'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ProposalExplorer
+              candidates={candidates}
+              selecting={selecting}
+              onChoose={(candidateId) => void handleSelect(candidateId)}
+            />
           )}
         </div>
       </div>
@@ -641,6 +453,7 @@ function NewRequestModal({
             value={attributes}
             onChange={setAttributes}
           />
+
           {/* Step 2 \u2014 Item name: free text with catalogue suggestions */}
           <SearchableInput
             suggestions={itemSuggestions}
@@ -670,7 +483,7 @@ function NewRequestModal({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="request-quantity" className="text-sm text-[rgb(var(--muted))]">
-                {e('Quantity')} <span className="text-red-400">*</span>
+                {e('Quantity')} <span className="text-danger">*</span>
               </label>
               <input
                 id="request-quantity"
@@ -698,7 +511,7 @@ function NewRequestModal({
 
             <div className="flex flex-col gap-1">
               <label className="text-sm text-[rgb(var(--muted))]">
-                {e('Currency')} <span className="text-red-400">*</span>
+                {e('Currency')} <span className="text-danger">*</span>
               </label>
               <SelectField
                 aria-label="Currency"
@@ -723,7 +536,7 @@ function NewRequestModal({
           <GuidanceHint hint="address" />
           <div className="flex flex-col gap-2">
             <label className="text-sm text-[rgb(var(--muted))]">
-              {e('Destination address')} <span className="text-red-400">*</span>
+              {e('Destination address')} <span className="text-danger">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               <button
@@ -733,7 +546,7 @@ function NewRequestModal({
                 aria-pressed={!useManualAddress}
                 className={`rounded-md border px-2 py-1 text-xs ${
                   !useManualAddress
-                    ? 'border-sky-700/80 text-sky-300'
+                    ? 'border-info/40 text-info'
                     : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                 }`}
               >
@@ -745,7 +558,7 @@ function NewRequestModal({
                 aria-pressed={useManualAddress}
                 className={`rounded-md border px-2 py-1 text-xs ${
                   useManualAddress
-                    ? 'border-sky-700/80 text-sky-300'
+                    ? 'border-info/40 text-info'
                     : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'
                 }`}
               >
@@ -808,15 +621,12 @@ function NewRequestModal({
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
           {success && (
-            <p
-              role="status"
-              className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
-            >
+            <p role="status" className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
               {success}
             </p>
           )}
@@ -1148,7 +958,6 @@ export default function CustomerWorkspacePage() {
     setPageError(null);
     try {
       await updateRequestStatus(requestId, 'CANCELLED');
-      await dissolve(document.getElementById(`request-${requestId}`));
       await refreshRequests();
     } catch (cause) {
       setPageError(
@@ -1156,6 +965,56 @@ export default function CustomerWorkspacePage() {
       );
     } finally {
       setCancellingRequest(null);
+    }
+  }
+
+  const [editing, setEditing] = useState<{ id: string; quantity: string; currency: string } | null>(
+    null
+  );
+  const [requestBusy, setRequestBusy] = useState<string | null>(null);
+  const requestRecords = useExpandedRecords(
+    filteredRequests.map((row) => row.id),
+    REQUESTS_PAGE_SIZE,
+    setRequestsPage
+  );
+  const orderRecords = useExpandedRecords(
+    transactions.map((tx) => tx.id),
+    REQUESTS_PAGE_SIZE,
+    setTransactionsPage
+  );
+
+  function openView(view: string, focus: string) {
+    void router.push(
+      { pathname: router.pathname, query: { ...router.query, view, focus } },
+      undefined,
+      {
+        shallow: true,
+        scroll: false,
+      }
+    );
+  }
+
+  /** Runs one request action, confirming the destructive ones; true when it succeeded. */
+  async function runRequestAction(
+    requestId: string,
+    action: string,
+    call: () => Promise<unknown>,
+    confirmLabel?: string
+  ) {
+    if (requestBusy) return false;
+    if (confirmLabel && !(await confirm(confirmLabel))) return false;
+    setRequestBusy(`${requestId}:${action}`);
+    setPageError(null);
+    try {
+      await call();
+      if (action === 'delete') await dissolve(document.getElementById(`record-${requestId}`));
+      await refreshRequests();
+      return true;
+    } catch (cause) {
+      setPageError(cause instanceof Error ? cause.message : 'Could not update the request.');
+      return false;
+    } finally {
+      setRequestBusy(null);
     }
   }
 
@@ -1190,12 +1049,14 @@ export default function CustomerWorkspacePage() {
         title: row.item_name ?? row.requested_name_text ?? row.category_name ?? 'Supply request',
         status: row.status,
         detail: `${row.quantity} ${row.quantity_unit} · ${row.preferred_currency_code}`,
+        ...nextStep(row.status),
         action: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
           ? () => void openProposals(row.id)
-          : undefined,
-        actionLabel: ['PAIRING_IN_PROGRESS', 'MATCHED'].includes(row.status)
-          ? 'Compare proposals'
-          : 'View request',
+          : // Contract-stage cards open the order itself, not just the orders list.
+            (() => {
+              const order = transactions.find((tx) => tx.request_id === row.id);
+              return order ? () => openView('workflow', order.id) : undefined;
+            })(),
       }))}
       onLogout={handleLogout}
       onCreate={() => setShowModal(true)}
@@ -1203,18 +1064,20 @@ export default function CustomerWorkspacePage() {
       <div className="workspace-panels">
         <CategoryProposalPanel locale={locale} />
         <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="section-heading-row">
             <div>
-              <h1 id="requests" className="slide-up text-2xl font-semibold sm:text-3xl">
+              <h2 id="requests" className="text-lg font-semibold">
                 {copy.myRequestsTitle}
-              </h1>
-              <p className="mt-1 text-sm text-[rgb(var(--muted))]">{copy.myRequestsSubtitle}</p>
+              </h2>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
+                {e('Open a request to see its details and everything you can do with it.')}
+              </p>
             </div>
             {!loading && (
               <button
                 type="button"
                 onClick={() => setShowModal(true)}
-                className="btn btn-primary text-sm"
+                className="if-button if-button-primary"
               >
                 {copy.newRequestAction}
               </button>
@@ -1222,376 +1085,476 @@ export default function CustomerWorkspacePage() {
           </div>
 
           {loading && (
-            <p className="mt-6 text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>
+            <p className="mt-6 text-sm text-[rgb(var(--muted))]">{e('Loading workspace…')}</p>
           )}
 
-          {!loading && (
-            <div className="mt-6">
-              {requests.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[rgb(var(--stroke))] py-14 text-center">
-                  <p className="text-sm text-[rgb(var(--muted))]">No requests yet.</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(true)}
-                    className="btn btn-primary mt-4 text-sm"
+          {!loading &&
+            (requests.length === 0 ? (
+              <div className="mt-6 rounded-xl border border-dashed border-[rgb(var(--stroke))] py-14 text-center">
+                <p className="text-sm text-[rgb(var(--muted))]">{e('No requests yet.')}</p>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(true)}
+                  className="if-button if-button-primary mt-4"
+                >
+                  {e('Create your first request')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="table-filters">
+                  <input
+                    type="search"
+                    aria-label={e('Search item, category or reference')}
+                    value={requestSearch}
+                    onChange={(e) => setRequestSearch(e.target.value)}
+                    placeholder={e('Search item, category or reference')}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                  />
+                  <SelectField
+                    aria-label="Status"
+                    value={requestStatusFilter}
+                    onChange={(e) => setRequestStatusFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                   >
-                    Create your first request
-                  </button>
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[rgb(var(--stroke))] py-10 text-center">
-                  <p className="text-sm text-[rgb(var(--muted))]">
-                    No requests match your current filters.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRequestSearch('');
-                      setRequestStatusFilter('ALL');
-                      setRequestCurrencyFilter('ALL');
-                    }}
-                    className="btn btn-ghost mt-3 text-sm"
+                    <option value="ALL">{e('All statuses')}</option>
+                    {requestStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <SelectField
+                    aria-label={e('Currency')}
+                    value={requestCurrencyFilter}
+                    onChange={(e) => setRequestCurrencyFilter(e.target.value)}
+                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                   >
-                    Clear filters
-                  </button>
+                    <option value="ALL">{e('All currencies')}</option>
+                    {requestCurrencyOptions.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </SelectField>
                 </div>
-              ) : (
-                <>
-                  <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-                    <input
-                      value={requestSearch}
-                      onChange={(e) => setRequestSearch(e.target.value)}
-                      placeholder="Search by name/category/id"
-                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm lg:col-span-2"
-                    />
-                    <SelectField
-                      aria-label="Status"
-                      value={requestStatusFilter}
-                      onChange={(e) => setRequestStatusFilter(e.target.value)}
-                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    >
-                      <option value="ALL">All statuses</option>
-                      {requestStatusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </SelectField>
-                    <SelectField
-                      aria-label="Currency"
-                      value={requestCurrencyFilter}
-                      onChange={(e) => setRequestCurrencyFilter(e.target.value)}
-                      className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                    >
-                      <option value="ALL">All currencies</option>
-                      {requestCurrencyOptions.map((currency) => (
-                        <option key={currency} value={currency}>
-                          {currency}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-4">{copy.colId}</th>
-                          <th className="py-2 pr-4">{copy.colCategory}</th>
-                          <th className="py-2 pr-4">{copy.colItemDescription}</th>
-                          <th className="py-2 pr-4">{copy.colQty}</th>
-                          <th className="py-2 pr-4">{copy.colCurrency}</th>
-                          <th className="py-2 pr-4">{copy.colStatus}</th>
-                          <th className="py-2 pr-4">{copy.colAction}</th>
-                          <th className="py-2">{copy.colCreated}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedRequests.map((row) => (
-                          <tr
-                            id={`request-${row.id}`}
-                            key={row.id}
-                            className="border-b border-[rgb(var(--stroke))]/40"
-                          >
-                            <td className="py-2 pr-4 font-mono text-xs">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Reference')}{' '}
-                              </span>
-                              {row.id.slice(0, 8)}
-                              \u2026
-                            </td>
-                            <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Category')}{' '}
-                              </span>
-                              {row.category_name ?? '\u2014'}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Item')}{' '}
-                              </span>
-                              {row.item_name ?? row.requested_name_text ?? '\u2014'}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Quantity')}{' '}
-                              </span>
-                              {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                Currency
-                              </span>
-                              {row.preferred_currency_code}
-                            </td>
-                            <td className={`py-2 pr-4 ${STATUS_COLOR[row.status] ?? ''}`}>
-                              <span className="record-label" aria-hidden="true">
-                                {e('Status')}{' '}
-                              </span>
-                              {e(row.status)}
-                            </td>
-                            <td className="py-2 pr-4">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Next step')}{' '}
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {row.status === 'PENDING' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleCancelRequest(row.id)}
-                                    disabled={cancellingRequest !== null}
-                                    className="rounded-md border border-red-700/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30"
-                                  >
-                                    {copy.cancelRequest}
-                                  </button>
-                                )}
-                                {(row.status === 'PAIRING_IN_PROGRESS' ||
-                                  row.status === 'MATCHED') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void openProposals(row.id)}
-                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
-                                  >
-                                    {copy.viewProposals}
-                                  </button>
-                                )}
-                                {row.status !== 'PENDING' &&
-                                  row.status !== 'PAIRING_IN_PROGRESS' &&
-                                  row.status !== 'MATCHED' && (
-                                    <span className="text-xs text-[rgb(var(--muted))]">-</span>
-                                  )}
-                              </div>
-                            </td>
-                            <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                              <span className="record-label" aria-hidden="true">
-                                {e('Created')}{' '}
-                              </span>
-                              {new Date(row.created_at).toLocaleString('en-GB', {
-                                timeZone: 'UTC',
-                              })}
-                            </td>
+                {filteredRequests.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[rgb(var(--stroke))] py-10 text-center">
+                    <p className="text-sm text-[rgb(var(--muted))]">
+                      {e('No requests match your current filters.')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequestSearch('');
+                        setRequestStatusFilter('ALL');
+                        setRequestCurrencyFilter('ALL');
+                      }}
+                      className="if-button mt-3"
+                    >
+                      {e('Clear filters')}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className="record-scroll"
+                      tabIndex={0}
+                      role="region"
+                      aria-label={copy.myRequestsTitle}
+                    >
+                      <table className="record-table">
+                        <thead>
+                          <tr>
+                            <th>{e('Item')}</th>
+                            <th>{e('Quantity')}</th>
+                            <th>{e('Status')}</th>
+                            <th>{e('Created')}</th>
+                            <th>
+                              <span className="sr-only">{e('Next step')}</span>
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <span>
-                      Showing {(requestsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                      {' - '}
-                      {Math.min(requestsPage * REQUESTS_PAGE_SIZE, filteredRequests.length)} of{' '}
-                      {filteredRequests.length}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={requestsPage <= 1}
-                        onClick={() => setRequestsPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <span>
-                        Page {requestsPage} / {totalRequestPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={requestsPage >= totalRequestPages}
-                        onClick={() =>
-                          setRequestsPage((prev) => Math.min(totalRequestPages, prev + 1))
-                        }
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
+                        </thead>
+                        <tbody>
+                          {paginatedRequests.map((row) => {
+                            const order = transactions.find((tx) => tx.request_id === row.id);
+                            const hasProposals = PROPOSAL_STATUSES.includes(row.status);
+                            const busy = requestBusy?.startsWith(row.id) ?? false;
+                            return (
+                              <RecordRow
+                                key={row.id}
+                                id={row.id}
+                                open={requestRecords.isOpen(row.id)}
+                                onToggle={() => requestRecords.toggle(row.id)}
+                                colSpan={5}
+                                title={
+                                  row.item_name ?? row.requested_name_text ?? e('Supply request')
+                                }
+                                subtitle={<small>{row.category_name ?? ''}</small>}
+                                detail={
+                                  <RecordDetail
+                                    facts={[
+                                      [e('Status'), e(requestExplanation(row.status))],
+                                      [e('Reference'), <code key="ref">{row.id.slice(0, 8)}</code>],
+                                      [e('Category'), row.category_name],
+                                      [
+                                        e('Quantity'),
+                                        formatQuantityWithUnit(row.quantity, row.quantity_unit),
+                                      ],
+                                      [e('Currency'), row.preferred_currency_code],
+                                      [e('Created'), formatDateTime(locale, row.created_at)],
+                                    ]}
+                                    actions={
+                                      <>
+                                        {hasProposals && (
+                                          <button
+                                            type="button"
+                                            className="if-button if-button-primary"
+                                            onClick={() => void openProposals(row.id)}
+                                          >
+                                            {e('Compare proposals')}
+                                          </button>
+                                        )}
+                                        {order && (
+                                          <button
+                                            type="button"
+                                            className="if-button if-button-primary"
+                                            onClick={() => openView('workflow', order.id)}
+                                          >
+                                            {e('Open the order')}
+                                          </button>
+                                        )}
+                                        {EDITABLE_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            className="if-button"
+                                            aria-expanded={editing?.id === row.id}
+                                            onClick={() =>
+                                              setEditing(
+                                                editing?.id === row.id
+                                                  ? null
+                                                  : {
+                                                      id: row.id,
+                                                      quantity: row.quantity,
+                                                      currency: row.preferred_currency_code,
+                                                    }
+                                              )
+                                            }
+                                          >
+                                            {e('Edit')}
+                                          </button>
+                                        )}
+                                        {SEARCHING_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            className="if-button"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void runRequestAction(row.id, 'pause', () =>
+                                                pauseRequest(row.id)
+                                              )
+                                            }
+                                          >
+                                            {e('Stop searching')}
+                                          </button>
+                                        )}
+                                        {row.status === 'PAUSED' && (
+                                          <button
+                                            type="button"
+                                            className="if-button"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void runRequestAction(row.id, 'resume', () =>
+                                                resumeRequest(row.id)
+                                              )
+                                            }
+                                          >
+                                            {e('Resume searching')}
+                                          </button>
+                                        )}
+                                        {CANCELLABLE_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => void handleCancelRequest(row.id)}
+                                            disabled={cancellingRequest !== null}
+                                            className="if-button is-danger"
+                                          >
+                                            {copy.cancelRequest}
+                                          </button>
+                                        )}
+                                        {DELETABLE_STATUSES.includes(row.status) && (
+                                          <button
+                                            type="button"
+                                            className="if-button is-danger"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              void runRequestAction(
+                                                row.id,
+                                                'delete',
+                                                () => deleteRequest(row.id),
+                                                'Delete request'
+                                              )
+                                            }
+                                          >
+                                            {e('Delete')}
+                                          </button>
+                                        )}
+                                      </>
+                                    }
+                                  >
+                                    {editing?.id === row.id && (
+                                      <form
+                                        className="record-edit"
+                                        onSubmit={(event) => {
+                                          event.preventDefault();
+                                          void runRequestAction(row.id, 'edit', () =>
+                                            updateRequest(row.id, {
+                                              quantity: Number(editing.quantity),
+                                              preferred_currency_code: editing.currency,
+                                            })
+                                          ).then((ok) => ok && setEditing(null));
+                                        }}
+                                      >
+                                        <label>
+                                          {e('Quantity')} ({row.quantity_unit})
+                                          <input
+                                            type="number"
+                                            min="0.01"
+                                            step="any"
+                                            required
+                                            value={editing.quantity}
+                                            onChange={(event) =>
+                                              setEditing({
+                                                ...editing,
+                                                quantity: event.target.value,
+                                              })
+                                            }
+                                          />
+                                        </label>
+                                        <div className="record-edit-field">
+                                          <span>{e('Currency')}</span>
+                                          <SelectField
+                                            aria-label={e('Currency')}
+                                            value={editing.currency}
+                                            onChange={(event) =>
+                                              setEditing({
+                                                ...editing,
+                                                currency: event.target.value,
+                                              })
+                                            }
+                                            className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                                          >
+                                            {currencies.map((c) => (
+                                              <option key={c.code} value={c.code}>
+                                                {formatCurrencyOptionLabel(c.code, c.name)}
+                                              </option>
+                                            ))}
+                                          </SelectField>
+                                        </div>
+                                        <button
+                                          type="submit"
+                                          className="if-button if-button-primary"
+                                          disabled={busy}
+                                        >
+                                          {e('Save changes')}
+                                        </button>
+                                        <p className="record-notice record-edit-wide">
+                                          {e(
+                                            'A request can be edited until the first factory bids on it.'
+                                          )}
+                                        </p>
+                                      </form>
+                                    )}
+                                  </RecordDetail>
+                                }
+                              >
+                                <td data-label={e('Quantity')} className="num">
+                                  {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                                  <small>{row.preferred_currency_code}</small>
+                                </td>
+                                <td data-label={e('Status')}>
+                                  <StatusBadge status={row.status} />
+                                </td>
+                                <td data-label={e('Created')}>
+                                  {formatDateTime(locale, row.created_at)}
+                                </td>
+                                <td className="record-actions">
+                                  {hasProposals ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void openProposals(row.id)}
+                                      className="if-button"
+                                    >
+                                      {copy.viewProposals}
+                                    </button>
+                                  ) : order ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openView('workflow', order.id)}
+                                      className="if-button"
+                                    >
+                                      {e('Open the order')}
+                                    </button>
+                                  ) : null}
+                                </td>
+                              </RecordRow>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                    <TablePager
+                      page={requestsPage}
+                      pageSize={REQUESTS_PAGE_SIZE}
+                      total={filteredRequests.length}
+                      onPage={setRequestsPage}
+                    />
+                  </>
+                )}
+              </>
+            ))}
         </section>
 
         {!loading && (
           <section data-section="workflow" className="surface-1 rounded-2xl p-6 sm:p-8">
             <h2 id="workflow" className="text-lg font-semibold">
-              {e('Contract, Payment & Acceptance')}{' '}
+              {e('Contract, Payment & Acceptance')}
             </h2>
             <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
               {e(
                 'Continue matched requests: sign contract, pay after all signatures, then accept completion at the end of delivery.'
-              )}{' '}
+              )}
             </p>
 
             {transactions.length === 0 ? (
-              <p className="mt-3 text-sm text-[rgb(var(--muted))]">No active transactions yet.</p>
+              <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                {e('No active transactions yet.')}
+              </p>
             ) : (
               <>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                <div
+                  className="record-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={e('Contract, Payment & Acceptance')}
+                >
+                  <table className="record-table">
                     <thead>
-                      <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                        <th className="py-2 pr-4">Transaction</th>
-                        <th className="py-2 pr-4">{e('Item')}</th>
-                        <th className="py-2 pr-4">{e('Status')}</th>
-                        <th className="py-2 pr-4">{e('Signatures')}</th>
-                        <th className="py-2 pr-4">{e('Payment')}</th>
-                        <th className="py-2">{e('Actions')}</th>
+                      <tr>
+                        <th>{e('Order')}</th>
+                        <th>{e('Status')}</th>
+                        <th>{e('Signatures')}</th>
+                        <th>{e('Next step')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedTransactions.map((tx) => (
-                        <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                          <td className="py-2 pr-4 font-mono text-xs">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Reference')}{' '}
-                            </span>
-                            {tx.id.slice(0, 8)}...
-                          </td>
-                          <td className="py-2 pr-4">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Item')}{' '}
-                            </span>
-                            {tx.item_name ?? '-'}
-                          </td>
-                          <td className={`py-2 pr-4 ${STATUS_COLOR[tx.status] ?? ''}`}>
-                            <span className="record-label" aria-hidden="true">
-                              {e('Status')}{' '}
-                            </span>
-                            {e(tx.status)}
-                            <OrderProgress status={tx.status} />
-                          </td>
-                          <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Signatures')}{' '}
-                            </span>
-                            C:{e(tx.signature_status.CUSTOMER)} F:{e(tx.signature_status.FACTORY)}{' '}
-                            L:
-                            {e(tx.signature_status.LOGIST)}
-                          </td>
-                          <td className="py-2 pr-4 text-xs">
-                            <span className="record-label" aria-hidden="true">
-                              {e('Payment')}{' '}
-                            </span>
-                            {tx.total_cost ? `${tx.total_cost} ${tx.currency_code ?? ''}` : '-'} (
-                            {e(tx.payment_status)})
-                          </td>
-                          <td className="py-2">
-                            <OrderGuidance transaction={tx} />
-                            <span className="record-label" aria-hidden="true">
-                              {e('Next step')}{' '}
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {tx.can_sign && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                  disabled={workflowBusyId === tx.id + 'SIGN'}
-                                  className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
-                                </button>
-                              )}
-                              {tx.can_pay && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
-                                  disabled={workflowBusyId === tx.id + 'PAY'}
-                                  className="rounded-md border border-emerald-700/60 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-950/30 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'PAY' ? 'Paying...' : 'Pay'}
-                                </button>
-                              )}
-                              {tx.can_accept_completion && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')
-                                  }
-                                  disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
-                                  className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
-                                >
-                                  {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
-                                    ? 'Accepting...'
-                                    : 'Accept'}
-                                </button>
-                              )}
-                              {tx.status === 'COMPLETED' && (
-                                <button
-                                  type="button"
-                                  onClick={() => setRatingTransaction(tx)}
-                                  className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30"
-                                >
-                                  {e('Rate')}{' '}
-                                </button>
-                              )}
-                              {!tx.can_sign &&
-                                !tx.can_pay &&
-                                !tx.can_accept_completion &&
-                                tx.status !== 'COMPLETED' && (
+                      {paginatedTransactions.map((tx) => {
+                        const canAct = tx.can_sign || tx.can_pay || tx.can_accept_completion;
+                        const actions = (
+                          <>
+                            {tx.can_sign && (
+                              <button
+                                type="button"
+                                onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                disabled={workflowBusyId === tx.id + 'SIGN'}
+                                className="if-button if-button-primary"
+                              >
+                                {workflowBusyId === tx.id + 'SIGN' ? e('Signing…') : e('Sign')}
+                              </button>
+                            )}
+                            {tx.can_pay && (
+                              <button
+                                type="button"
+                                onClick={() => void handleWorkflowAction(tx.id, 'PAY')}
+                                disabled={workflowBusyId === tx.id + 'PAY'}
+                                className="if-button if-button-primary"
+                              >
+                                {workflowBusyId === tx.id + 'PAY' ? e('Paying…') : e('Pay')}
+                              </button>
+                            )}
+                            {tx.can_accept_completion && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleWorkflowAction(tx.id, 'ACCEPT_COMPLETION')
+                                }
+                                disabled={workflowBusyId === tx.id + 'ACCEPT_COMPLETION'}
+                                className="if-button if-button-primary"
+                              >
+                                {workflowBusyId === tx.id + 'ACCEPT_COMPLETION'
+                                  ? e('Accepting…')
+                                  : e('Accept')}
+                              </button>
+                            )}
+                            {tx.status === 'COMPLETED' && (
+                              <button
+                                type="button"
+                                onClick={() => setRatingTransaction(tx)}
+                                className="if-button"
+                              >
+                                {e('Rate')}
+                              </button>
+                            )}
+                          </>
+                        );
+                        return (
+                          <RecordRow
+                            key={tx.id}
+                            id={tx.id}
+                            open={orderRecords.isOpen(tx.id)}
+                            onToggle={() => orderRecords.toggle(tx.id)}
+                            colSpan={4}
+                            title={tx.item_name ?? e('Order')}
+                            subtitle={<small className="font-mono">{tx.id.slice(0, 8)}</small>}
+                            detail={
+                              <RecordDetail
+                                facts={orderFacts(tx, e, locale)}
+                                actions={
+                                  <>
+                                    {actions}
+                                    <button
+                                      type="button"
+                                      className="if-button"
+                                      onClick={() => openView('requests', tx.request_id)}
+                                    >
+                                      {e('View the request')}
+                                    </button>
+                                  </>
+                                }
+                              />
+                            }
+                          >
+                            <td data-label={e('Status')}>
+                              <StatusBadge status={tx.status} />
+                              <OrderProgress status={tx.status} />
+                            </td>
+                            <td data-label={e('Signatures')}>
+                              <SignatureList status={tx.signature_status} />
+                            </td>
+                            <td className="record-actions record-next">
+                              <OrderGuidance transaction={tx} />
+                              <div className="flex flex-wrap gap-2">
+                                {actions}
+                                {!canAct && tx.status !== 'COMPLETED' && (
                                   <span className="text-xs text-[rgb(var(--muted))]">
-                                    Awaiting others
+                                    {e('Awaiting others')}
                                   </span>
                                 )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              </div>
+                            </td>
+                          </RecordRow>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                  <span>
-                    Showing {(transactionsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                    {' - '}
-                    {Math.min(transactionsPage * REQUESTS_PAGE_SIZE, transactions.length)} of{' '}
-                    {transactions.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={transactionsPage <= 1}
-                      onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {transactionsPage} / {totalTransactionPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={transactionsPage >= totalTransactionPages}
-                      onClick={() =>
-                        setTransactionsPage((prev) => Math.min(totalTransactionPages, prev + 1))
-                      }
-                      className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
+                <TablePager
+                  page={transactionsPage}
+                  pageSize={REQUESTS_PAGE_SIZE}
+                  total={transactions.length}
+                  onPage={setTransactionsPage}
+                />
               </>
             )}
           </section>

@@ -41,7 +41,7 @@ elif name == 'sha256sum':
 elif name == 'gunzip': print('image data')
 elif name in ['sudo', 'docker']:
     if 'load' in args:
-        sys.stdin.read()
+        sys.stdin.read()  # like docker load, consume the stream so gunzip never hits a closed pipe
     if 'pg_dump' in args:
         print('backup')
         sys.exit(int(os.environ.get('BACKUP_FAIL', '0')))

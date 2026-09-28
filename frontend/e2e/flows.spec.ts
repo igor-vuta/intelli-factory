@@ -2,10 +2,6 @@ import { experienceTranslations } from '../lib/experienceI18n';
 import { guidanceText } from '../lib/guidance';
 import { test, expect, type Page } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('if-preferences-configured', '1'));
-});
-
 const roles = ['customer', 'factory', 'logist', 'admin'] as const;
 async function mockApi(page: Page, role = 'CUSTOMER', authorized = true, userId = 'test-user') {
   await page.route('**/api/**', async (route) => {
@@ -67,65 +63,49 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
-async function openSettings(page: Page) {
-  await page
-    .getByRole('button', { name: /Profile settings|Настройки профиля|Профиль баптаулары/ })
-    .click();
-}
-async function chooseTheme(page: Page, name: string) {
-  await openSettings(page);
-  await page.getByRole('radio', { name, exact: true }).check();
-  await page
-    .getByRole('button', { name: /Save preferences|Сохранить настройки|Баптауларды сақтау/ })
-    .click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-}
-async function chooseLanguage(page: Page, language: string) {
-  await openSettings(page);
-  await page.getByRole('combobox', { name: /Language|Язык|Тіл/ }).click();
-  await page.getByRole('option', { name: language, exact: true }).click();
-  await page
-    .getByRole('button', { name: /Save preferences|Сохранить настройки|Баптауларды сақтау/ })
-    .click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+async function chooseMode(page: Page, mode: 'system' | 'light' | 'dark') {
+  // By value, so the helper works in every language.
+  await page.locator(`input[name="color-mode"][value="${mode}"]`).check();
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-mode',
+    mode === 'system' ? /light|dark/ : mode
+  );
 }
 
-test('themes persist across navigation and reload; language is retained', async ({ page }) => {
+test('colour mode persists across navigation and reload; language is retained', async ({
+  page,
+}) => {
   await mockApi(page);
-  await page.goto('/app/customer?lang=ru');
-  for (const [name, css] of [
-    ['Pearl', 'modern-light'],
-    ['Grove', 'whatsapp-emerald'],
-    ['Midnight', 'modern-dark'],
-  ]) {
-    await chooseTheme(page, name);
-    await expect(page.locator('html')).toHaveClass(`theme-${css}`);
+  await page.goto('/?lang=ru');
+  await page.locator('nav a[href="/login?lang=ru"]').click();
+  await expect(page).toHaveURL(/login\?lang=ru/);
+  for (const mode of ['light', 'dark', 'system'] as const) {
+    await chooseMode(page, mode);
     await noOverflow(page);
   }
-  await chooseTheme(page, 'Pearl');
-  await page.getByRole('button', { name: /Выйти/ }).click();
-  await expect(page).toHaveURL(/login\?lang=ru/);
+  await chooseMode(page, 'light');
+  await page.goto('/register?lang=ru');
   await page.reload();
-  await expect(page.locator('html')).toHaveClass('theme-modern-light');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   await noOverflow(page);
 });
 
-test('profile preferences support keyboard selection and Escape', async ({ page }) => {
-  await mockApi(page);
-  await page.goto('/app/customer?lang=en');
-  await openSettings(page);
-  const radio = page.getByRole('radio', { name: 'Pearl', exact: true });
-  await radio.focus();
-  await radio.press('ArrowRight');
-  await expect(page.getByRole('radio', { name: 'Midnight', exact: true })).toBeChecked();
-  await radio.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('html')).toHaveClass('theme-modern-light');
+test('colour mode switcher works from the keyboard', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/login');
+  const system = page.locator('input[name="color-mode"][value="system"]');
+  await expect(system).toBeChecked();
+  await system.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('input[name="color-mode"][value="light"]')).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'dark');
 });
 
 for (const role of roles) {
-  test(`${role}: login, workspace, theme default and logout`, async ({ page }) => {
+  test(`${role}: login, workspace, identity and logout`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await mockApi(page, role.toUpperCase());
@@ -135,13 +115,9 @@ for (const role of roles) {
     await page.getByRole('button', { name: /log in|sign in/i }).click();
     await expect(page).toHaveURL(new RegExp(`/app/${role}`));
     await expect(page.locator('h1:visible')).toBeVisible();
-    const theme =
-      role === 'customer'
-        ? 'modern-light'
-        : role === 'admin' || role === 'logist'
-          ? 'modern-dark'
-          : 'whatsapp-emerald';
-    await expect(page.locator('html')).toHaveClass(`theme-${theme}`);
+    // Every role shares one identity (M2); the page title names the section and role.
+    await expect(page.locator('html')).toHaveClass(/\bidentity\b/);
+    await expect(page).toHaveTitle(/· Intelli-Factory$/);
     await noOverflow(page);
     await page.screenshot({
       path: `test-results/${role}-${test.info().project.name}.png`,
@@ -205,18 +181,25 @@ test('an authenticated user opening another role goes to their own workspace', a
   await expect(page).toHaveURL('/app/factory?lang=ru');
 });
 
-test('manual theme wins over role default and legacy preferences recover', async ({ page }) => {
+test('stored colour mode wins over the system setting and invalid values recover', async ({
+  page,
+}) => {
   await mockApi(page);
-  await page.addInitScript(() => localStorage.setItem('if-theme', 'cyberNeon'));
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) {
+      localStorage.setItem('if-color-mode', 'sepia');
+      sessionStorage.setItem('seeded', '1');
+    }
+  });
   await page.goto('/app/customer');
-  await expect(page.locator('html')).toHaveClass('theme-modern-dark');
-  await chooseTheme(page, 'Grove');
-  await page.goto('/app/customer');
-  // The init script simulates an old stored preference on each full navigation.
-  await expect(page.locator('html')).toHaveClass('theme-modern-dark');
-  await chooseTheme(page, 'Grove');
+  // An unknown stored value falls back to the system setting.
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'dark');
+  await chooseMode(page, 'light');
   await page.locator('header a').first().click();
-  await expect(page.locator('html')).toHaveClass('theme-whatsapp-emerald');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await page.goto('/app/customer');
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
 });
 
 test('autocomplete supports arrow selection without submitting the request', async ({ page }) => {
@@ -261,6 +244,8 @@ test('failed cancellation is visible and the action can be retried', async ({ pa
   );
   await page.goto('/app/customer');
   await page.getByRole('button', { name: 'My requests', exact: false }).click();
+  // Actions live inside the opened request.
+  await page.getByRole('button', { name: 'Steel', exact: true }).click();
   const cancel = page.getByRole('button', { name: /cancel/i });
   await cancel.click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
@@ -277,14 +262,21 @@ test('unavailable storage and reduced motion do not break public routes', async 
     })
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/api/auth/preferences', (route) =>
-    route.fulfill({ status: 401, json: { detail: 'Sign in' } })
-  );
   await page.goto('/');
-  await page.getByRole('radio', { name: 'Pearl', exact: true }).check();
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('html')).toHaveClass('theme-modern-light');
+  await expect(page.locator('h1:visible')).toBeVisible();
+  // Reduced motion never loads the WebGL stage; the still is the scene.
+  await expect(page.locator('.pareto-still')).toBeVisible();
+  await expect(page.locator('.pareto-canvas')).toHaveCount(0);
+  // The workflow story becomes six still frames with their text, ending on the list.
+  await expect(page.locator('.story-canvas')).toHaveCount(0);
+  await expect(page.locator('.story-stills > li')).toHaveCount(6);
+  await expect(page.locator('.story-proposals .is-balanced')).toHaveCount(1);
+  await expect(page.locator('.story-stills img').first()).toHaveAttribute('src', /chapter-1-/);
+  await page.getByRole('radio', { name: 'Light' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await noOverflow(page);
+  await page.goto('/login');
+  await chooseMode(page, 'dark');
   expect(await page.locator('html').evaluate((el) => getComputedStyle(el).scrollBehavior)).toBe(
     'auto'
   );
@@ -365,7 +357,7 @@ test('workspace navigation retains sections through reload, language and history
   await expect(page.locator('main')).toHaveAttribute('data-view', 'requests');
   await page.reload();
   await expect(page.locator('main')).toHaveAttribute('data-view', 'requests');
-  await chooseLanguage(page, 'Русский');
+  await page.getByRole('link', { name: 'RU', exact: true }).click();
   await expect(page).toHaveURL(/view=requests/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   await page
@@ -381,9 +373,7 @@ test('workspace navigation retains sections through reload, language and history
 test('pointer and keyboard animate while reduced motion skips feedback', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/customer');
-  const trigger = page.getByRole('button', {
-    name: /Profile settings|Настройки профиля|Профиль баптаулары/,
-  });
+  const trigger = page.locator('.workspace-menu');
   await expect(trigger).toBeVisible();
   for (const [event, init] of [
     ['pointerdown', { pointerType: 'mouse' }],
@@ -424,14 +414,19 @@ for (const locale of ['ru', 'kk'] as const) {
     }
     const headings =
       locale === 'ru'
-        ? ['Большие дела', 'От запасов', 'Каждая доставка', 'Полная картина']
-        : ['Үлкен істер', 'Қоймадағы тауардан', 'Әр жеткізу', 'Толық көрініс'];
+        ? ['Ваши заявки', 'Ваше производство', 'Ваши доставки', 'Обзор платформы']
+        : [
+            'Сіздің өтінімдеріңіз',
+            'Сіздің өндірісіңіз',
+            'Сіздің жеткізулеріңіз',
+            'Платформаға шолу',
+          ];
     for (const [index, role] of roles.entries()) {
       await mockApi(page, role.toUpperCase());
       await page.goto(`/app/${role}?lang=${locale}&view=home`);
       await expect(page.locator('h1:visible')).toContainText(headings[index]);
       await expect(page.locator('.experience-overview')).not.toContainText(
-        /New Request|Open details|Your next|Ready when|Loading your|Latest activity/
+        /New [Rr]equest|Open details|Your next|Ready when|Loading your|Latest activity/
       );
       await noOverflow(page);
       await page.screenshot({
@@ -452,19 +447,19 @@ for (const locale of ['ru', 'kk'] as const) {
   });
 }
 
-test('landing feed and role features translate every entry when switching languages', async ({
+test('landing lifecycle and role features translate every entry when switching languages', async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto('/?lang=en');
-  const rows = page.locator('.landing-hero li');
+  const rows = page.locator('.lifecycle-track strong');
   const features = page.locator('.landing-role-grid li');
-  await expect(rows).toHaveCount(6);
+  await expect(rows).toHaveCount(8);
   await expect(features).toHaveCount(9);
   const englishRows = await rows.allTextContents();
   const englishFeatures = await features.allTextContents();
   for (const locale of ['ru', 'kk', 'en'] as const) {
-    await page.goto(`/?lang=${locale}`);
+    await page.getByRole('link', { name: locale.toUpperCase(), exact: true }).click();
     const translate = (source: string) =>
       locale === 'en'
         ? source
@@ -480,17 +475,20 @@ test('language survives bare URLs and reloads while explicit links override it',
 }) => {
   await mockApi(page);
   await page.goto('/?lang=kk');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'kk');
   await page.goto('/login');
   await expect(page).toHaveURL(/lang=kk/);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'kk');
   await page.goto('/register?role=FACTORY#details');
   await expect(page).toHaveURL(/role=FACTORY&lang=kk#details/);
-  await page.goto('/register?role=FACTORY&lang=ru#details');
+  await page.getByRole('link', { name: 'RU', exact: true }).click();
   await expect(page).toHaveURL(/role=FACTORY&lang=ru/);
   await page.goto('/verify-email?token=sample');
   await expect(page).toHaveURL(/token=sample&lang=ru/);
   await page.goto('/?lang=en');
+  // <html lang="en"> is also the server default, so wait for the stored choice instead.
+  await page.waitForFunction(() => localStorage.getItem('if-locale') === 'en');
   await page.goto('/login');
   await expect(page).toHaveURL(/lang=en/);
 });
@@ -530,7 +528,7 @@ test('card ordering persists and the left navigation sheet works', async ({ page
 test('request sheet is translated and fits the viewport', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/customer?lang=kk');
-  await page.locator('.customer-hero button').click();
+  await page.locator('.overview-head .if-button-primary').click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Сізге не қажет?');
   await expect(dialog).toContainText('Қайда жеткізу керек?');
@@ -605,7 +603,8 @@ test('dragging between delivery lanes requires confirmation and a failed update 
   await card.getByRole('button', { name: 'Start delivery' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(page.getByText('Delivery cannot start yet.')).toBeVisible();
-  await expect(card).toContainText('payment confirmed');
+  // A failed update keeps the order where it was (statuses render as translated badges).
+  await expect(card.locator('[data-status="PAYMENT_CONFIRMED"]')).toBeVisible();
   expect(mutations).toBe(1);
 });
 
@@ -650,7 +649,7 @@ test('custom selector stays inside the viewport and Escape keeps its sheet open'
 }) => {
   await mockApi(page);
   await page.goto('/app/customer?lang=en');
-  await page.locator('.customer-hero button').click();
+  await page.locator('.overview-head .if-button-primary').click();
   const dialog = page.getByRole('dialog');
   const currency = dialog.getByRole('combobox', { name: 'Currency', exact: true });
   await currency.click();
@@ -799,4 +798,445 @@ test('registration keeps entered account details when stepping back', async ({ p
     path: `/private/tmp/intelli-registration-${test.info().project.name}.png`,
     fullPage: true,
   });
+});
+
+test('landing colour mode persists and the trade-off explorer works from the keyboard', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto('/?lang=en');
+  await page.getByRole('radio', { name: 'Light' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await expect(page.getByRole('radio', { name: 'Light' })).toBeChecked();
+
+  await page.getByRole('button', { name: 'Weighted choice' }).click();
+  const chart = page.getByRole('group', { name: /Offers by total cost/ });
+  await chart.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.tradeoffs-readout')).toContainText('Offer');
+  await expect(page.getByText('engine default', { exact: true })).toBeVisible();
+  await page.getByRole('slider', { name: /Cost/ }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByText('engine default', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reset to engine default' }).click();
+  await expect(page.getByText('engine default', { exact: true })).toBeVisible();
+  await noOverflow(page);
+});
+
+function offer(
+  id: string,
+  factory: string,
+  cost: number | null,
+  days: number | null,
+  reliability: number | null,
+  currency = 'EUR'
+) {
+  return {
+    id,
+    request_id: 'request-1',
+    status: 'PENDING',
+    quoted_quantity: '250',
+    quantity_unit: 'tons',
+    factory_note: null,
+    currency_code: currency,
+    inventory_entry_id: `inv-${id}`,
+    item_name: 'Coal',
+    inventory_price_per_unit: '100',
+    factory_legal_name: factory,
+    factory_avg_rating: 4.5,
+    source_address_label: null,
+    destination_address_label: null,
+    logistic_offer_id: `route-${id}`,
+    logistic_title: null,
+    logist_legal_name: 'Steppe Freight',
+    logist_avg_rating: 4.2,
+    delivery_price: '5000',
+    delivery_days: days,
+    total_cost: cost == null ? null : String(cost),
+    reliability_score: reliability,
+    fitness_score: null,
+    created_at: '2026-09-14T00:00:00Z',
+  };
+}
+
+test('customer compares proposals by priority and chooses one', async ({ page }) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'request-1',
+          item_name: 'Coal',
+          category_name: 'Energy',
+          quantity: '250',
+          quantity_unit: 'tons',
+          preferred_currency_code: 'EUR',
+          status: 'PAIRING_IN_PROGRESS',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/candidates/**', (route) =>
+    route.fulfill({
+      json: [
+        offer('a', 'Balanced Mills', 100000, 2, 0.95),
+        offer('b', 'Budget Works', 80000, 6, 0.85),
+        offer('c', 'Express Plant', 120000, 1, 0.97),
+      ],
+    })
+  );
+  let chosen: string | null = null;
+  await page.route('**/api/pairing/select-candidate', async (route) => {
+    chosen = route.request().postDataJSON().candidate_id;
+    await route.fulfill({ json: { status: 'success', transaction_id: 'tx-1' } });
+  });
+
+  await page.goto('/app/customer?view=home&lang=en');
+  await page.getByRole('button', { name: /Compare proposals/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compare proposals' });
+  await expect(dialog.locator('.proposal-table tbody tr')).toHaveCount(3);
+  const detail = dialog.getByRole('complementary', { name: 'Selected offer' });
+  // Engine weights 0.4/0.3/0.3 favour the balanced offer; 0.7/0.2/0.1 the cheapest.
+  await expect(detail).toContainText('Balanced Mills');
+  await expect(detail).toContainText('Recommended for you');
+  await dialog.getByRole('radio', { name: 'Lowest cost' }).check();
+  await expect(detail).toContainText('Budget Works');
+
+  const chart = dialog.getByRole('group', { name: /Offers by total cost/ });
+  await chart.focus();
+  // Arrow keys walk the offers by cost, starting from the selected (cheapest) one.
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.locator('.proposal-readout')).toContainText('Balanced Mills');
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.locator('.proposal-readout')).toContainText('Budget Works');
+
+  await dialog.getByRole('radio', { name: /Express Plant/ }).check();
+  await expect(detail).toContainText('Express Plant');
+  await detail.getByRole('button', { name: 'Choose this proposal' }).click();
+  await expect.poll(() => chosen).toBe('c');
+  await noOverflow(page);
+});
+
+test('proposals compare like with like across currencies and incomplete offers stay choosable', async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'request-1',
+          item_name: 'Coal',
+          category_name: 'Energy',
+          quantity: '250',
+          quantity_unit: 'tons',
+          preferred_currency_code: 'EUR',
+          status: 'PAIRING_IN_PROGRESS',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/candidates/**', (route) =>
+    route.fulfill({
+      json: [
+        offer('a', 'Euro Mills', 100000, 2, 0.95),
+        offer('b', 'Euro Works', 90000, 4, 0.9),
+        offer('k', 'Steppe Plant', 5000000, 1, 0.99, 'KZT'),
+        offer('x', 'Pending Quote Co', 70000, null, null),
+      ],
+    })
+  );
+  let chosen: string | null = null;
+  await page.route('**/api/pairing/select-candidate', async (route) => {
+    chosen = route.request().postDataJSON().candidate_id;
+    await route.fulfill({ json: { status: 'success', transaction_id: 'tx-1' } });
+  });
+  await page.goto('/app/customer?view=home&lang=en');
+  await page.getByRole('button', { name: /Compare proposals/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compare proposals' });
+  const table = dialog.locator('.proposal-table');
+  // The most common currency is compared first; the KZT offer is kept apart, never ranked in EUR.
+  await expect(dialog.getByRole('radiogroup', { name: 'Currency' })).toBeVisible();
+  await expect(table).not.toContainText('Steppe Plant');
+  await expect(dialog.getByText('Recommended for you')).toBeVisible();
+  // The incomplete offer is listed and can still be chosen.
+  await expect(table.getByRole('row', { name: /Pending Quote Co/ })).toContainText('—');
+  await expect(dialog).toContainText('Not scored, figures incomplete: 1');
+  await dialog.getByRole('radio', { name: /Pending Quote Co/ }).check();
+  await dialog.getByRole('button', { name: 'Choose this proposal' }).click();
+  await expect.poll(() => chosen).toBe('x');
+});
+
+test('switching proposal currency shows that currency only', async ({ page }) => {
+  await mockApi(page);
+  await page.route('**/api/requests/', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'request-1',
+          item_name: 'Coal',
+          quantity: '250',
+          quantity_unit: 'tons',
+          preferred_currency_code: 'EUR',
+          status: 'PAIRING_IN_PROGRESS',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/candidates/**', (route) =>
+    route.fulfill({
+      json: [
+        offer('a', 'Euro Mills', 100000, 2, 0.95),
+        offer('b', 'Euro Works', 90000, 4, 0.9),
+        offer('k', 'Steppe Plant', 5000000, 1, 0.99, 'KZT'),
+      ],
+    })
+  );
+  await page.goto('/app/customer?view=home&lang=en');
+  await page.getByRole('button', { name: /Compare proposals/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compare proposals' });
+  await dialog.getByRole('radio', { name: 'KZT' }).check();
+  const table = dialog.locator('.proposal-table');
+  await expect(table).toContainText('Steppe Plant');
+  await expect(table).not.toContainText('Euro Mills');
+  await expect(table).toContainText('KZT');
+  await expect(table).not.toContainText('€');
+});
+
+test('workflow story follows scroll, jumps by chapter and can pause', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/?lang=en');
+  const story = page.locator('.story-live');
+  // A slow runner may swap the live scene for the chapter still; the scroll story remains.
+  await expect(story.locator('.story-canvas, .story-still')).toHaveCount(1, { timeout: 15000 });
+  const chapters = page.getByRole('navigation', { name: 'Story chapters' }).getByRole('button');
+  await expect(chapters).toHaveCount(6);
+  await chapters.nth(2).click();
+  await expect(chapters.nth(2)).toHaveAttribute('aria-current', 'step');
+  await expect(story.locator('.story-chapters li.is-active')).toContainText('The factory answers');
+  if (await story.locator('.story-still').count()) {
+    await expect(story.locator('.story-still')).toHaveAttribute('src', /chapter-3-/);
+  } else {
+    await story.getByRole('button', { name: 'Pause motion' }).click();
+    await expect(story.getByRole('button', { name: 'Play motion' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  }
+  // The story ends on a real list of proposals with the balanced pick as one entry.
+  await chapters.nth(5).click();
+  const list = story.locator('.story-proposals');
+  await expect(list.locator('li')).toHaveCount(5);
+  await expect(list.locator('li.is-balanced')).toContainText('Balanced pick');
+  await noOverflow(page);
+});
+
+test('admin comparison plots the real pool, marks each pick and says when Deep matches Fast', async ({
+  page,
+}) => {
+  await mockApi(page, 'ADMIN');
+  const request = {
+    id: 'req-compare',
+    customer_profile_id: 'customer-1',
+    category_id: 'metal',
+    category_name: 'Metal',
+    item_id: 'item-1',
+    item_name: 'Steel',
+    requested_name_text: null,
+    quantity: '10',
+    quantity_unit: 'pcs',
+    destination_address_id: 'addr-1',
+    preferred_currency_code: 'KZT',
+    status: 'PAIRING_IN_PROGRESS',
+    created_at: '2026-09-14T00:00:00Z',
+  };
+  await page.route('**/api/requests/', (route) => route.fulfill({ json: [request] }));
+  // A, B and C are not beaten on all three objectives; D is beaten by A and E by B.
+  const pool = [
+    { id: 'A', total_cost: 100, delivery_days: 10, reliability: 0.8 },
+    { id: 'B', total_cost: 150, delivery_days: 4, reliability: 0.95 },
+    { id: 'C', total_cost: 300, delivery_days: 3, reliability: 0.9 },
+    { id: 'D', total_cost: 200, delivery_days: 12, reliability: 0.7 },
+    { id: 'E', total_cost: 160, delivery_days: 5, reliability: 0.85 },
+  ];
+  const entry = (id: string, rank: number, fitness_score: number) => ({
+    ...pool.find((p) => p.id === id)!,
+    rank,
+    fitness_score,
+    currency_code: 'KZT',
+  });
+  let calls = 0;
+  await page.route('**/api/automations/optimize/compare', (route) => {
+    calls += 1;
+    return route.fulfill({
+      json: {
+        request_id: request.id,
+        optimization_profile: 'balanced',
+        weights: { cost: 0.4, time: 0.3, reliability: 0.3 },
+        candidate_pool_size: pool.length,
+        pool,
+        greedy: [entry('A', 1, 0.61)],
+        fast: [entry('B', 1, 0.83), entry('C', 2, 0.7)],
+        deep: [entry('B', 1, 0.83)],
+      },
+    });
+  });
+  await page.goto('/app/admin?view=operations&lang=en');
+  await expect(
+    page.getByRole('heading', { name: 'Compare the optimisation strategies' })
+  ).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('NSGA');
+
+  await page.getByRole('combobox', { name: 'Request collecting proposals', exact: true }).click();
+  await page.getByRole('option', { name: /Steel/ }).click();
+  await page.getByRole('button', { name: 'Run the comparison' }).click();
+  await expect.poll(() => calls).toBe(1);
+
+  const strategies = page.locator('.strategy-table tbody tr');
+  await expect(strategies).toHaveCount(3);
+  await expect(strategies.nth(2)).toContainText('Same offer as Fast.');
+  await expect(strategies.nth(0)).not.toContainText('Same offer as Fast.');
+
+  const chart = page.locator('.optimisation-chart');
+  await expect(chart.locator('.offer')).toHaveCount(5);
+  await expect(chart.locator('.offer.is-front')).toHaveCount(3);
+  await expect(chart.locator('.offer.is-cheapest')).toHaveCount(1);
+  await expect(chart.locator('.offer.is-pick')).toHaveCount(1);
+  await expect(chart.locator('.offer.is-deep')).toHaveCount(0);
+  await expect(chart.locator('figcaption')).toContainText('Fast and Deep pick');
+
+  // The keyboard walks the pool by cost, starting with the cheapest offer.
+  await chart.locator('svg').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(chart.locator('.proposal-readout')).toContainText('100');
+
+  await page.getByRole('tab', { name: 'Fast' }).click();
+  await expect(page.getByRole('tab', { name: 'Fast' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel').locator('tbody tr')).toHaveCount(2);
+  await noOverflow(page);
+});
+
+test('a customer opens a request from the overview and edits, pauses and deletes it', async ({
+  page,
+}) => {
+  await mockApi(page);
+  const request = {
+    id: 'request-9',
+    item_name: 'Copper wire',
+    category_name: 'Metal',
+    quantity: '40',
+    quantity_unit: 'kg',
+    preferred_currency_code: 'KZT',
+    status: 'PENDING',
+    created_at: '2026-09-14T00:00:00Z',
+  };
+  await page.route('**/api/requests/', (route) => route.fulfill({ json: [request] }));
+  const calls: string[] = [];
+  await page.route('**/api/requests/request-9**', async (route) => {
+    const req = route.request();
+    calls.push(`${req.method()} ${new URL(req.url()).pathname} ${req.postData() ?? ''}`.trim());
+    await route.fulfill({ json: { status: 'success', message: 'ok' } });
+  });
+
+  // The overview card lands on the request, already open.
+  await page.goto('/app/customer?lang=en');
+  await page.locator('.work-card').filter({ hasText: 'Copper wire' }).getByRole('button').click();
+  await expect(page).toHaveURL(/view=requests/);
+  const toggle = page.getByRole('button', { name: 'Copper wire', exact: true });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const detail = page.locator('.record-detail');
+  await expect(detail).toContainText('Waiting for the first factory to bid.');
+
+  await detail.getByRole('button', { name: 'Edit', exact: true }).click();
+  await detail.getByLabel(/Quantity/).fill('55');
+  await detail.getByRole('button', { name: 'Save changes' }).click();
+  await expect.poll(() => calls.find((c) => c.startsWith('PATCH'))).toContain('"quantity":55');
+
+  await detail.getByRole('button', { name: 'Stop searching' }).click();
+  await expect.poll(() => calls).toContain('POST /api/requests/request-9/pause');
+
+  await detail.getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect.poll(() => calls).toContain('DELETE /api/requests/request-9');
+
+  // Clicking the row itself (not a control) closes it again.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await noOverflow(page);
+});
+
+test('a factory withdraws a bid and a carrier edits and pauses a delivery service', async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  const record = async (route: import('@playwright/test').Route) => {
+    const req = route.request();
+    calls.push(`${req.method()} ${new URL(req.url()).pathname} ${req.postData() ?? ''}`.trim());
+    await route.fulfill({ json: { status: 'success', message: 'ok' } });
+  };
+
+  await mockApi(page, 'FACTORY');
+  await page.route('**/api/pairing/factory-bids/mine', (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...offer('bid-1', 'Steel works', null, null, null, 'KZT'),
+          item_name: 'Steel',
+          logistic_offer_id: null,
+          logist_legal_name: null,
+          request_status: 'PAIRING_IN_PROGRESS',
+          source_address_label: 'Almaty',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/pairing/factory-bids/bid-1', record);
+  await page.goto('/app/factory?view=bids&lang=en');
+  await page.getByRole('button', { name: 'Steel', exact: true }).click();
+  const bidDetail = page.locator('.record-detail');
+  await expect(bidDetail).toContainText('Pickup');
+  await bidDetail.getByRole('button', { name: 'Withdraw my bid' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect.poll(() => calls).toContain('DELETE /api/pairing/factory-bids/bid-1');
+
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await mockApi(page, 'LOGIST');
+  await page.route('**/api/requests/logistic-offers/mine', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'offer-1',
+          title: 'City courier',
+          description: null,
+          base_price: '50',
+          currency_code: 'KZT',
+          estimated_days_min: 1,
+          estimated_days_max: 3,
+          reliability_score: 0.9,
+          status: 'ACTIVE',
+          created_at: '2026-09-14T00:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/requests/logistic-offers/offer-1**', record);
+  await page.goto('/app/logist?view=offers&lang=en');
+  await page.getByRole('button', { name: 'City courier', exact: true }).click();
+  const offerDetail = page.locator('.record-detail');
+  await offerDetail.getByRole('button', { name: 'Edit', exact: true }).click();
+  await offerDetail.getByLabel(/Base price/).fill('65');
+  await offerDetail.getByRole('button', { name: 'Save changes' }).click();
+  await expect
+    .poll(() => calls.find((c) => c.startsWith('PATCH /api/requests/logistic-offers/offer-1 ')))
+    .toContain('"base_price":65');
+  await offerDetail.getByRole('button', { name: 'Pause the service' }).click();
+  await expect
+    .poll(() => calls)
+    .toContain('PATCH /api/requests/logistic-offers/offer-1/status {"status":"PAUSED"}');
+  await noOverflow(page);
 });

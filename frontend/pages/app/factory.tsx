@@ -5,7 +5,13 @@ import { useActionConfirmation } from '../../hooks/useActionConfirmation';
 import FactorySetup from '../../components/FactorySetup';
 import { categoryCopy } from '../../lib/categoryCopy';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
-import WorkspaceExperience from '../../components/WorkspaceExperience';
+import WorkspaceExperience, { type WorkItem } from '../../components/WorkspaceExperience';
+import SignatureList from '../../components/SignatureList';
+import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
+import { orderFacts } from '../../lib/orderFacts';
+import TablePager from '../../components/TablePager';
 import { workspacePath } from '../../lib/navigation';
 import Modal from '../../components/Modal';
 import { useRouter } from 'next/router';
@@ -25,16 +31,22 @@ import {
   logout,
   me,
   signTransaction,
+  updateInventoryEntry,
+  withdrawFactoryBid,
   updateInventoryEntryStatus,
   type InventoryEntryItem,
   type MatchCandidate,
   type OpenRequest,
   type WorkflowTransaction,
 } from '../../lib/authClient';
-import { formatQuantityWithUnit } from '../../lib/formatting';
+import { formatDateTime, formatMoney, formatQuantityWithUnit } from '../../lib/formatting';
+import { statusLabel } from '../../lib/status';
 import { getLocaleFromQuery, t } from '../../lib/i18n';
+import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 
 const TABLE_PAGE_SIZE = 5;
+// A bid can be withdrawn while its request is still open to offers.
+const WITHDRAWABLE = ['PENDING', 'PAIRING_IN_PROGRESS', 'PAUSED'];
 
 type BidModalProps = {
   request: OpenRequest;
@@ -50,7 +62,7 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [inventoryId, setInventoryId] = useState(inventory[0]?.id ?? '');
-  const quotedQty = request.quantity;
+  const [quotedQty, setQuotedQty] = useState(request.quantity);
   const [note, setNote] = useState('');
 
   const inventoryOptions = useMemo<ComboboxOption[]>(
@@ -133,14 +145,14 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
 
           <div className="flex flex-col gap-1">
             <label className="text-sm text-[rgb(var(--muted))]">
-              {copy.offeredQty} <span className="text-red-400">*</span>
+              {copy.offeredQty} <span className="text-danger">*</span>
             </label>
             <input
               type="number"
               min="0.01"
               step="any"
               value={quotedQty}
-              readOnly
+              onChange={(e) => setQuotedQty(e.target.value)}
               className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
               required
             />
@@ -158,15 +170,12 @@ function BidModal({ request, inventory, copy, onClose: onDismiss, onBidPlaced }:
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
           {success && (
-            <p
-              role="status"
-              className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
-            >
+            <p role="status" className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
               {success}
             </p>
           )}
@@ -190,7 +199,9 @@ export default function FactoryWorkspacePage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
+  const e = useExperienceCopy();
 
+  // Factory readiness (FactorySetup): only stock in verified categories can be bid with.
   const [eligibleInventory, setEligibleInventory] = useState<string[]>([]);
   const [setupLoaded, setSetupLoaded] = useState(false);
   const [setupRevision, setSetupRevision] = useState(0);
@@ -453,13 +464,6 @@ export default function FactoryWorkspacePage() {
     }
   }
 
-  const BID_STATUS: Record<string, string> = {
-    PENDING: 'text-amber-300',
-    ACCEPTED: 'text-emerald-300',
-    REJECTED: 'text-red-400',
-    EXPIRED: 'text-[rgb(var(--muted))]',
-  };
-
   async function handleWorkflowAction(
     transactionId: string,
     action: 'SIGN' | 'START' | 'MARK_IN_PROGRESS'
@@ -476,7 +480,7 @@ export default function FactoryWorkspacePage() {
 
     if (
       workflowBusyId ||
-      !(await confirm(action === 'START' ? 'Given to logist' : 'Mark delivered'))
+      !(await confirm(action === 'START' ? 'Given to logist' : 'Mark in delivery'))
     )
       return;
     setWorkflowBusyId(transactionId + action);
@@ -502,6 +506,130 @@ export default function FactoryWorkspacePage() {
       setError(err instanceof Error ? err.message : 'Workflow action failed');
     } finally {
       setWorkflowBusyId(null);
+    }
+  }
+
+  // What the factory can act on now, most urgent first: its signature, then hand-overs, then
+  // requests it has not bid on yet. Permissions come from the API's can_* flags.
+  const attention: WorkItem[] = [
+    ...transactions
+      .filter((tx) => tx.can_sign)
+      .map((tx) => ({
+        id: tx.id,
+        title: tx.item_name ?? e('Order'),
+        status: tx.status,
+        detail: e('The contract is ready for your signature.'),
+        action: () => void handleWorkflowAction(tx.id, 'SIGN'),
+        actionLabel: 'Review and sign',
+      })),
+    ...transactions
+      .filter((tx) => tx.can_start_fulfillment)
+      .map((tx) => ({
+        id: tx.id,
+        title: tx.item_name ?? e('Order'),
+        status: tx.status,
+        detail: e('Paid. Hand the goods to the carrier when they are ready.'),
+        action: () => void handleWorkflowAction(tx.id, 'START'),
+        actionLabel: 'Given to logist',
+      })),
+    ...transactions
+      .filter((tx) => tx.can_mark_in_progress)
+      .map((tx) => ({
+        id: tx.id,
+        title: tx.item_name ?? e('Order'),
+        status: tx.status,
+        detail: e('The carrier has the goods. Mark the order as in delivery.'),
+        action: () => void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS'),
+        actionLabel: 'Mark in delivery',
+      })),
+    ...openRequests
+      .filter((row) => !hasFactoryBidForRequest.has(row.id))
+      .map((row) => ({
+        id: row.id,
+        title: row.item_name ?? row.requested_name_text ?? e('Supply request'),
+        status: row.status,
+        detail: `${formatQuantityWithUnit(row.quantity, row.quantity_unit)} · ${row.preferred_currency_code}`,
+        ...(eligibleInventory.length
+          ? { action: () => setBidTarget(row), actionLabel: 'Place a bid' }
+          : { actionView: 'inventory', actionLabel: 'Add stock first' }),
+      })),
+  ];
+  const statusOption = (status: string) => (
+    <option key={status} value={status}>
+      {statusLabel(locale, status)}
+    </option>
+  );
+
+  const demandRecords = useExpandedRecords(
+    filteredOpenRequests.map((row) => row.id),
+    TABLE_PAGE_SIZE,
+    setOpenRequestsPage
+  );
+  const bidRecords = useExpandedRecords(
+    filteredMyBids.map((bid) => bid.id),
+    TABLE_PAGE_SIZE,
+    setMyBidsPage
+  );
+  const orderRecords = useExpandedRecords(
+    filteredTransactions.map((tx) => tx.id),
+    TABLE_PAGE_SIZE,
+    setTransactionsPage
+  );
+  const stockRecords = useExpandedRecords(
+    filteredInventory.map((entry) => entry.id),
+    TABLE_PAGE_SIZE,
+    setInventoryPage
+  );
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [stockEdit, setStockEdit] = useState<{
+    id: string;
+    quantity: string;
+    price: string;
+  } | null>(null);
+
+  function openView(view: string, focus?: string, extra: Record<string, string> = {}) {
+    const { add: _add, focus: _focus, ...query } = router.query;
+    void _add;
+    void _focus;
+    void router.push(
+      {
+        pathname: router.pathname,
+        query: { ...query, view, ...(focus ? { focus } : {}), ...extra },
+      },
+      undefined,
+      { shallow: true, scroll: false }
+    );
+  }
+
+  async function withdrawBid(candidateId: string) {
+    if (busyId || !(await confirm('Withdraw my bid'))) return;
+    setBusyId(candidateId);
+    setError(null);
+    try {
+      await withdrawFactoryBid(candidateId);
+      await Promise.all([refreshBids(), refreshOpenRequests()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not withdraw the bid');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveStock(entryId: string) {
+    if (!stockEdit || busyId) return;
+    setBusyId(entryId);
+    setError(null);
+    try {
+      await updateInventoryEntry(entryId, {
+        quantity_available: Number(stockEdit.quantity),
+        price_per_unit: Number(stockEdit.price),
+      });
+      setStockEdit(null);
+      await refreshInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update the stock');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -549,67 +677,51 @@ export default function FactoryWorkspacePage() {
         inventory.length,
         transactions.filter((tx) => tx.status !== 'COMPLETED').length,
       ]}
-      items={openRequests.map((row) => ({
-        id: row.id,
-        title: row.item_name ?? row.requested_name_text ?? 'Supply request',
-        status: row.status,
-        detail: `${row.quantity} ${row.quantity_unit} · ${row.preferred_currency_code}`,
-        action: () =>
-          eligibleInventory.length ? setBidTarget(row) : setError(categoryCopy(locale).blocked),
-        actionLabel: 'Place a bid',
-      }))}
+      items={attention}
       onLogout={handleLogout}
     >
       <div className="workspace-panels">
-        {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace\u2026</p>}
+        {loading && <p className="text-sm text-[rgb(var(--muted))]">Loading workspace…</p>}
 
         {!loading && (
           <>
             <FactorySetup locale={locale} onReady={handleReadiness} revision={setupRevision} />
-            {/* Open Requests (PENDING) */}
+            {/* Demand board: open customer requests */}
             <section data-section="requests" className="surface-1 rounded-2xl p-6 sm:p-8">
-              <h1 className="slide-up text-2xl font-semibold sm:text-3xl">
-                {copy.factoryWorkspaceTitle}
-              </h1>
-              <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                {copy.factoryWorkspaceSubtitle}
-              </p>
-
-              <p>{categoryCopy(locale).whole}</p>
-              {!eligibleInventory.length && <p>{categoryCopy(locale).blocked}</p>}
-              <h2 id="requests" className="mt-6 text-lg font-semibold">
+              <h2 id="requests" className="text-lg font-semibold">
                 {copy.openRequestsTitle}
               </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.openRequestsSubtitle}</p>
+              <p className="mt-2 text-xs text-[rgb(var(--muted))]">{categoryCopy(locale).whole}</p>
+              {!eligibleInventory.length && (
+                <p className="mt-1 text-xs text-warning">{categoryCopy(locale).blocked}</p>
+              )}
 
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="table-filters">
                 <input
-                  type="text"
+                  type="search"
+                  aria-label={e('Search item or category')}
                   value={openRequestsQuery}
                   onChange={(e) => setOpenRequestsQuery(e.target.value)}
-                  placeholder="Search item/category"
+                  placeholder={e('Search item or category')}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
                 <SelectField
-                  aria-label="Status"
+                  aria-label={e('Status')}
                   value={openRequestsStatusFilter}
                   onChange={(e) => setOpenRequestsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All statuses</option>
-                  {openRequestStatusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
+                  <option value="ALL">{e('All statuses')}</option>
+                  {openRequestStatusOptions.map(statusOption)}
                 </SelectField>
                 <SelectField
-                  aria-label="Currency"
+                  aria-label={e('Currency')}
                   value={openRequestsCurrencyFilter}
                   onChange={(e) => setOpenRequestsCurrencyFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All currencies</option>
+                  <option value="ALL">{e('All currencies')}</option>
                   {openRequestCurrencyOptions.map((currency) => (
                     <option key={currency} value={currency}>
                       {currency}
@@ -621,143 +733,187 @@ export default function FactoryWorkspacePage() {
               {filteredOpenRequests.length === 0 ? (
                 <p className="mt-3 text-sm text-[rgb(var(--muted))]">
                   {openRequests.length === 0
-                    ? 'No open requests at this time.'
-                    : 'No requests match current filters.'}
+                    ? e('No open requests at this time.')
+                    : e('No requests match current filters.')}
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                  <div
+                    className="record-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.openRequestsTitle}
+                  >
+                    <table className="record-table">
                       <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-4">{copy.colItemDescription}</th>
-                          <th className="py-2 pr-4">{copy.colCategory}</th>
-                          <th className="py-2 pr-4">{copy.colQty}</th>
-                          <th className="py-2 pr-4">{copy.colCurrency}</th>
-                          <th className="py-2 pr-4">{copy.colStatus}</th>
-                          <th className="py-2 pr-4">{copy.colPlaced}</th>
-                          <th className="py-2">{copy.colAction}</th>
+                        <tr>
+                          <th>{e('Item')}</th>
+                          <th>{e('Quantity')}</th>
+                          <th>{e('Status')}</th>
+                          <th>{e('Placed')}</th>
+                          <th>
+                            <span className="sr-only">{e('Action')}</span>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginatedOpenRequests.map((row) => {
-                          const hasBid = hasFactoryBidForRequest.has(row.id);
+                          const myBid = myBids.find(
+                            (bid) => bid.request_id === row.id && !bid.logistic_offer_id
+                          );
                           return (
-                            <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
-                              <td className="py-2 pr-4 font-medium">
-                                {row.item_name ?? row.requested_name_text ?? '\u2014'}
-                              </td>
-                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                                {row.category_name ?? '\u2014'}
-                              </td>
-                              <td className="py-2 pr-4">
+                            <RecordRow
+                              key={row.id}
+                              id={row.id}
+                              open={demandRecords.isOpen(row.id)}
+                              onToggle={() => demandRecords.toggle(row.id)}
+                              colSpan={5}
+                              title={
+                                row.item_name ?? row.requested_name_text ?? e('Supply request')
+                              }
+                              subtitle={<small>{row.category_name ?? ''}</small>}
+                              detail={
+                                <RecordDetail
+                                  facts={[
+                                    [e('Category'), row.category_name],
+                                    [
+                                      e('Quantity'),
+                                      formatQuantityWithUnit(row.quantity, row.quantity_unit),
+                                    ],
+                                    [e('Currency'), row.preferred_currency_code],
+                                    [e('Status'), statusLabel(locale, row.status)],
+                                    [e('Placed'), formatDateTime(locale, row.created_at)],
+                                    [
+                                      e('Your bid'),
+                                      myBid
+                                        ? formatQuantityWithUnit(
+                                            myBid.quoted_quantity,
+                                            myBid.quantity_unit
+                                          )
+                                        : e('Not yet'),
+                                    ],
+                                  ]}
+                                  actions={
+                                    <>
+                                      {eligibleInventory.length > 0 ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setBidTarget(row)}
+                                          className="if-button if-button-primary"
+                                        >
+                                          {myBid ? e('Bid with other stock') : copy.actionBid}
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openView('inventory', undefined, { add: '1' })
+                                          }
+                                          className="if-button if-button-primary"
+                                        >
+                                          {e('Add inventory first')}
+                                        </button>
+                                      )}
+                                      {myBid && (
+                                        <button
+                                          type="button"
+                                          className="if-button"
+                                          onClick={() => openView('bids', myBid.id)}
+                                        >
+                                          {e('See my bid')}
+                                        </button>
+                                      )}
+                                      {myBid && myBid.status === 'PENDING' && (
+                                        <button
+                                          type="button"
+                                          className="if-button is-danger"
+                                          disabled={busyId !== null}
+                                          onClick={() => void withdrawBid(myBid.id)}
+                                        >
+                                          {e('Withdraw my bid')}
+                                        </button>
+                                      )}
+                                    </>
+                                  }
+                                />
+                              }
+                            >
+                              <td data-label={e('Quantity')} className="num">
                                 {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                                <small>{row.preferred_currency_code}</small>
                               </td>
-                              <td className="py-2 pr-4">{row.preferred_currency_code}</td>
-                              <td
-                                className={`py-2 pr-4 ${row.status === 'PAIRING_IN_PROGRESS' ? 'text-sky-300' : ''}`}
-                              >
-                                {row.status}
+                              <td data-label={e('Status')}>
+                                <StatusBadge status={row.status} />
+                                {hasFactoryBidForRequest.has(row.id) && (
+                                  <small>{e('You have bid')}</small>
+                                )}
                               </td>
-                              <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                                {new Date(row.created_at).toLocaleString('en-GB', {
-                                  timeZone: 'UTC',
-                                })}
+                              <td data-label={e('Placed')}>
+                                {formatDateTime(locale, row.created_at)}
                               </td>
-                              <td className="py-2">
-                                {inventory.length > 0 ? (
+                              <td className="record-actions">
+                                {eligibleInventory.length > 0 ? (
                                   <button
                                     type="button"
-                                    disabled={!eligibleInventory.length}
                                     onClick={() => setBidTarget(row)}
-                                    className="rounded-md border border-sky-700/60 px-3 py-1 text-xs text-sky-300 hover:bg-sky-950/30"
+                                    className="if-button if-button-primary"
                                   >
-                                    {hasBid ? copy.actionBid : copy.actionBid}
+                                    {copy.actionBid}
                                   </button>
                                 ) : (
                                   <span className="text-xs text-[rgb(var(--muted))]">
-                                    Add inventory first
+                                    {e('Add inventory first')}
                                   </span>
                                 )}
                               </td>
-                            </tr>
+                            </RecordRow>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <span>
-                      Showing {(openRequestsPage - 1) * TABLE_PAGE_SIZE + 1}
-                      {' - '}
-                      {Math.min(
-                        openRequestsPage * TABLE_PAGE_SIZE,
-                        filteredOpenRequests.length
-                      )} of {filteredOpenRequests.length}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={openRequestsPage <= 1}
-                        onClick={() => setOpenRequestsPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <span>
-                        Page {openRequestsPage} / {openRequestsTotalPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={openRequestsPage >= openRequestsTotalPages}
-                        onClick={() =>
-                          setOpenRequestsPage((prev) => Math.min(openRequestsTotalPages, prev + 1))
-                        }
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                  <TablePager
+                    page={openRequestsPage}
+                    pageSize={TABLE_PAGE_SIZE}
+                    total={filteredOpenRequests.length}
+                    onPage={setOpenRequestsPage}
+                  />
                 </>
               )}
             </section>
 
-            {/* My Bids  */}
+            {/* My bids */}
             <section data-section="bids" className="surface-1 rounded-2xl p-6 sm:p-8">
               <h2 id="bids" className="text-lg font-semibold">
                 {copy.myBidsTitle}
               </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">{copy.myBidsSubtitle}</p>
 
-              <div className="mt-3 grid gap-2 sm:grid-cols-4">
+              <div className="table-filters table-filters-4">
                 <input
-                  type="text"
+                  type="search"
+                  aria-label={e('Search item')}
                   value={myBidsQuery}
                   onChange={(e) => setMyBidsQuery(e.target.value)}
-                  placeholder="Search item"
+                  placeholder={e('Search item')}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
                 <SelectField
-                  aria-label="Status"
+                  aria-label={e('Status')}
                   value={myBidsStatusFilter}
                   onChange={(e) => setMyBidsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All statuses</option>
-                  {myBidStatusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
+                  <option value="ALL">{e('All statuses')}</option>
+                  {myBidStatusOptions.map(statusOption)}
                 </SelectField>
                 <SelectField
-                  aria-label="Currency"
+                  aria-label={e('Currency')}
                   value={myBidsCurrencyFilter}
                   onChange={(e) => setMyBidsCurrencyFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All currencies</option>
+                  <option value="ALL">{e('All currencies')}</option>
                   {myBidCurrencyOptions.map((currency) => (
                     <option key={currency} value={currency}>
                       {currency}
@@ -765,303 +921,370 @@ export default function FactoryWorkspacePage() {
                   ))}
                 </SelectField>
                 <SelectField
-                  aria-label="Proposal stage"
+                  aria-label={e('Proposal stage')}
                   value={myBidsStageFilter}
                   onChange={(e) => setMyBidsStageFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All stages</option>
-                  <option value="FACTORY_ONLY">Factory bid only</option>
-                  <option value="COMPLETE">Complete proposal</option>
+                  <option value="ALL">{e('All stages')}</option>
+                  <option value="FACTORY_ONLY">{e('Waiting for delivery quote')}</option>
+                  <option value="COMPLETE">{e('Complete proposal')}</option>
                 </SelectField>
               </div>
 
               {filteredMyBids.length === 0 ? (
                 <p className="mt-3 text-sm text-[rgb(var(--muted))]">
-                  {myBids.length === 0 ? 'No bids yet.' : 'No bids match current filters.'}
+                  {myBids.length === 0 ? e('No bids yet.') : e('No bids match current filters.')}
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                  <div
+                    className="record-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={copy.myBidsTitle}
+                  >
+                    <table className="record-table">
                       <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-4">{copy.colItem}</th>
-                          <th className="py-2 pr-4">{copy.colQtyOffered}</th>
-                          <th className="py-2 pr-4">{copy.colPriceUnit}</th>
-                          <th className="py-2 pr-4">{copy.colCurrency}</th>
-                          <th className="py-2 pr-4">{copy.colDelivery}</th>
-                          <th className="py-2 pr-4">{copy.colTotalCost}</th>
-                          <th className="py-2 pr-4">{copy.colStatus}</th>
-                          <th className="py-2">{copy.colStage}</th>
+                        <tr>
+                          <th>{e('Item')}</th>
+                          <th>{e('Your offer')}</th>
+                          <th>{e('Delivery')}</th>
+                          <th>{e('Total')}</th>
+                          <th>{e('Status')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginatedMyBids.map((bid) => (
-                          <tr key={bid.id} className="border-b border-[rgb(var(--stroke))]/40">
-                            <td className="py-2 pr-4">{bid.item_name ?? '\u2014'}</td>
-                            <td className="py-2 pr-4">
+                          <RecordRow
+                            key={bid.id}
+                            id={bid.id}
+                            open={bidRecords.isOpen(bid.id)}
+                            onToggle={() => bidRecords.toggle(bid.id)}
+                            colSpan={5}
+                            title={bid.item_name ?? '—'}
+                            subtitle={
+                              bid.logist_legal_name ? (
+                                <small>{bid.logist_legal_name}</small>
+                              ) : undefined
+                            }
+                            detail={
+                              <RecordDetail
+                                facts={[
+                                  [e('Request'), statusLabel(locale, bid.request_status)],
+                                  [
+                                    e('Your offer'),
+                                    formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit),
+                                  ],
+                                  [
+                                    e('Price per unit'),
+                                    formatMoney(
+                                      locale,
+                                      bid.inventory_price_per_unit,
+                                      bid.currency_code
+                                    ),
+                                  ],
+                                  [e('Pickup'), bid.source_address_label],
+                                  [e('Destination'), bid.destination_address_label],
+                                  [e('Your note'), bid.factory_note],
+                                  [
+                                    e('Carrier'),
+                                    bid.logist_legal_name ?? e('Waiting for delivery quote'),
+                                  ],
+                                  [
+                                    e('Delivery'),
+                                    bid.logistic_offer_id
+                                      ? `${formatMoney(locale, bid.delivery_price, bid.currency_code)} · ${bid.delivery_days} ${e('days')}`
+                                      : null,
+                                  ],
+                                  [
+                                    e('Total'),
+                                    bid.total_cost
+                                      ? formatMoney(locale, bid.total_cost, bid.currency_code)
+                                      : null,
+                                  ],
+                                  [e('Placed'), formatDateTime(locale, bid.created_at)],
+                                ]}
+                                actions={
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="if-button"
+                                      onClick={() => openView('requests', bid.request_id)}
+                                    >
+                                      {e('View the request')}
+                                    </button>
+                                    {bid.status === 'PENDING' &&
+                                      WITHDRAWABLE.includes(bid.request_status ?? '') && (
+                                        <button
+                                          type="button"
+                                          className="if-button is-danger"
+                                          disabled={busyId !== null}
+                                          onClick={() => void withdrawBid(bid.id)}
+                                        >
+                                          {e('Withdraw my bid')}
+                                        </button>
+                                      )}
+                                  </>
+                                }
+                              />
+                            }
+                          >
+                            <td data-label={e('Your offer')} className="num">
                               {formatQuantityWithUnit(bid.quoted_quantity, bid.quantity_unit)}
+                              <small>
+                                {formatMoney(
+                                  locale,
+                                  bid.inventory_price_per_unit,
+                                  bid.currency_code
+                                )}{' '}
+                                {e('per unit')}
+                              </small>
                             </td>
-                            <td className="py-2 pr-4">
-                              {bid.inventory_price_per_unit ?? '\u2014'}
-                            </td>
-                            <td className="py-2 pr-4">{bid.currency_code}</td>
-                            <td className="py-2 pr-4">
+                            <td data-label={e('Delivery')} className="num">
                               {bid.logistic_offer_id ? (
-                                `${bid.delivery_days}d \u2022 ${bid.delivery_price} ${bid.currency_code}`
+                                <>
+                                  {bid.delivery_days} {e('days')}
+                                  <small>
+                                    {formatMoney(locale, bid.delivery_price, bid.currency_code)}
+                                  </small>
+                                </>
                               ) : (
-                                <span className="text-xs text-amber-300">awaiting logistics</span>
+                                <span className="text-warning">
+                                  {e('Waiting for delivery quote')}
+                                </span>
                               )}
                             </td>
-                            <td className="py-2 pr-4">
-                              {bid.total_cost ? `${bid.total_cost} ${bid.currency_code}` : '\u2014'}
+                            <td data-label={e('Total')} className="num">
+                              {bid.total_cost
+                                ? formatMoney(locale, bid.total_cost, bid.currency_code)
+                                : '—'}
                             </td>
-                            <td className={`py-2 pr-4 ${BID_STATUS[bid.status] ?? ''}`}>
-                              {bid.status}
+                            <td data-label={e('Status')}>
+                              <StatusBadge status={bid.status} />
                             </td>
-                            <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                              {bid.logistic_offer_id ? 'Complete proposal' : 'Factory bid only'}
-                            </td>
-                          </tr>
+                          </RecordRow>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <span>
-                      Showing {(myBidsPage - 1) * TABLE_PAGE_SIZE + 1}
-                      {' - '}
-                      {Math.min(myBidsPage * TABLE_PAGE_SIZE, filteredMyBids.length)} of{' '}
-                      {filteredMyBids.length}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={myBidsPage <= 1}
-                        onClick={() => setMyBidsPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <span>
-                        Page {myBidsPage} / {myBidsTotalPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={myBidsPage >= myBidsTotalPages}
-                        onClick={() =>
-                          setMyBidsPage((prev) => Math.min(myBidsTotalPages, prev + 1))
-                        }
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                  <TablePager
+                    page={myBidsPage}
+                    pageSize={TABLE_PAGE_SIZE}
+                    total={filteredMyBids.length}
+                    onPage={setMyBidsPage}
+                  />
                 </>
               )}
             </section>
 
+            {/* Production: contracts and fulfilment */}
             <section data-section="workflow" className="surface-1 rounded-2xl p-6 sm:p-8">
               <h2 id="workflow" className="text-lg font-semibold">
-                Contract & Fulfillment Workflow
+                {e('Contracts and fulfilment')}
               </h2>
               <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
-                Sign selected contracts, then start and progress fulfillment after payment is
-                confirmed.
+                {e(
+                  'Sign selected contracts, then hand the goods to the carrier once payment is confirmed.'
+                )}
               </p>
 
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="table-filters">
                 <input
-                  type="text"
+                  type="search"
+                  aria-label={e('Search order or item')}
                   value={transactionsQuery}
                   onChange={(e) => setTransactionsQuery(e.target.value)}
-                  placeholder="Search tx or item"
+                  placeholder={e('Search order or item')}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 />
                 <SelectField
-                  aria-label="Status"
+                  aria-label={e('Status')}
                   value={transactionsStatusFilter}
                   onChange={(e) => setTransactionsStatusFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All statuses</option>
-                  {transactionStatusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
+                  <option value="ALL">{e('All statuses')}</option>
+                  {transactionStatusOptions.map(statusOption)}
                 </SelectField>
                 <SelectField
-                  aria-label="Payment status"
+                  aria-label={e('Payment')}
                   value={transactionsPaymentFilter}
                   onChange={(e) => setTransactionsPaymentFilter(e.target.value)}
                   className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <option value="ALL">All payment states</option>
-                  {transactionPaymentOptions.map((payment) => (
-                    <option key={payment} value={payment}>
-                      {payment}
-                    </option>
-                  ))}
+                  <option value="ALL">{e('All payment states')}</option>
+                  {transactionPaymentOptions.map(statusOption)}
                 </SelectField>
               </div>
 
               {filteredTransactions.length === 0 ? (
                 <p className="mt-3 text-sm text-[rgb(var(--muted))]">
                   {transactions.length === 0
-                    ? 'No active transactions yet.'
-                    : 'No transactions match current filters.'}
+                    ? e('No active transactions yet.')
+                    : e('No transactions match current filters.')}
                 </p>
               ) : (
                 <>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                  <div
+                    className="record-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={e('Contracts and fulfilment')}
+                  >
+                    <table className="record-table">
                       <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-4">Transaction</th>
-                          <th className="py-2 pr-4">Item</th>
-                          <th className="py-2 pr-4">Status</th>
-                          <th className="py-2 pr-4">Payment</th>
-                          <th className="py-2 pr-4">Signatures</th>
-                          <th className="py-2">Actions</th>
+                        <tr>
+                          <th>{e('Order')}</th>
+                          <th>{e('Status')}</th>
+                          <th>{e('Signatures')}</th>
+                          <th>{e('Next step')}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedTransactions.map((tx) => (
-                          <tr key={tx.id} className="border-b border-[rgb(var(--stroke))]/40">
-                            <td className="py-2 pr-4 font-mono text-xs">{tx.id.slice(0, 8)}...</td>
-                            <td className="py-2 pr-4">{tx.item_name ?? '-'}</td>
-                            <td className="py-2 pr-4">{tx.status}</td>
-                            <td className="py-2 pr-4 text-xs">{tx.payment_status}</td>
-                            <td className="py-2 pr-4 text-xs text-[rgb(var(--muted))]">
-                              C:{tx.signature_status.CUSTOMER} F:{tx.signature_status.FACTORY} L:
-                              {tx.signature_status.LOGIST}
-                            </td>
-                            <td className="py-2">
-                              <OrderGuidance transaction={tx} />
-                              <div className="flex flex-wrap gap-1">
-                                {tx.can_sign && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
-                                    disabled={workflowBusyId === tx.id + 'SIGN'}
-                                    className="rounded-md border border-indigo-700/60 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-950/30 disabled:opacity-60"
-                                  >
-                                    {workflowBusyId === tx.id + 'SIGN' ? 'Signing...' : 'Sign'}
-                                  </button>
-                                )}
-                                {tx.can_start_fulfillment && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleWorkflowAction(tx.id, 'START')}
-                                    disabled={workflowBusyId === tx.id + 'START'}
-                                    className="rounded-md border border-amber-700/60 px-2 py-1 text-xs text-amber-300 hover:bg-amber-950/30 disabled:opacity-60"
-                                  >
-                                    {workflowBusyId === tx.id + 'START'
-                                      ? 'Submitting...'
-                                      : 'Given to logist'}
-                                  </button>
-                                )}
-                                {tx.can_mark_in_progress && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
-                                    }
-                                    disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
-                                    className="rounded-md border border-sky-700/60 px-2 py-1 text-xs text-sky-300 hover:bg-sky-950/30 disabled:opacity-60"
-                                  >
-                                    {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
-                                      ? 'Updating...'
-                                      : 'In Progress'}
-                                  </button>
-                                )}
-                                {!tx.can_sign &&
-                                  !tx.can_start_fulfillment &&
-                                  !tx.can_mark_in_progress && (
+                        {paginatedTransactions.map((tx) => {
+                          const canAct =
+                            tx.can_sign || tx.can_start_fulfillment || tx.can_mark_in_progress;
+                          const actions = (
+                            <>
+                              {tx.can_sign && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'SIGN')}
+                                  disabled={workflowBusyId === tx.id + 'SIGN'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'SIGN' ? e('Signing…') : e('Sign')}
+                                </button>
+                              )}
+                              {tx.can_start_fulfillment && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleWorkflowAction(tx.id, 'START')}
+                                  disabled={workflowBusyId === tx.id + 'START'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'START'
+                                    ? e('Submitting…')
+                                    : e('Given to logist')}
+                                </button>
+                              )}
+                              {tx.can_mark_in_progress && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleWorkflowAction(tx.id, 'MARK_IN_PROGRESS')
+                                  }
+                                  disabled={workflowBusyId === tx.id + 'MARK_IN_PROGRESS'}
+                                  className="if-button if-button-primary"
+                                >
+                                  {workflowBusyId === tx.id + 'MARK_IN_PROGRESS'
+                                    ? e('Updating…')
+                                    : e('Mark in delivery')}
+                                </button>
+                              )}
+                            </>
+                          );
+                          return (
+                            <RecordRow
+                              key={tx.id}
+                              id={tx.id}
+                              open={orderRecords.isOpen(tx.id)}
+                              onToggle={() => orderRecords.toggle(tx.id)}
+                              colSpan={4}
+                              title={tx.item_name ?? e('Order')}
+                              subtitle={<small className="font-mono">{tx.id.slice(0, 8)}</small>}
+                              detail={
+                                <RecordDetail
+                                  facts={orderFacts(tx, e, locale)}
+                                  actions={canAct ? actions : undefined}
+                                />
+                              }
+                            >
+                              <td data-label={e('Status')}>
+                                <StatusBadge status={tx.status} />
+                                <small>
+                                  {e('Payment')}: {statusLabel(locale, tx.payment_status)}
+                                </small>
+                              </td>
+                              <td data-label={e('Signatures')}>
+                                <SignatureList status={tx.signature_status} />
+                              </td>
+                              <td className="record-actions record-next">
+                                <OrderGuidance transaction={tx} />
+                                <div className="flex flex-wrap gap-2">
+                                  {actions}
+                                  {!canAct && tx.status !== 'COMPLETED' && (
                                     <span className="text-xs text-[rgb(var(--muted))]">
-                                      Awaiting others
+                                      {e('Awaiting others')}
                                     </span>
                                   )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                </div>
+                              </td>
+                            </RecordRow>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <span>
-                      Showing {(transactionsPage - 1) * TABLE_PAGE_SIZE + 1}
-                      {' - '}
-                      {Math.min(
-                        transactionsPage * TABLE_PAGE_SIZE,
-                        filteredTransactions.length
-                      )} of {filteredTransactions.length}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={transactionsPage <= 1}
-                        onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <span>
-                        Page {transactionsPage} / {transactionsTotalPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={transactionsPage >= transactionsTotalPages}
-                        onClick={() =>
-                          setTransactionsPage((prev) => Math.min(transactionsTotalPages, prev + 1))
-                        }
-                        className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                  <TablePager
+                    page={transactionsPage}
+                    pageSize={TABLE_PAGE_SIZE}
+                    total={filteredTransactions.length}
+                    onPage={setTransactionsPage}
+                  />
                 </>
               )}
             </section>
 
+            {/* Inventory: the stock list (publishing new stock happens in FactorySetup above) */}
             <section data-section="inventory" className="surface-1 rounded-2xl p-6 sm:p-8">
-              {success && <p role="status">{success}</p>}
-              {/* My inventory list */}
+              <div className="section-heading-row">
+                <div>
+                  <h2 id="inventory" className="text-lg font-semibold">
+                    {copy.myInventoryTitle}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
+                    {copy.addInventorySubtitle}
+                  </p>
+                </div>
+              </div>
+              {success && (
+                <p
+                  role="status"
+                  className="mt-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success"
+                >
+                  {success}
+                </p>
+              )}
+
               {inventory.length > 0 && (
                 <>
-                  <div className="mt-6 grid gap-2 sm:grid-cols-3">
+                  <div className="table-filters">
                     <input
-                      type="text"
+                      type="search"
+                      aria-label={e('Search item')}
                       value={inventoryQuery}
                       onChange={(e) => setInventoryQuery(e.target.value)}
-                      placeholder="Search item"
+                      placeholder={e('Search item')}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     />
                     <SelectField
-                      aria-label="Status"
+                      aria-label={e('Status')}
                       value={inventoryStatusFilter}
                       onChange={(e) => setInventoryStatusFilter(e.target.value)}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     >
-                      <option value="ALL">All statuses</option>
-                      {inventoryStatusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
+                      <option value="ALL">{e('All statuses')}</option>
+                      {inventoryStatusOptions.map(statusOption)}
                     </SelectField>
                     <SelectField
-                      aria-label="Currency"
+                      aria-label={e('Currency')}
                       value={inventoryCurrencyFilter}
                       onChange={(e) => setInventoryCurrencyFilter(e.target.value)}
                       className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     >
-                      <option value="ALL">All currencies</option>
+                      <option value="ALL">{e('All currencies')}</option>
                       {inventoryCurrencyOptions.map((currency) => (
                         <option key={currency} value={currency}>
                           {currency}
@@ -1072,91 +1295,195 @@ export default function FactoryWorkspacePage() {
 
                   {filteredInventory.length === 0 ? (
                     <p className="mt-3 text-sm text-[rgb(var(--muted))]">
-                      No inventory matches current filters.
+                      {e('No inventory matches current filters.')}
                     </p>
                   ) : (
                     <>
-                      <div className="mt-6 overflow-x-auto">
-                        <h3 className="mb-2 text-sm font-medium text-[rgb(var(--muted))]">
-                          Current inventory
-                        </h3>
-                        <table className="w-full text-left text-sm">
+                      <div
+                        className="record-scroll"
+                        tabIndex={0}
+                        role="region"
+                        aria-label={copy.myInventoryTitle}
+                      >
+                        <table className="record-table">
                           <thead>
-                            <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                              <th className="py-2 pr-3">{copy.colItem}</th>
-                              <th className="py-2 pr-3">{copy.colQty}</th>
-                              <th className="py-2 pr-3">{copy.pricePerUnitLabel}</th>
-                              <th className="py-2 pr-3">{copy.colCurrency}</th>
-                              <th className="py-2 pr-3">{copy.colStatus}</th>
-                              <th className="py-2">{copy.colAction}</th>
+                            <tr>
+                              <th>{e('Item')}</th>
+                              <th>{e('Available')}</th>
+                              <th>{e('Price per unit')}</th>
+                              <th>{e('Status')}</th>
+                              <th>
+                                <span className="sr-only">{e('Action')}</span>
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {paginatedInventory.map((e) => (
-                              <tr key={e.id} className="border-b border-[rgb(var(--stroke))]/40">
-                                <td className="py-2 pr-3">{e.item_name}</td>
-                                <td className="py-2 pr-3">
-                                  {formatQuantityWithUnit(e.quantity_available, e.unit)}
+                            {paginatedInventory.map((entry) => (
+                              <RecordRow
+                                key={entry.id}
+                                id={entry.id}
+                                open={stockRecords.isOpen(entry.id)}
+                                onToggle={() => stockRecords.toggle(entry.id)}
+                                colSpan={5}
+                                title={entry.item_name}
+                                detail={
+                                  <RecordDetail
+                                    facts={[
+                                      [
+                                        e('Available'),
+                                        formatQuantityWithUnit(
+                                          entry.quantity_available,
+                                          entry.unit
+                                        ),
+                                      ],
+                                      [
+                                        e('Price per unit'),
+                                        formatMoney(
+                                          locale,
+                                          entry.price_per_unit,
+                                          entry.currency_code
+                                        ),
+                                      ],
+                                      [e('Status'), statusLabel(locale, entry.status)],
+                                      [e('Added'), formatDateTime(locale, entry.created_at)],
+                                      [
+                                        e('Open bids'),
+                                        myBids.filter(
+                                          (bid) =>
+                                            bid.inventory_entry_id === entry.id &&
+                                            bid.status === 'PENDING' &&
+                                            !bid.logistic_offer_id
+                                        ).length,
+                                      ],
+                                    ]}
+                                    actions={
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="if-button"
+                                          aria-expanded={stockEdit?.id === entry.id}
+                                          onClick={() =>
+                                            setStockEdit(
+                                              stockEdit?.id === entry.id
+                                                ? null
+                                                : {
+                                                    id: entry.id,
+                                                    quantity: entry.quantity_available,
+                                                    price: entry.price_per_unit,
+                                                  }
+                                            )
+                                          }
+                                        >
+                                          {e('Edit')}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={inventoryStatusBusyId === entry.id}
+                                          onClick={() =>
+                                            void handleToggleInventoryStatus(entry.id, entry.status)
+                                          }
+                                          className="if-button"
+                                        >
+                                          {entry.status === 'ACTIVE'
+                                            ? copy.actionPause
+                                            : copy.actionActivate}
+                                        </button>
+                                      </>
+                                    }
+                                  >
+                                    {stockEdit?.id === entry.id && (
+                                      <form
+                                        className="record-edit"
+                                        onSubmit={(event) => {
+                                          event.preventDefault();
+                                          void saveStock(entry.id);
+                                        }}
+                                      >
+                                        <label>
+                                          {e('Available')} ({entry.unit ?? 'pcs'})
+                                          <input
+                                            type="number"
+                                            min="0.01"
+                                            step="any"
+                                            required
+                                            value={stockEdit.quantity}
+                                            onChange={(event) =>
+                                              setStockEdit({
+                                                ...stockEdit,
+                                                quantity: event.target.value,
+                                              })
+                                            }
+                                          />
+                                        </label>
+                                        <label>
+                                          {e('Price per unit')} ({entry.currency_code})
+                                          <input
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            required
+                                            value={stockEdit.price}
+                                            onChange={(event) =>
+                                              setStockEdit({
+                                                ...stockEdit,
+                                                price: event.target.value,
+                                              })
+                                            }
+                                          />
+                                        </label>
+                                        <button
+                                          type="submit"
+                                          className="if-button if-button-primary"
+                                          disabled={busyId !== null}
+                                        >
+                                          {e('Save changes')}
+                                        </button>
+                                        <p className="record-notice record-edit-wide">
+                                          {e(
+                                            'The price is locked while open bids use this stock; the quantity can always change.'
+                                          )}
+                                        </p>
+                                      </form>
+                                    )}
+                                  </RecordDetail>
+                                }
+                              >
+                                <td data-label={e('Available')} className="num">
+                                  {formatQuantityWithUnit(entry.quantity_available, entry.unit)}
                                 </td>
-                                <td className="py-2 pr-3">{e.price_per_unit}</td>
-                                <td className="py-2 pr-3">{e.currency_code}</td>
-                                <td className="py-2 pr-3">{e.status}</td>
-                                <td className="py-2">
+                                <td data-label={e('Price per unit')} className="num">
+                                  {formatMoney(locale, entry.price_per_unit, entry.currency_code)}
+                                </td>
+                                <td data-label={e('Status')}>
+                                  <StatusBadge status={entry.status} />
+                                </td>
+                                <td className="record-actions">
                                   <button
                                     type="button"
-                                    disabled={inventoryStatusBusyId === e.id}
-                                    onClick={() => void handleToggleInventoryStatus(e.id, e.status)}
-                                    className={`rounded-md border px-2 py-1 text-xs disabled:opacity-50 ${
-                                      e.status === 'ACTIVE'
-                                        ? 'border-amber-700/60 text-amber-300 hover:bg-amber-950/30'
-                                        : 'border-emerald-700/60 text-emerald-300 hover:bg-emerald-950/30'
-                                    }`}
+                                    disabled={inventoryStatusBusyId === entry.id}
+                                    onClick={() =>
+                                      void handleToggleInventoryStatus(entry.id, entry.status)
+                                    }
+                                    className="if-button"
                                   >
-                                    {inventoryStatusBusyId === e.id
-                                      ? 'Updating...'
-                                      : e.status === 'ACTIVE'
+                                    {inventoryStatusBusyId === entry.id
+                                      ? e('Updating…')
+                                      : entry.status === 'ACTIVE'
                                         ? copy.actionPause
                                         : copy.actionActivate}
                                   </button>
                                 </td>
-                              </tr>
+                              </RecordRow>
                             ))}
                           </tbody>
                         </table>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                        <span>
-                          Showing {(inventoryPage - 1) * TABLE_PAGE_SIZE + 1}
-                          {' - '}
-                          {Math.min(
-                            inventoryPage * TABLE_PAGE_SIZE,
-                            filteredInventory.length
-                          )} of {filteredInventory.length}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={inventoryPage <= 1}
-                            onClick={() => setInventoryPage((prev) => Math.max(1, prev - 1))}
-                            className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                          >
-                            Prev
-                          </button>
-                          <span>
-                            Page {inventoryPage} / {inventoryTotalPages}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={inventoryPage >= inventoryTotalPages}
-                            onClick={() =>
-                              setInventoryPage((prev) => Math.min(inventoryTotalPages, prev + 1))
-                            }
-                            className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
+                      <TablePager
+                        page={inventoryPage}
+                        pageSize={TABLE_PAGE_SIZE}
+                        total={filteredInventory.length}
+                        onPage={setInventoryPage}
+                      />
                     </>
                   )}
                 </>

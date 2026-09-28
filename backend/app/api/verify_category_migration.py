@@ -7,9 +7,11 @@ from uuid import uuid4
 url = os.environ["CATEGORY_TEST_DATABASE_URL"]
 assert "127.0.0.1:55439/factory_categories_" in url
 migrations = sorted(Path("prisma/migrations").glob("*/migration.sql"))
-last = migrations[-1].read_text()
+# The category migration by name: later migrations may follow it.
+at = next(i for i, p in enumerate(migrations) if p.parent.name.endswith("_factory_categories"))
+last = migrations[at].read_text()
 backfill = last[last.index('INSERT INTO "FactoryCategory"') : last.index("-- Small catalogue")]
-old = "\n".join(p.read_text() for p in migrations[:-1])
+old = "\n".join(p.read_text() for p in migrations[:at])
 fixture = """
 INSERT INTO "User" (id,email,password_hash,role,updated_at) VALUES ('10000000-0000-4000-8000-000000000001','legacy@test.local','unused','FACTORY',now()), ('10000000-0000-4000-8000-000000000002','customer@test.local','unused','CUSTOMER',now());
 INSERT INTO "Country" (id,iso2,iso3,default_name,updated_at) VALUES ('20000000-0000-4000-8000-000000000001','KZ','KAZ','Kazakhstan',now());

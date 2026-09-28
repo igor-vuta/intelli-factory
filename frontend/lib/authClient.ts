@@ -162,6 +162,7 @@ export type LogisticOfferPayload = {
 export type LogisticOfferItem = {
   id: string;
   title: string;
+  description?: string | null;
   base_price: string;
   currency_code: string;
   estimated_days_min: number | null;
@@ -361,6 +362,70 @@ export function updateRequestStatus(requestId: string, status: string) {
   });
 }
 
+/** Edit a request before any factory has bid (quantity, currency). */
+export function updateRequest(
+  requestId: string,
+  payload: { quantity?: number; preferred_currency_code?: string }
+) {
+  return request<ApiMessage>(`/requests/${encodeURIComponent(requestId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function pauseRequest(requestId: string) {
+  return request<ApiMessage>(`/requests/${encodeURIComponent(requestId)}/pause`, {
+    method: 'POST',
+  });
+}
+
+export function resumeRequest(requestId: string) {
+  return request<ApiMessage>(`/requests/${encodeURIComponent(requestId)}/resume`, {
+    method: 'POST',
+  });
+}
+
+/** Delete a cancelled request, or one nobody has bid on. */
+export function deleteRequest(requestId: string) {
+  return request<ApiMessage>(`/requests/${encodeURIComponent(requestId)}`, { method: 'DELETE' });
+}
+
+export function updateInventoryEntry(
+  inventoryEntryId: string,
+  payload: { quantity_available?: number; price_per_unit?: number }
+) {
+  return request<ApiMessage>(
+    `/requests/inventory-entries/${encodeURIComponent(inventoryEntryId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function updateLogisticOffer(
+  offerId: string,
+  payload: {
+    title?: string;
+    description?: string;
+    base_price?: number;
+    estimated_days_min?: number;
+    estimated_days_max?: number;
+  }
+) {
+  return request<ApiMessage>(`/requests/logistic-offers/${encodeURIComponent(offerId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateLogisticOfferStatus(offerId: string, status: 'ACTIVE' | 'PAUSED') {
+  return request<ApiMessage>(`/requests/logistic-offers/${encodeURIComponent(offerId)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
 export function createInventoryEntry(payload: InventoryEntryPayload) {
   return request<ApiMessage>('/requests/inventory-entries', {
     method: 'POST',
@@ -438,6 +503,7 @@ export type MatchCandidate = {
   reliability_score: number | null;
   fitness_score: number | null;
   has_my_quote?: boolean;
+  my_quote_candidate_id?: string | null;
   created_at: string;
 };
 
@@ -528,6 +594,13 @@ export function createFactoryBid(payload: FactoryBidPayload) {
   });
 }
 
+/** Withdraw a bid and the complete proposals built on it. */
+export function withdrawFactoryBid(candidateId: string) {
+  return request<ApiMessage>(`/pairing/factory-bids/${encodeURIComponent(candidateId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export function listMyFactoryBids() {
   return request<MatchCandidate[]>('/pairing/factory-bids/mine');
 }
@@ -545,6 +618,12 @@ export function createLogistQuote(payload: LogistQuotePayload) {
   }>('/pairing/logist-quotes', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function withdrawLogistQuote(candidateId: string) {
+  return request<ApiMessage>(`/pairing/logist-quotes/${encodeURIComponent(candidateId)}`, {
+    method: 'DELETE',
   });
 }
 

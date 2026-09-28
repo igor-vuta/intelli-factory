@@ -4,7 +4,7 @@ import logging
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from services.optimization_engine import OptimizationEngine
 
@@ -17,13 +17,14 @@ class OptimizeRequest(BaseModel):
     mode: str = Field("fast", description="'fast' (heuristic) or 'deep' (GA)")
     profile: Optional[str] = Field(None, description="Profile override: balanced/cost/speed/reliability")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "request_id": "00000000-0000-0000-0000-000000000001",
                 "mode": "fast",
             }
         }
+    )
 
 
 class ScoreBreakdown(BaseModel):

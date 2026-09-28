@@ -27,19 +27,21 @@ export default function GettingStarted({
   const locale = getLocaleFromQuery(query.lang);
   const storageKey = `getting-started:v1:${userId}:${role}`;
   const [temporaryHidden, setTemporaryHidden] = useState<boolean | null>(null);
-  const storedHidden = useSyncExternalStore(
+  const stored = useSyncExternalStore(
     subscribe,
     () => {
       try {
-        return localStorage.getItem(storageKey) === 'hidden';
+        return localStorage.getItem(storageKey);
       } catch {
-        return false;
+        return null;
       }
     },
-    () => false
+    () => null
   );
-  const hidden = temporaryHidden ?? storedHidden;
   const steps = firstSteps[role];
+  const allDone = steps.every((_, index) => completed[index]);
+  // A finished checklist stays out of the way unless the user chose to keep it open.
+  const hidden = temporaryHidden ?? (stored === 'hidden' || (stored === null && allDone));
   function toggle() {
     try {
       localStorage.setItem(storageKey, hidden ? 'visible' : 'hidden');
@@ -52,6 +54,9 @@ export default function GettingStarted({
   return (
     <section className="getting-started" aria-label={guidanceText(locale, 'checklist')}>
       <div className="getting-started-heading">
+        {hidden && allDone && (
+          <p className="getting-started-done">{guidanceText(locale, 'allDone')}</p>
+        )}
         {!hidden && (
           <div>
             <h2>{guidanceText(locale, 'checklist')}</h2>

@@ -1,28 +1,16 @@
 import SelectField from '../../components/SelectField';
 import CategoryProposalPanel from '../../components/CategoryProposalPanel';
+import StatusBadge from '../../components/StatusBadge';
+import RecordRow, { RecordDetail } from '../../components/RecordRow';
+import { useExpandedRecords } from '../../hooks/useExpandedRecords';
+import TablePager from '../../components/TablePager';
+import TradeoffPlot from '../../components/TradeoffPlot';
+import { useExperienceCopy } from '../../hooks/useExperienceCopy';
 import WorkspaceExperience from '../../components/WorkspaceExperience';
 import { workspacePath } from '../../lib/navigation';
 import { useRouter } from 'next/router';
 import { useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../../lib/authClient';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
 import {
   listRequests,
@@ -30,20 +18,27 @@ import {
   me,
   optimizeCompare,
   seedLargeScale,
-  type CompareStrategyEntry,
   type OptimizeCompareResponse,
   type OptimizePriority,
   type RequestSummary,
 } from '../../lib/authClient';
-import { formatQuantityWithUnit } from '../../lib/formatting';
-import { getLocaleFromQuery, t } from '../../lib/i18n';
+import { formatDateTime, formatMoney, formatQuantityWithUnit } from '../../lib/formatting';
+import { statusLabel } from '../../lib/status';
+import {
+  nonDominated,
+  weightedScores,
+  WEIGHT_PROFILES,
+  type Candidate,
+  type Weights,
+} from '../../lib/tradeoff';
+import { getLocaleFromQuery } from '../../lib/i18n';
 
 const REQUESTS_PAGE_SIZE = 5;
 
 export default function AdminWorkspacePage() {
   const router = useRouter();
   const locale = getLocaleFromQuery(router.query.lang);
-  const copy = t(locale);
+  const e = useExperienceCopy();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +56,7 @@ export default function AdminWorkspacePage() {
   const [activeTab, setActiveTab] = useState<'greedy' | 'fast' | 'deep'>('deep');
   const [seedLoading, setSeedLoading] = useState(false);
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
+  const [activePoint, setActivePoint] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,124 +188,57 @@ export default function AdminWorkspacePage() {
     return summary;
   }, [requests]);
 
-  // Chart data derived from compare results
-  const scatterData = useMemo(() => {
-    if (!compareData) return [];
-    const COLORS: Record<string, string> = {
-      greedy: '#f59e0b',
-      fast: '#34d399',
-      deep: '#a78bfa',
-    };
-    const entries: {
-      x: number;
-      y: number;
-      z: number;
-      strategy: string;
-      fill: string;
+  // The whole pool (plus any pick not in it) for the trade-off chart, its real three-objective
+  // front, and where each strategy's top pick sits.
+  const plot = useMemo(() => {
+    if (!compareData) return null;
+    const ids: string[] = [];
+    const points: Candidate[] = [];
+    const add = (o: {
       id: string;
-    }[] = [];
-    for (const strategy of ['greedy', 'fast', 'deep'] as const) {
-      for (const sol of compareData[strategy]) {
-        entries.push({
-          x: sol.total_cost,
-          y: sol.delivery_days,
-          z: sol.reliability,
-          strategy,
-          fill: COLORS[strategy],
-          id: sol.id,
-        });
-      }
-    }
-    return entries;
+      total_cost: number;
+      delivery_days: number;
+      reliability: number;
+    }) => {
+      if (ids.includes(o.id)) return;
+      ids.push(o.id);
+      points.push({ cost: o.total_cost, days: o.delivery_days, reliability: o.reliability });
+    };
+    compareData.pool.forEach(add);
+    (['greedy', 'fast', 'deep'] as const).forEach((k) => compareData[k].forEach(add));
+    if (!points.length) return null;
+    const pick = (k: 'greedy' | 'fast' | 'deep') => {
+      const top = compareData[k][0];
+      return top ? ids.indexOf(top.id) : -1;
+    };
+    // Greedy ranks by cost alone and returns no score. When the response carries the whole pool,
+    // lib/tradeoff (the engine's own formula) scores its pick so all three can be compared.
+    const complete = compareData.pool.length === compareData.candidate_pool_size;
+    const scores = complete
+      ? weightedScores(
+          compareData.pool.map((o) => ({
+            cost: o.total_cost,
+            days: o.delivery_days,
+            reliability: o.reliability,
+          })),
+          compareData.weights
+        )
+      : null;
+    const scoreOf = (id: string) => {
+      const at = compareData.pool.findIndex((o) => o.id === id);
+      return scores && at >= 0 ? scores[at] : null;
+    };
+    return {
+      points,
+      scoreOf,
+      front: new Set(nonDominated(points)),
+      picks: { greedy: pick('greedy'), fast: pick('fast'), deep: pick('deep') },
+      currency: compareData.fast[0]?.currency_code ?? compareData.greedy[0]?.currency_code ?? 'EUR',
+    };
   }, [compareData]);
-
-  const poolScatterData = useMemo(() => {
-    if (!compareData) return [];
-    const selectedIds = new Set(scatterData.map((d) => d.id));
-    return compareData.pool
-      .filter((p) => !selectedIds.has(p.id))
-      .map((p) => ({ x: p.total_cost, y: p.delivery_days, z: p.reliability, id: p.id }));
-  }, [compareData, scatterData]);
-
-  const paretoLineData = useMemo(() => {
-    if (!compareData) return [];
-    // Collect all unique candidates (pool + all strategy results)
-    const seen = new Set<string>();
-    const all: { id: string; x: number; y: number }[] = [];
-    for (const p of compareData.pool) {
-      if (!seen.has(p.id)) {
-        seen.add(p.id);
-        all.push({ id: p.id, x: p.total_cost, y: p.delivery_days });
-      }
-    }
-    for (const strategy of ['greedy', 'fast', 'deep'] as const) {
-      for (const s of compareData[strategy]) {
-        if (!seen.has(s.id)) {
-          seen.add(s.id);
-          all.push({ id: s.id, x: s.total_cost, y: s.delivery_days });
-        }
-      }
-    }
-    // Non-dominated
-    const pareto = all
-      .filter(
-        (p) =>
-          !all.some((o) => o.id !== p.id && o.x <= p.x && o.y <= p.y && (o.x < p.x || o.y < p.y))
-      )
-      .sort((a, b) => a.x - b.x);
-    return pareto.map(({ x, y }) => ({ x, y }));
-  }, [compareData]);
-
-  const barData = useMemo(() => {
-    if (!compareData) return [];
-    const best = (list: CompareStrategyEntry[]) =>
-      list.length === 0
-        ? { cost: 0, days: 0, rel: 0 }
-        : {
-            cost: Math.min(...list.map((s) => s.total_cost)),
-            days: Math.min(...list.map((s) => s.delivery_days)),
-            rel: Math.max(...list.map((s) => s.reliability)),
-          };
-    return [
-      { strategy: 'Greedy', ...best(compareData.greedy) },
-      { strategy: 'Fast', ...best(compareData.fast) },
-      { strategy: 'Deep GA', ...best(compareData.deep) },
-    ];
-  }, [compareData]);
-
-  const radarData = useMemo(() => {
-    if (!compareData) return [];
-    const top = (list: CompareStrategyEntry[]) => list[0];
-    type StrategyKey = 'greedy' | 'fast' | 'deep';
-    const strategies: { name: string; key: StrategyKey }[] = [
-      { name: 'Greedy', key: 'greedy' },
-      { name: 'Fast', key: 'fast' },
-      { name: 'Deep GA', key: 'deep' },
-    ];
-    const getList = (key: StrategyKey) => compareData[key];
-    // Collect all values for normalisation
-    const allCosts = strategies.flatMap(({ key }) => getList(key).map((s) => s.total_cost));
-    const allDays = strategies.flatMap(({ key }) => getList(key).map((s) => s.delivery_days));
-    const allRel = strategies.flatMap(({ key }) => getList(key).map((s) => s.reliability));
-    const minC = Math.min(...allCosts),
-      maxC = Math.max(...allCosts);
-    const minD = Math.min(...allDays),
-      maxD = Math.max(...allDays);
-    const minR = Math.min(...allRel),
-      maxR = Math.max(...allRel);
-    const norm = (v: number, lo: number, hi: number) => (hi === lo ? 0.5 : (v - lo) / (hi - lo));
-    return strategies
-      .filter(({ key }) => getList(key).length > 0)
-      .map(({ name, key }) => {
-        const s = top(getList(key));
-        return {
-          strategy: name,
-          cost: parseFloat(((1 - norm(s.total_cost, minC, maxC)) * 100).toFixed(1)),
-          speed: parseFloat(((1 - norm(s.delivery_days, minD, maxD)) * 100).toFixed(1)),
-          reliability: parseFloat((norm(s.reliability, minR, maxR) * 100).toFixed(1)),
-        };
-      });
-  }, [compareData]);
+  useEffect(() => setActivePoint(null), [compareData]);
+  const weightsText = (w: Weights) =>
+    `${e('cost')} ${Math.round(w.cost * 100)}% · ${e('time')} ${Math.round(w.time * 100)}% · ${e('reliability')} ${Math.round(w.reliability * 100)}%`;
 
   const requestStatusOptions = useMemo(
     () => Array.from(new Set(requests.map((row) => row.status))).sort(),
@@ -361,11 +290,47 @@ export default function AdminWorkspacePage() {
     if (requestsPage > requestsTotalPages) setRequestsPage(requestsTotalPages);
   }, [requestsPage, requestsTotalPages]);
 
-  const STRATEGY_COLORS: Record<string, string> = {
-    greedy: '#f59e0b',
-    fast: '#34d399',
-    deep: '#a78bfa',
-  };
+  const requestRecords = useExpandedRecords(
+    filteredRequests.map((row) => row.id),
+    REQUESTS_PAGE_SIZE,
+    setRequestsPage
+  );
+
+  const STRATEGIES = [
+    {
+      key: 'greedy',
+      name: 'Greedy',
+      how: 'Takes the cheapest offer; the baseline.',
+    },
+    {
+      key: 'fast',
+      name: 'Fast',
+      how: 'Ranks the whole pool by the weighted score.',
+    },
+    {
+      key: 'deep',
+      name: 'Deep',
+      how: 'A genetic search (DEAP) over the same weighted score, so it can match Fast but not beat it.',
+    },
+  ] as const;
+  const PROFILES: { id: OptimizePriority; label: string }[] = [
+    { id: 'balanced', label: 'Balanced' },
+    { id: 'cost', label: 'Lowest cost' },
+    { id: 'speed', label: 'Fastest' },
+    { id: 'reliability', label: 'Most reliable' },
+  ];
+  const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
+  const decimal = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  const score = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
+  const requestName = (row: RequestSummary) =>
+    row.item_name ?? row.requested_name_text ?? e('Supply request');
+  const statusCounts = requestStatusOptions.map(
+    (status) =>
+      `${requests.filter((row) => row.status === status).length} ${statusLabel(locale, status)}`
+  );
 
   return (
     <WorkspaceExperience
@@ -375,244 +340,218 @@ export default function AdminWorkspacePage() {
       counts={[statusStats.total, statusStats.pairing, statusStats.completed]}
       items={requests.map((row) => ({
         id: row.id,
-        title: row.item_name ?? row.requested_name_text ?? 'Supply request',
+        title: requestName(row),
         status: row.status,
-        detail: `${row.quantity} ${row.quantity_unit}`,
+        detail: formatQuantityWithUnit(row.quantity, row.quantity_unit),
       }))}
       onLogout={handleLogout}
     >
       <div className="workspace-panels">
         <CategoryProposalPanel locale={locale} admin />
         <section data-section="operations" className="surface-1 rounded-2xl p-6 sm:p-8">
-          <h1 id="overview" className="slide-up text-2xl font-semibold sm:text-3xl">
-            {copy.adminTitle}
-          </h1>
-          <p className="mt-2 text-sm text-[rgb(var(--muted))]">
-            Track request pipeline and status distribution.
-          </p>
+          <h2 id="requests" className="text-lg font-semibold">
+            {e('All requests')}
+          </h2>
+          {!loading && (
+            <p className="mt-0.5 text-xs text-[rgb(var(--muted))] num">
+              {statusCounts.join(' · ')}
+            </p>
+          )}
 
-          {loading && <p className="mt-4 text-[rgb(var(--muted))]">Loading workspace...</p>}
+          {loading && <p className="mt-4 text-[rgb(var(--muted))]">{e('Loading workspace…')}</p>}
 
           {!loading && !error && (
             <>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <div
-                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
-                  style={{ '--gc': 'var(--accent)' } as React.CSSProperties}
+              <div className="table-filters table-filters-4">
+                <input
+                  type="search"
+                  aria-label={e('Search reference, customer or item')}
+                  value={requestsQuery}
+                  onChange={(e) => setRequestsQuery(e.target.value)}
+                  placeholder={e('Search reference, customer or item')}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+                />
+                <SelectField
+                  aria-label={e('Status')}
+                  value={requestsStatusFilter}
+                  onChange={(e) => setRequestsStatusFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <p className="text-xs text-[rgb(var(--muted))]">Total</p>
-                  <p className="text-xl font-semibold">{statusStats.total}</p>
-                </div>
-                <div
-                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
-                  style={{ '--gc': '245 158 11' } as React.CSSProperties}
+                  <option value="ALL">{e('All statuses')}</option>
+                  {requestStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {statusLabel(locale, status)}
+                    </option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  aria-label={e('Currency')}
+                  value={requestsCurrencyFilter}
+                  onChange={(e) => setRequestsCurrencyFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <p className="text-xs text-[rgb(var(--muted))]">Pending</p>
-                  <p className="text-xl font-semibold text-amber-300">{statusStats.pending}</p>
-                </div>
-                <div
-                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
-                  style={{ '--gc': '56 189 248' } as React.CSSProperties}
+                  <option value="ALL">{e('All currencies')}</option>
+                  {requestCurrencyOptions.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  aria-label={e('Customer')}
+                  value={requestsCustomerFilter}
+                  onChange={(e) => setRequestsCustomerFilter(e.target.value)}
+                  className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                 >
-                  <p className="text-xs text-[rgb(var(--muted))]">Pairing</p>
-                  <p className="text-xl font-semibold text-sky-300">{statusStats.pairing}</p>
-                </div>
-                <div
-                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
-                  style={{ '--gc': '52 211 153' } as React.CSSProperties}
-                >
-                  <p className="text-xs text-[rgb(var(--muted))]">Matched</p>
-                  <p className="text-xl font-semibold text-emerald-300">{statusStats.matched}</p>
-                </div>
-                <div
-                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
-                  style={{ '--gc': '248 113 113' } as React.CSSProperties}
-                >
-                  <p className="text-xs text-[rgb(var(--muted))]">Cancelled</p>
-                  <p className="text-xl font-semibold text-red-300">{statusStats.cancelled}</p>
-                </div>
-                <div
-                  className="stat-card rounded-xl border border-[rgb(var(--stroke))] p-3"
-                  style={{ '--gc': '52 211 153' } as React.CSSProperties}
-                >
-                  <p className="text-xs text-[rgb(var(--muted))]">Completed</p>
-                  <p className="text-xl font-semibold text-emerald-300">{statusStats.completed}</p>
-                </div>
+                  <option value="ALL">{e('All customers')}</option>
+                  {requestCustomerOptions.map((customerId) => (
+                    <option key={customerId} value={customerId}>
+                      {e('Customer')} {customerId.slice(0, 8)}
+                    </option>
+                  ))}
+                </SelectField>
               </div>
 
-              <div className="mt-6 overflow-x-auto">
-                <div className="mb-3 grid gap-2 sm:grid-cols-4">
-                  <input
-                    type="text"
-                    value={requestsQuery}
-                    onChange={(e) => setRequestsQuery(e.target.value)}
-                    placeholder="Search ID/customer/item"
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  />
-                  <SelectField
-                    aria-label="Status"
-                    value={requestsStatusFilter}
-                    onChange={(e) => setRequestsStatusFilter(e.target.value)}
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
+              {filteredRequests.length === 0 ? (
+                <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                  {requests.length === 0
+                    ? e('No requests available.')
+                    : e('No requests match current filters.')}
+                </p>
+              ) : (
+                <>
+                  <div
+                    className="record-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label={e('All requests')}
                   >
-                    <option value="ALL">All statuses</option>
-                    {requestStatusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </SelectField>
-                  <SelectField
-                    aria-label="Currency"
-                    value={requestsCurrencyFilter}
-                    onChange={(e) => setRequestsCurrencyFilter(e.target.value)}
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  >
-                    <option value="ALL">All currencies</option>
-                    {requestCurrencyOptions.map((currency) => (
-                      <option key={currency} value={currency}>
-                        {currency}
-                      </option>
-                    ))}
-                  </SelectField>
-                  <SelectField
-                    aria-label="Customer"
-                    value={requestsCustomerFilter}
-                    onChange={(e) => setRequestsCustomerFilter(e.target.value)}
-                    className="focus-theme rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
-                  >
-                    <option value="ALL">All customers</option>
-                    {requestCustomerOptions.map((customerId) => (
-                      <option key={customerId} value={customerId}>
-                        {customerId.slice(0, 8)}...
-                      </option>
-                    ))}
-                  </SelectField>
-                </div>
-
-                {filteredRequests.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-[rgb(var(--stroke))] px-4 py-6 text-sm text-[rgb(var(--muted))]">
-                    {requests.length === 0
-                      ? 'No requests available.'
-                      : 'No requests match current filters.'}
-                  </p>
-                ) : (
-                  <>
-                    <table className="w-full text-left text-sm">
+                    <table className="record-table">
                       <thead>
-                        <tr className="border-b border-[rgb(var(--stroke))] text-[rgb(var(--muted))]">
-                          <th className="py-2 pr-3">Request ID</th>
-                          <th className="py-2 pr-3">Customer Profile</th>
-                          <th className="py-2 pr-3">Item</th>
-                          <th className="py-2 pr-3">Qty</th>
-                          <th className="py-2 pr-3">Currency</th>
-                          <th className="py-2 pr-3">Status</th>
-                          <th className="py-2">Created</th>
+                        <tr>
+                          <th>{e('Item')}</th>
+                          <th>{e('Customer')}</th>
+                          <th>{e('Quantity')}</th>
+                          <th>{e('Status')}</th>
+                          <th>{e('Created')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginatedRequests.map((row) => (
-                          <tr key={row.id} className="border-b border-[rgb(var(--stroke))]/40">
-                            <td className="py-2 pr-3 font-mono text-xs">{row.id.slice(0, 8)}...</td>
-                            <td className="py-2 pr-3 font-mono text-xs">
+                          <RecordRow
+                            key={row.id}
+                            id={row.id}
+                            open={requestRecords.isOpen(row.id)}
+                            onToggle={() => requestRecords.toggle(row.id)}
+                            colSpan={5}
+                            title={requestName(row)}
+                            subtitle={<small className="font-mono">{row.id.slice(0, 8)}</small>}
+                            detail={
+                              <RecordDetail
+                                facts={[
+                                  [e('Reference'), <code key="ref">{row.id}</code>],
+                                  [
+                                    e('Customer'),
+                                    <code key="customer">{row.customer_profile_id}</code>,
+                                  ],
+                                  [e('Category'), row.category_name],
+                                  [
+                                    e('Quantity'),
+                                    formatQuantityWithUnit(row.quantity, row.quantity_unit),
+                                  ],
+                                  [e('Currency'), row.preferred_currency_code],
+                                  [e('Status'), statusLabel(locale, row.status)],
+                                  [e('Created'), formatDateTime(locale, row.created_at)],
+                                ]}
+                                actions={
+                                  row.status === 'PAIRING_IN_PROGRESS' ? (
+                                    <button
+                                      type="button"
+                                      className="if-button if-button-primary"
+                                      onClick={() => {
+                                        setSelectedRequestId(row.id);
+                                        setCompareData(null);
+                                        document
+                                          .getElementById('optimization')
+                                          ?.scrollIntoView({ block: 'start' });
+                                      }}
+                                    >
+                                      {e('Compare strategies')}
+                                    </button>
+                                  ) : undefined
+                                }
+                              />
+                            }
+                          >
+                            <td data-label={e('Customer')} className="font-mono text-xs">
                               {row.customer_profile_id.slice(0, 8)}
-                              ...
                             </td>
-                            <td className="py-2 pr-3">
-                              {row.requested_name_text || row.item_id || 'N/A'}
-                            </td>
-                            <td className="py-2 pr-3">
+                            <td data-label={e('Quantity')} className="num">
                               {formatQuantityWithUnit(row.quantity, row.quantity_unit)}
+                              <small>{row.preferred_currency_code}</small>
                             </td>
-                            <td className="py-2 pr-3">{row.preferred_currency_code}</td>
-                            <td className="py-2 pr-3">{row.status}</td>
-                            <td className="py-2">
-                              {new Date(row.created_at).toLocaleString('en-GB', {
-                                timeZone: 'UTC',
-                              })}
+                            <td data-label={e('Status')}>
+                              <StatusBadge status={row.status} />
                             </td>
-                          </tr>
+                            <td data-label={e('Created')}>
+                              {formatDateTime(locale, row.created_at)}
+                            </td>
+                          </RecordRow>
                         ))}
                       </tbody>
                     </table>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                      <span>
-                        Showing {(requestsPage - 1) * REQUESTS_PAGE_SIZE + 1}
-                        {' - '}
-                        {Math.min(
-                          requestsPage * REQUESTS_PAGE_SIZE,
-                          filteredRequests.length
-                        )} of {filteredRequests.length}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={requestsPage <= 1}
-                          onClick={() => setRequestsPage((prev) => Math.max(1, prev - 1))}
-                          className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                        >
-                          Prev
-                        </button>
-                        <span>
-                          Page {requestsPage} / {requestsTotalPages}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={requestsPage >= requestsTotalPages}
-                          onClick={() =>
-                            setRequestsPage((prev) => Math.min(requestsTotalPages, prev + 1))
-                          }
-                          className="rounded-md border border-[rgb(var(--stroke))] px-2 py-1 disabled:opacity-40"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                  </div>
+                  <TablePager
+                    page={requestsPage}
+                    pageSize={REQUESTS_PAGE_SIZE}
+                    total={filteredRequests.length}
+                    onPage={setRequestsPage}
+                  />
+                </>
+              )}
 
-              <div className="mt-8 border-t border-[rgb(var(--stroke))] pt-6">
-                {/* Section header + seed button */}
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="optimisation-panel">
+                <div className="section-heading-row">
                   <div>
-                    <h2 id="optimization" className="text-xl font-semibold">
-                      Optimization Engine Comparison
+                    <h2 id="optimization" className="text-lg font-semibold">
+                      {e('Compare the optimisation strategies')}
                     </h2>
-                    <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-                      Compare Greedy, Fast Weighted, and Deep (GA) strategies side-by-side.
+                    <p className="mt-0.5 max-w-prose text-xs text-[rgb(var(--muted))]">
+                      {e(
+                        'Run Greedy, Fast and Deep on the same candidate pool for one request and see where each pick sits among all the offers.'
+                      )}
                     </p>
                   </div>
                   <button
                     type="button"
                     disabled={seedLoading}
                     onClick={handleSeedLargeScale}
-                    className="rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-xs disabled:opacity-50"
+                    className="if-button"
                   >
-                    {seedLoading ? 'Seeding…' : 'Generate 150-Candidate Test Data'}
+                    {seedLoading ? e('Generating…') : e('Generate a 150-offer test request')}
                   </button>
                 </div>
 
                 {seedMessage && (
                   <p
+                    role="status"
                     className={`mt-2 rounded-lg px-3 py-2 text-xs ${
                       seedMessage.startsWith('Error')
-                        ? 'bg-red-950/40 text-red-300'
-                        : 'bg-emerald-950/40 text-emerald-300'
+                        ? 'bg-danger/10 text-danger'
+                        : 'bg-success/10 text-success'
                     }`}
                   >
                     {seedMessage}
                   </p>
                 )}
 
-                {/* Request selector + run button */}
-                <div className="mt-4 flex flex-wrap items-end gap-3">
-                  <div className="flex-1 min-w-0">
+                <div className="optimisation-controls">
+                  <div>
                     <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
-                      Request (select one with PAIRING_IN_PROGRESS status)
+                      {e('Request collecting proposals')}
                     </label>
                     <SelectField
-                      aria-label="Request"
+                      aria-label={e('Request collecting proposals')}
                       value={selectedRequestId}
                       onChange={(e) => {
                         setSelectedRequestId(e.target.value);
@@ -621,434 +560,222 @@ export default function AdminWorkspacePage() {
                       }}
                       className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     >
-                      <option value="">Select a request…</option>
+                      <option value="">{e('Select a request…')}</option>
                       {requests
                         .filter((r) => r.status === 'PAIRING_IN_PROGRESS')
                         .map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.id.slice(0, 8)}… -{' '}
-                            {r.requested_name_text || r.item_name || r.item_id || 'N/A'}
+                            {requestName(r)} · {r.id.slice(0, 8)}
                           </option>
                         ))}
                     </SelectField>
                   </div>
-
-                  <div className="min-w-[220px]">
+                  <div>
                     <label className="mb-1 block text-xs text-[rgb(var(--muted))]">
-                      Optimization profile
+                      {e('What matters most')}
                     </label>
                     <SelectField
-                      aria-label="Optimization profile"
+                      aria-label={e('What matters most')}
                       value={profile}
-                      onChange={(e) => {
-                        setProfile(e.target.value as OptimizePriority);
-                      }}
+                      onChange={(e) => setProfile(e.target.value as OptimizePriority)}
                       className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2 text-sm"
                     >
-                      <option value="balanced">Balanced (0.40 / 0.30 / 0.30)</option>
-                      <option value="cost">Cost-first (0.70 / 0.20 / 0.10)</option>
-                      <option value="speed">Speed-first (0.20 / 0.70 / 0.10)</option>
-                      <option value="reliability">Reliability-first (0.20 / 0.20 / 0.60)</option>
+                      {PROFILES.map(({ id, label }) => (
+                        <option key={id} value={id}>
+                          {e(label)} · {weightsText(WEIGHT_PROFILES[id])}
+                        </option>
+                      ))}
                     </SelectField>
                   </div>
-
                   <button
                     type="button"
                     disabled={comparing || !selectedRequestId}
                     onClick={handleCompare}
-                    className="btn btn-primary shrink-0 text-sm"
+                    className="if-button if-button-primary"
                   >
-                    {comparing ? 'Running all 4 strategies…' : 'Run Full Comparison'}
+                    {comparing ? e('Running the three strategies…') : e('Run the comparison')}
                   </button>
                 </div>
 
                 {compareError && (
-                  <p className="mt-3 rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                  <p
+                    role="alert"
+                    className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger"
+                  >
                     {compareError}
                   </p>
                 )}
 
-                {/* Results */}
-                {compareData && (
-                  <>
-                    {/* Summary card */}
-                    <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
-                        <p className="text-xs text-[rgb(var(--muted))]">Candidate pool</p>
-                        <p className="text-xl font-semibold">{compareData.candidate_pool_size}</p>
-                      </div>
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
-                        <p className="text-xs text-[rgb(var(--muted))]">Profile</p>
-                        <p className="text-lg font-semibold capitalize">
-                          {compareData.optimization_profile ?? 'balanced'}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
-                        <p className="text-xs text-[rgb(var(--muted))]">
-                          Weights (cost / time / rel)
-                        </p>
-                        <p className="font-mono text-sm">
-                          {compareData.weights.cost.toFixed(2)} /{' '}
-                          {compareData.weights.time.toFixed(2)} /{' '}
-                          {compareData.weights.reliability.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-3">
-                        <p className="text-xs text-[rgb(var(--muted))]">Solutions per strategy</p>
-                        <p className="font-mono text-sm">
-                          G:{compareData.greedy.length} F:{compareData.fast.length} D:
-                          {compareData.deep.length}
-                        </p>
-                      </div>
-                    </div>
+                {compareData && plot && (
+                  <div className="optimisation-results">
+                    <p className="text-sm text-[rgb(var(--muted))] num">
+                      {e('Offers in the pool')}: {compareData.candidate_pool_size} ·{' '}
+                      {weightsText(compareData.weights)}
+                    </p>
 
-                    {/* Winner highlights */}
-                    <div className="mt-4 grid gap-2 sm:grid-cols-4">
-                      {(
-                        [
-                          { key: 'greedy', label: 'Greedy', subtitle: 'Lowest Cost First' },
-                          { key: 'fast', label: 'Fast Weighted', subtitle: 'Weighted Sum' },
-                          { key: 'deep', label: 'Deep GA', subtitle: 'NSGA-II / DEAP' },
-                        ] as const
-                      ).map(({ key, label, subtitle }) => {
-                        const best = compareData[key][0];
-                        if (!best) return null;
-                        return (
-                          <div
-                            key={key}
-                            className="rounded-xl border p-3"
-                            style={{ borderColor: STRATEGY_COLORS[key] + '66' }}
-                          >
-                            <p
-                              className="text-xs font-semibold uppercase tracking-wide"
-                              style={{ color: STRATEGY_COLORS[key] }}
-                            >
-                              {label}
-                            </p>
-                            <p className="text-xs text-[rgb(var(--muted))]">{subtitle}</p>
-                            <div className="mt-2 space-y-1 text-sm">
-                              <p>
-                                <span className="text-[rgb(var(--muted))]">Cost </span>
-                                <span className="font-mono font-semibold">
-                                  {best.total_cost.toFixed(2)}
-                                </span>
-                              </p>
-                              <p>
-                                <span className="text-[rgb(var(--muted))]">Days </span>
-                                <span className="font-mono font-semibold">
-                                  {best.delivery_days.toFixed(1)}
-                                </span>
-                              </p>
-                              <p>
-                                <span className="text-[rgb(var(--muted))]">Rel. </span>
-                                <span className="font-mono font-semibold">
-                                  {best.reliability.toFixed(3)}
-                                </span>
-                              </p>
-                              <p>
-                                <span className="text-[rgb(var(--muted))]">Score </span>
-                                <span className="font-mono font-semibold">
-                                  {(best.fitness_score ?? 0).toFixed(4)}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Charts*/}
-                    <div className="mt-6 grid gap-5 lg:grid-cols-2">
-                      {/* Pareto scatter: Cost vs Delivery Days */}
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                        <p className="mb-2 text-sm font-semibold">
-                          Pareto Front - Cost vs Delivery Days
-                        </p>
-                        <p className="mb-3 text-xs text-[rgb(var(--muted))]">
-                          Each dot is a candidate solution. Lower-left corner is optimal.
-                        </p>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <ScatterChart>
-                            <CartesianGrid
-                              strokeDasharray="3 3"
-                              stroke="rgb(var(--stroke) / 0.1)"
-                            />
-                            <XAxis
-                              dataKey="x"
-                              name="Cost"
-                              type="number"
-                              tick={{ fontSize: 10 }}
-                              label={{
-                                value: 'Cost',
-                                position: 'insideBottom',
-                                offset: -4,
-                                fontSize: 11,
-                              }}
-                            />
-                            <YAxis
-                              dataKey="y"
-                              name="Days"
-                              type="number"
-                              tick={{ fontSize: 10 }}
-                              label={{
-                                value: 'Delivery Days',
-                                angle: -90,
-                                position: 'insideLeft',
-                                fontSize: 11,
-                              }}
-                            />
-                            <Tooltip
-                              content={({ payload }) => {
-                                if (!payload?.length) return null;
-                                const d = payload[0]?.payload as {
-                                  x: number;
-                                  y: number;
-                                  z: number;
-                                  strategy?: string;
-                                  fill?: string;
-                                  id: string;
-                                };
-                                return (
-                                  <div className="rounded-lg border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] p-2 text-xs">
-                                    <p style={{ color: d.fill ?? '#9ca3af' }}>
-                                      {d.strategy ? d.strategy.toUpperCase() : 'POOL'}
-                                    </p>
-                                    <p>Cost: {d.x.toFixed(2)}</p>
-                                    <p>Days: {d.y.toFixed(1)}</p>
-                                    <p>Reliability: {d.z.toFixed(3)}</p>
-                                  </div>
-                                );
-                              }}
-                            />
-                            <Legend />
-                            <Scatter
-                              name="Pool"
-                              data={poolScatterData}
-                              fill="#6b7280"
-                              opacity={0.35}
-                              legendType="none"
-                            />
-                            <Scatter
-                              name="Pareto Front"
-                              data={paretoLineData}
-                              fill="none"
-                              line={{ stroke: '#f472b6', strokeWidth: 1.5, strokeDasharray: '5 3' }}
-                              legendType="none"
-                              shape={(props: { cx?: number; cy?: number }) => (
-                                <circle cx={props.cx} cy={props.cy} r={0} />
-                              )}
-                            />
-                            {(['greedy', 'fast', 'deep'] as const).map((strategy) => (
-                              <Scatter
-                                key={strategy}
-                                name={strategy.charAt(0).toUpperCase() + strategy.slice(1)}
-                                data={scatterData.filter((d) => d.strategy === strategy)}
-                                fill={STRATEGY_COLORS[strategy]}
-                              >
-                                {scatterData
-                                  .filter((d) => d.strategy === strategy)
-                                  .map((entry) => (
-                                    <Cell key={entry.id} fill={STRATEGY_COLORS[strategy]} />
-                                  ))}
-                              </Scatter>
-                            ))}
-                          </ScatterChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      {/* Bar chart: best objective values per strategy */}
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-4">
-                        <p className="mb-2 text-sm font-semibold">
-                          Best Objective Values per Strategy
-                        </p>
-                        <p className="mb-3 text-xs text-[rgb(var(--muted))]">
-                          Lower cost & days are better; higher reliability is better.
-                        </p>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <BarChart data={barData} barCategoryGap="20%">
-                            <CartesianGrid
-                              strokeDasharray="3 3"
-                              stroke="rgb(var(--stroke) / 0.1)"
-                            />
-                            <XAxis dataKey="strategy" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 10 }} />
-                            <Tooltip
-                              contentStyle={{
-                                background: 'rgb(var(--card))',
-                                border: '1px solid rgb(var(--stroke) / 0.25)',
-                                borderRadius: 8,
-                                fontSize: 12,
-                              }}
-                            />
-                            <Legend />
-                            <Bar
-                              dataKey="cost"
-                              name="Best Cost"
-                              fill="#f59e0b"
-                              radius={[4, 4, 0, 0]}
-                            />
-                            <Bar
-                              dataKey="days"
-                              name="Best Days"
-                              fill="#60a5fa"
-                              radius={[4, 4, 0, 0]}
-                            />
-                            <Bar
-                              dataKey="rel"
-                              name="Best Reliability"
-                              fill="#34d399"
-                              radius={[4, 4, 0, 0]}
-                            />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      {/* Radar chart: normalised score balance */}
-                      <div className="rounded-xl border border-[rgb(var(--stroke))] p-4 lg:col-span-2">
-                        <p className="mb-2 text-sm font-semibold">
-                          Weighted Score Balance (Radar - top solution per strategy)
-                        </p>
-                        <p className="mb-3 text-xs text-[rgb(var(--muted))]">
-                          Scores normalised 0–100. Larger area = better balanced performance.
-                        </p>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <RadarChart
-                            data={[
-                              {
-                                axis: 'Cost Score',
-                                ...Object.fromEntries(radarData.map((r) => [r.strategy, r.cost])),
-                              },
-                              {
-                                axis: 'Speed Score',
-                                ...Object.fromEntries(radarData.map((r) => [r.strategy, r.speed])),
-                              },
-                              {
-                                axis: 'Reliability Score',
-                                ...Object.fromEntries(
-                                  radarData.map((r) => [r.strategy, r.reliability])
-                                ),
-                              },
-                            ]}
-                          >
-                            <PolarGrid stroke="rgb(var(--stroke) / 0.15)" />
-                            <PolarAngleAxis dataKey="axis" tick={{ fontSize: 12 }} />
-                            <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
-                            {radarData.map((r) => (
-                              <Radar
-                                key={r.strategy}
-                                name={r.strategy}
-                                dataKey={r.strategy}
-                                stroke={
-                                  STRATEGY_COLORS[
-                                    r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')
-                                  ]
-                                }
-                                fill={
-                                  STRATEGY_COLORS[
-                                    r.strategy.toLowerCase().replace(' ga', '').replace(' ', '')
-                                  ]
-                                }
-                                fillOpacity={0.15}
-                              />
-                            ))}
-                            <Legend />
-                            <Tooltip />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    {/* Strategy tabs */}
-                    <div className="mt-6">
-                      <div className="flex gap-1 border-b border-[rgb(var(--stroke))]">
-                        {(['greedy', 'fast', 'deep'] as const).map((tab) => (
-                          <button
-                            key={tab}
-                            type="button"
-                            onClick={() => setActiveTab(tab)}
-                            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
-                              activeTab === tab
-                                ? 'border-b-2 text-[rgb(var(--text))]'
-                                : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--text))]'
-                            }`}
-                            style={activeTab === tab ? { borderColor: STRATEGY_COLORS[tab] } : {}}
-                          >
-                            {tab === 'greedy'
-                              ? 'Greedy'
-                              : tab === 'fast'
-                                ? 'Fast Weighted'
-                                : 'Deep GA'}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="mt-3 overflow-x-auto">
-                        {compareData[activeTab].length === 0 ? (
-                          <p className="px-3 py-6 text-sm text-[rgb(var(--muted))]">
-                            No solutions returned for this strategy.
-                          </p>
-                        ) : (
-                          <table className="w-full text-left text-sm">
-                            <thead>
-                              <tr className="border-b border-[rgb(var(--stroke))] text-xs text-[rgb(var(--muted))]">
-                                <th className="py-2 pr-4">Rank</th>
-                                <th className="py-2 pr-4">Candidate ID</th>
-                                <th className="py-2 pr-4">Cost</th>
-                                <th className="py-2 pr-4">Delivery Days</th>
-                                <th className="py-2 pr-4">Reliability</th>
-                                <th className="py-2 pr-4">Fitness Score</th>
-                                <th className="py-2">Currency</th>
+                    <div className="record-scroll">
+                      <table className="record-table strategy-table">
+                        <caption className="sr-only">{e('Each strategy’s top pick')}</caption>
+                        <thead>
+                          <tr>
+                            <th>{e('Strategy')}</th>
+                            <th>{e('Total cost')}</th>
+                            <th>{e('Delivery days')}</th>
+                            <th>{e('Reliability')}</th>
+                            <th>{e('Weighted score')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {STRATEGIES.map(({ key, name, how }) => {
+                            const best = compareData[key][0];
+                            const sameAsFast =
+                              key !== 'fast' && best && best.id === compareData.fast[0]?.id;
+                            return (
+                              <tr key={key} data-strategy={key}>
+                                <td className="record-title">
+                                  <span className="strategy-swatch" aria-hidden="true" />
+                                  {e(name)}
+                                  <small>{e(how)}</small>
+                                  {sameAsFast && <small>{e('Same offer as Fast.')}</small>}
+                                </td>
+                                <td data-label={e('Total cost')} className="num">
+                                  {best
+                                    ? formatMoney(locale, best.total_cost, best.currency_code)
+                                    : '—'}
+                                </td>
+                                <td data-label={e('Delivery days')} className="num">
+                                  {best ? decimal.format(best.delivery_days) : '—'}
+                                </td>
+                                <td data-label={e('Reliability')} className="num">
+                                  {best ? percent.format(best.reliability) : '—'}
+                                </td>
+                                <td data-label={e('Weighted score')} className="num">
+                                  {!best
+                                    ? '—'
+                                    : key === 'greedy'
+                                      ? (plot.scoreOf(best.id) ?? null) == null
+                                        ? '—'
+                                        : score.format(plot.scoreOf(best.id)!)
+                                      : score.format(best.fitness_score ?? 0)}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {compareData[activeTab].map((sol, idx) => (
-                                <tr
-                                  key={sol.id}
-                                  className={`border-b border-[rgb(var(--stroke))]/40 ${
-                                    idx === 0 ? 'font-semibold' : ''
-                                  }`}
-                                >
-                                  <td className="py-2 pr-4 text-center">
-                                    {idx === 0 ? (
-                                      <span
-                                        className="rounded-full px-2 py-0.5 text-xs"
-                                        style={{
-                                          background: STRATEGY_COLORS[activeTab] + '33',
-                                          color: STRATEGY_COLORS[activeTab],
-                                        }}
-                                      >
-                                        #{sol.rank}
-                                      </span>
-                                    ) : (
-                                      <span className="text-[rgb(var(--muted))]">#{sol.rank}</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2 pr-4 font-mono text-xs">
-                                    {sol.id.slice(0, 8)}…
-                                  </td>
-                                  <td className="py-2 pr-4 font-mono">
-                                    {sol.total_cost.toFixed(2)}
-                                  </td>
-                                  <td className="py-2 pr-4 font-mono">
-                                    {sol.delivery_days.toFixed(1)}
-                                  </td>
-                                  <td className="py-2 pr-4 font-mono">
-                                    {sol.reliability.toFixed(3)}
-                                  </td>
-                                  <td className="py-2 pr-4 font-mono">
-                                    {(sol.fitness_score ?? 0).toFixed(4)}
-                                  </td>
-                                  <td className="py-2 text-xs text-[rgb(var(--muted))]">
-                                    {sol.currency_code}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                      </div>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  </>
+
+                    {plot.points.length < 2 && (
+                      <p className="text-sm text-[rgb(var(--muted))]">
+                        {e('Only one offer so far, so there is no trade-off to chart yet.')}
+                      </p>
+                    )}
+                    {plot.points.length >= 2 && (
+                      <figure className="proposal-chart optimisation-chart">
+                        <TradeoffPlot
+                          points={plot.points}
+                          currency={plot.currency}
+                          label={e(
+                            'All offers in the pool by total cost and delivery days, with each strategy’s pick marked. Use the arrow keys to move between offers.'
+                          )}
+                          current={activePoint}
+                          classesOf={(i) => [
+                            plot.front.has(i) && 'is-front',
+                            i === plot.picks.greedy && 'is-cheapest',
+                            i === plot.picks.fast && 'is-pick',
+                            i === plot.picks.deep && i !== plot.picks.fast && 'is-deep',
+                            i === activePoint && 'is-active',
+                          ]}
+                          onActive={setActivePoint}
+                        />
+                        <figcaption className="proposal-legend">
+                          <span className="legend-cheapest">{e('Greedy pick')}</span>
+                          <span className="legend-pick">
+                            {plot.picks.deep === plot.picks.fast
+                              ? e('Fast and Deep pick')
+                              : e('Fast pick')}
+                          </span>
+                          {plot.picks.deep !== plot.picks.fast && (
+                            <span className="legend-deep">{e('Deep pick')}</span>
+                          )}
+                          <span className="legend-front">{e('Not beaten on all three')}</span>
+                          <span>{e('Bigger dot: more reliable')}</span>
+                        </figcaption>
+                        <p className="proposal-readout" aria-live="polite">
+                          {activePoint != null
+                            ? `${formatMoney(locale, plot.points[activePoint].cost, plot.currency)}, ${decimal.format(plot.points[activePoint].days)} ${e('days')}, ${e('reliability')} ${percent.format(plot.points[activePoint].reliability)}`
+                            : ''}
+                        </p>
+                      </figure>
+                    )}
+
+                    <div
+                      className="strategy-tabs"
+                      role="tablist"
+                      aria-label={e('Ranked offers by strategy')}
+                    >
+                      {STRATEGIES.map(({ key, name }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          role="tab"
+                          id={`strategy-tab-${key}`}
+                          aria-selected={activeTab === key}
+                          aria-controls="strategy-ranking"
+                          onClick={() => setActiveTab(key)}
+                        >
+                          {e(name)}
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      id="strategy-ranking"
+                      role="tabpanel"
+                      aria-labelledby={`strategy-tab-${activeTab}`}
+                      className="record-scroll"
+                      tabIndex={0}
+                    >
+                      {compareData[activeTab].length === 0 ? (
+                        <p className="px-3 py-6 text-sm text-[rgb(var(--muted))]">
+                          {e('No solutions returned for this strategy.')}
+                        </p>
+                      ) : (
+                        <table className="record-table">
+                          <thead>
+                            <tr>
+                              <th>{e('Rank')}</th>
+                              <th>{e('Total cost')}</th>
+                              <th>{e('Delivery days')}</th>
+                              <th>{e('Reliability')}</th>
+                              <th>{e('Weighted score')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {compareData[activeTab].map((sol) => (
+                              <tr key={sol.id}>
+                                <td className="record-title num">
+                                  #{sol.rank}
+                                  <small className="font-mono">{sol.id.slice(0, 8)}</small>
+                                </td>
+                                <td data-label={e('Total cost')} className="num">
+                                  {formatMoney(locale, sol.total_cost, sol.currency_code)}
+                                </td>
+                                <td data-label={e('Delivery days')} className="num">
+                                  {decimal.format(sol.delivery_days)}
+                                </td>
+                                <td data-label={e('Reliability')} className="num">
+                                  {percent.format(sol.reliability)}
+                                </td>
+                                <td data-label={e('Weighted score')} className="num">
+                                  {score.format(sol.fitness_score ?? 0)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </>
