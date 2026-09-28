@@ -335,6 +335,22 @@ async def publish_draft(draft_id: UUID, user=Depends(require_roles("FACTORY"))):
             if not proposal or proposal.status != "APPROVED":
                 raise HTTPException(422, "Category proposal is still waiting for approval")
             data["category_id"] = proposal.category_id
+        if not data.get("item_id") and data.get("item_name") and data.get("category_id"):
+            # A product drafted under a newly approved category joins the shared catalogue
+            # (or reuses the matching product) now that its category exists.
+            from routers.catalogue import ItemBody, create_locked
+
+            locale = user.preferred_locale if user.preferred_locale in ("en", "ru", "kk") else "en"
+            try:
+                body = ItemBody(
+                    name=data["item_name"],
+                    locale=locale,
+                    category_id=data["category_id"],
+                    unit=data.get("unit") or "",
+                )
+            except ValidationError:
+                raise HTTPException(422, "Complete the product name and a supported unit") from None
+            data["item_id"] = (await create_locked(tx, "items", body, user))["id"]
         try:
             payload = InventoryEntryCreateBody(**data)
         except ValidationError:

@@ -96,7 +96,23 @@ async def eligible_category(db, category_id):
     return category
 
 
+def validate_identity(item, values):
+    """A product's identity characteristics (material, grade, dimensions) can't be overridden by
+    stock or requests: a different value is a different product."""
+    for key, value in (item.identity_attributes or {}).items():
+        if key in (values or {}) and values[key] != value:
+            raise HTTPException(422, f"Product characteristic cannot be overridden: {key}")
+
+
+async def canonical_item(db, item):
+    """The record a merged product now points to; any other product is its own canonical."""
+    if item and item.merged_into_id:
+        return await db.item.find_unique(where={"id": item.merged_into_id})
+    return item
+
+
 async def validate_publication(db, factory, item, quantity, price, attributes):
+    item = await canonical_item(db, item)
     if not profile_complete(factory):
         raise HTTPException(422, "Complete company, contact, phone and location first")
     if not await db.address.find_first(
@@ -122,6 +138,7 @@ async def validate_publication(db, factory, item, quantity, price, attributes):
             raise HTTPException(422, "Quantity and unit price must be positive")
     validate_attributes(category.attributes_schema, attributes)
     validate_attributes(item.characteristics_schema, attributes)
+    validate_identity(item, attributes)
 
 
 async def validate_bid(db, req, inv, quantity, factory_id=None):
@@ -140,7 +157,13 @@ async def validate_bid(db, req, inv, quantity, factory_id=None):
     )
     if req.deleted_at is not None or req.status not in {"PENDING", "PAIRING_IN_PROGRESS"}:
         raise HTTPException(422, "Request is no longer open")
-    if item.category_id != req.category_id or (req.item_id and req.item_id != item.id):
+    # Stock and requests may reference either side of a merge; compare the canonical products.
+    item = await canonical_item(db, item)
+    requested_id = req.item_id
+    if requested_id and requested_id != item.id:
+        requested = await canonical_item(db, await db.item.find_unique(where={"id": requested_id}))
+        requested_id = requested.id if requested else requested_id
+    if item.category_id != req.category_id or (requested_id and requested_id != item.id):
         raise HTTPException(422, "Product and category must match the request")
     if not req.item_id:
 
@@ -163,8 +186,9 @@ async def validate_bid(db, req, inv, quantity, factory_id=None):
         raise HTTPException(
             422, "A bid must fulfil the entire requested quantity from available stock"
         )
+    identity = item.identity_attributes or {}
     for key, value in requested.items():
-        if key != "quantity_unit" and (inv.characteristics_json or {}).get(key) != value:
+        if key != "quantity_unit" and (inv.characteristics_json or {}).get(key, identity.get(key)) != value:
             raise HTTPException(422, f"Requested specification does not match: {key}")
     address = await db.address.find_first(where={"id": inv.stock_address_id, "deleted_at": None})
     if not address:
