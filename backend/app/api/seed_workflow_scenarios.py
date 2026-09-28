@@ -849,7 +849,7 @@ async def create_random_large_scale_request(
         await _ensure_currency(prisma, "EUR", "Euro",       "EUR", 2, False, Decimal("1.08"))
         await _ensure_currency(prisma, "USD", "US Dollar",  "$",   2, True,  Decimal("1.0"))
 
-        category = await _ensure_category(prisma, "energy-coal", "Energy")
+        category = await _ensure_category(prisma, "energy-coal", "Energy", "hs-section-05")
         item = await _ensure_item(
             prisma, category.id, item_name, "tons",
             {"purity_percent": 99, "type": "anthracite"},
@@ -1163,7 +1163,7 @@ async def seed(run_large: bool = False) -> None:
         ids = await _ensure_demo_profiles(prisma, address.id)
         secondary_ids = await _ensure_secondary_demo_profiles(prisma, address.id)
 
-        category = await _ensure_category(prisma, "energy-coal", "Energy")
+        category = await _ensure_category(prisma, "energy-coal", "Energy", "hs-section-05")
         item = await _ensure_item(
             prisma,
             category.id,

@@ -1,6 +1,7 @@
 """Shared catalogue: permissions (mocked) and acceptance checks on disposable PostgreSQL."""
 
 import asyncio
+from datetime import datetime
 import importlib
 import os
 import sys
@@ -18,6 +19,7 @@ if str(API_ROOT) not in sys.path:
     sys.path.append(str(API_ROOT))
 catalogue = importlib.import_module("routers.catalogue")
 requests = importlib.import_module("routers.requests")
+categories = importlib.import_module("routers.categories")
 governance = importlib.import_module("services.category_governance")
 
 
@@ -74,6 +76,7 @@ async def real_db(monkeypatch):
     await db.connect()
     monkeypatch.setattr(catalogue, "prisma", db)
     monkeypatch.setattr(requests, "prisma", db)
+    monkeypatch.setattr(categories, "prisma", db)
     try:
         yield db
     finally:
@@ -269,3 +272,151 @@ async def test_products_of_a_category_that_became_a_group_are_not_offered(real_d
     found = await catalogue.search(locale="en", q="", category_id=category.id, user=customer)
     assert product["id"] not in [i["id"] for i in found["items"]]
     assert next(c for c in found["categories"] if c["id"] == category.id)["selectable"] is False
+
+
+async def make_address(db):
+    country = await db.country.upsert(
+        where={"iso2": "KZ"},
+        data={"create": {"iso2": "KZ", "iso3": "KAZ", "default_name": "Kazakhstan"}, "update": {}},
+    )
+    region = await db.region.create(
+        data={"country_id": country.id, "code": str(uuid4()), "default_name": "Test region"}
+    )
+    city = await db.city.create(data={"region_id": region.id, "default_name": "Test city"})
+    await db.currency.upsert(
+        where={"code": "KZT"},
+        data={"create": {"code": "KZT", "name": "Tenge", "exchange_rate_to_base": 1}, "update": {}},
+    )
+    return await db.address.create(
+        data={
+            "country_id": country.id,
+            "region_id": region.id,
+            "city_id": city.id,
+            "street": "Test street 2",
+        }
+    )
+
+
+async def make_customer(db):
+    """A verified customer with a primary address; returns (user, profile)."""
+    user = await make_user(db, "CUSTOMER")
+    address = await make_address(db)
+    profile = await db.customerprofile.create(
+        data={"user_id": user.id, "display_name": "Buyer", "primary_address_id": address.id}
+    )
+    return user, profile
+
+
+async def make_request(db, item, status):
+    _, profile = await make_customer(db)
+    return await db.request.create(
+        data={
+            "customer_profile_id": profile.id,
+            "category_id": item["category_id"],
+            "item_id": item["id"],
+            "quantity": 5,
+            "destination_address_id": profile.primary_address_id,
+            "preferred_currency_code": "KZT",
+            "status": status,
+        }
+    )
+
+
+@pytest.mark.anyio
+async def test_moving_a_product_out_of_other_carries_its_open_requests(real_db):
+    customer = await make_user(real_db, "CUSTOMER")
+    admin = await make_user(real_db, "ADMIN")
+    group = await make_category(real_db)
+    other = await real_db.category.create(
+        data={"slug": str(uuid4()), "default_name": "Other (not listed)", "parent_id": group.id}
+    )
+    steel = await real_db.category.create(
+        data={"slug": str(uuid4()), "default_name": "Iron and steel", "parent_id": group.id}
+    )
+    rebar = await catalogue.create_item(item_body(other, "Rebar A500", "en", "t"), customer)
+    searching = await make_request(real_db, rebar, "PENDING")
+    agreed = await make_request(real_db, rebar, "CONTRACT_DRAFTED")
+
+    move = catalogue.MaintenanceBody(action="move", target_id=steel.id)
+    await catalogue.maintain("items", rebar["id"], move, admin)
+
+    item = await real_db.item.find_unique(where={"id": rebar["id"]})
+    assert (item.category_id, item.record_state) == (steel.id, "ESTABLISHED")
+    assert (await real_db.request.find_unique(where={"id": searching.id})).category_id == steel.id
+    assert (await real_db.request.find_unique(where={"id": agreed.id})).category_id == other.id
+
+    # Moving onto an identical product is a merge, not a move.
+    twin = await catalogue.create_item(item_body(other, "Rebar A500", "en", "t"), customer)
+    with pytest.raises(HTTPException) as refused:
+        await catalogue.maintain("items", twin["id"], move, admin)
+    assert "merge" in refused.value.detail
+
+
+def pending_body(group, category_name, product_name, **extra):
+    return requests.CreatePendingRequestBody(
+        category={
+            "name": category_name,
+            "description": "Needed for our production line",
+            "parent_id": group.id,
+        },
+        product={"name": product_name, "locale": "en", "unit": "kg", "attributes": {}},
+        quantity=12,
+        preferred_currency_code="KZT",
+        **extra,
+    )
+
+
+@pytest.mark.anyio
+async def test_a_request_waits_for_its_category_and_goes_live_on_approval(real_db):
+    customer, _ = await make_customer(real_db)
+    admin = await make_user(real_db, "ADMIN")
+    group = await make_category(real_db)
+    name = f"Graphite powder {uuid4()}"
+    saved = await requests.create_pending_request(pending_body(group, name, "Graphite powder"), customer)
+
+    waiting = await requests.list_pending_requests(customer)
+    assert [(w["status"], w["category_name"]) for w in waiting] == [("WAITING", name)]
+
+    await categories.decide(saved["proposal_id"], categories.DecisionBody(status="APPROVED", note="Approved"), admin)
+
+    row = await real_db.pendingrequest.find_unique(where={"id": saved["pending_request_id"]})
+    assert row.status == "PUBLISHED"
+    request = await real_db.request.find_unique(where={"id": row.request_id}, include={"item": True})
+    proposal = await real_db.categoryproposal.find_unique(where={"id": saved["proposal_id"]})
+    assert (request.status, request.category_id) == ("PENDING", proposal.category_id)
+    assert (request.item.name, request.item.unit, request.item.category_id) == (
+        "Graphite powder",
+        "kg",
+        proposal.category_id,
+    )
+    assert await requests.list_pending_requests(customer) == []
+
+
+@pytest.mark.anyio
+async def test_rejected_and_broken_waiting_requests_are_explained(real_db):
+    customer, _ = await make_customer(real_db)
+    admin = await make_user(real_db, "ADMIN")
+    group = await make_category(real_db)
+    rejected = await requests.create_pending_request(
+        pending_body(group, f"Unobtainium {uuid4()}", "Unobtainium"), customer
+    )
+    await categories.decide(
+        rejected["proposal_id"],
+        categories.DecisionBody(status="REJECTED", note="Use Other metals"),
+        admin,
+    )
+    row = await real_db.pendingrequest.find_unique(where={"id": rejected["pending_request_id"]})
+    assert (row.status, row.note) == ("REJECTED", "Use Other metals")
+
+    # A waiting request that no longer validates is marked, not lost, and doesn't block approval.
+    broken = await requests.create_pending_request(
+        pending_body(group, f"Mica {uuid4()}", "Mica sheet"), customer
+    )
+    pending = await real_db.pendingrequest.find_unique(where={"id": broken["pending_request_id"]})
+    await real_db.address.update(
+        where={"id": pending.data["destination_address_id"]}, data={"deleted_at": datetime.now()}
+    )
+    await categories.decide(broken["proposal_id"], categories.DecisionBody(status="APPROVED", note="Approved"), admin)
+    row = await real_db.pendingrequest.find_unique(where={"id": broken["pending_request_id"]})
+    assert row.status == "FAILED" and "address" in row.note.lower()
+    assert (await real_db.categoryproposal.find_unique(where={"id": broken["proposal_id"]})).status == "APPROVED"

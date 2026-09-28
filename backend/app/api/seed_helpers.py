@@ -110,7 +110,10 @@ async def _ensure_currency(
     )
 
 
-async def _ensure_category(prisma: Prisma, slug: str, default_name: str):
+async def _ensure_category(prisma: Prisma, slug: str, default_name: str, group: str | None = None):
+    """Upserts a demo category; a new one is filed under the taxonomy group `group` (a slug such as
+    'hs-section-05') when that group exists."""
+    parent = await prisma.category.find_unique(where={"slug": group}) if group else None
     return await prisma.category.upsert(
         where={"slug": slug},
         data={
@@ -118,6 +121,7 @@ async def _ensure_category(prisma: Prisma, slug: str, default_name: str):
                 "slug": slug,
                 "default_name": default_name,
                 "status": "ACTIVE",
+                "parent_id": parent.id if parent else None,
             },
             "update": {
                 "default_name": default_name,

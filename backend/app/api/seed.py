@@ -74,10 +74,10 @@ async def seed(with_reference_geo: bool = False) -> None:
             await _ensure_currency(prisma, code, name, symbol, decimals, is_base, rate)
 
         categories = {
-            "textile": await _ensure_category(prisma, "textile", "Textile"),
-            "electronics": await _ensure_category(prisma, "electronics", "Electronics"),
-            "food": await _ensure_category(prisma, "food", "Food"),
-            "packaging": await _ensure_category(prisma, "packaging", "Packaging"),
+            "textile": await _ensure_category(prisma, "textile", "Textile", "hs-section-11"),
+            "electronics": await _ensure_category(prisma, "electronics", "Electronics", "hs-section-16"),
+            "food": await _ensure_category(prisma, "food", "Food", "hs-section-04"),
+            "packaging": await _ensure_category(prisma, "packaging", "Packaging", "hs-section-10"),
         }
 
         item_specs = [

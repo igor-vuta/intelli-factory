@@ -1,10 +1,10 @@
 from decimal import Decimal, InvalidOperation
 import re
 from typing import Any, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from prisma import Json
 
 from db import prisma
@@ -453,18 +453,184 @@ async def create_request(
     category_id = _validate_uuid(payload.category_id, "category_id") or item.category_id
     if category_id != item.category_id:
         raise HTTPException(422, "Item and category must agree")
-    category = await prisma.category.find_first(
-        where={"id": category_id, "deleted_at": None, "status": "ACTIVE"}
-    )
-    if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-    await eligible_category(prisma, category.id)
-    validate_attributes(getattr(category, "attributes_schema", None), payload.requested_characteristics_json)
-    validate_attributes(item.characteristics_schema, payload.requested_characteristics_json)
-    validate_identity(item, payload.requested_characteristics_json)
     if payload.quantity_unit not in SUPPORTED_UNITS or item.unit != payload.quantity_unit:
         raise HTTPException(422, "Choose the product's supported quantity unit")
+    destination_address_id = await _destination_address(customer_profile, payload)
+    created_request = await _insert_request(
+        prisma,
+        customer_profile,
+        item,
+        quantity=payload.quantity,
+        currency_code=payload.preferred_currency_code,
+        destination_address_id=destination_address_id,
+        characteristics=payload.requested_characteristics_json,
+    )
+    return CreateRequestResponse(
+        status="success",
+        request_id=created_request.id,
+        message="Request created successfully",
+    )
 
+
+class PendingProduct(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    locale: Literal["en", "ru", "kk"]
+    unit: str
+    attributes: dict[str, str] = Field(default_factory=dict, max_length=12)
+
+
+class PendingCategory(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    description: str = Field(min_length=5, max_length=1000)
+    parent_id: str | None = None
+
+
+class CreatePendingRequestBody(BaseModel):
+    category: PendingCategory
+    product: PendingProduct
+    requested_characteristics_json: dict[str, Any] | None = None
+    quantity: float = Field(..., gt=0, allow_inf_nan=False)
+    destination_address_id: str | None = None
+    destination_country_code: str | None = Field(default=None, min_length=2, max_length=2)
+    destination_region_name: str | None = Field(default=None, min_length=2, max_length=120)
+    destination_city_name: str | None = Field(default=None, min_length=2, max_length=120)
+    destination_street: str | None = Field(default=None, min_length=3, max_length=300)
+    preferred_currency_code: str = Field(default="USD", min_length=3, max_length=3)
+
+
+@router.post("/pending", status_code=201)
+async def create_pending_request(
+    payload: CreatePendingRequestBody, user=Depends(require_roles("CUSTOMER"))
+):
+    """A request for a product whose category doesn't exist yet: proposes the category and keeps
+    the request, which goes live on its own when an administrator approves the category."""
+    from routers.catalogue import ItemBody
+    from routers.categories import ProposalBody, create_proposal
+
+    require_verified(user)
+    customer_profile = await prisma.customerprofile.find_unique(where={"user_id": user.id})
+    if not customer_profile:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Customer profile not found")
+    try:
+        # The same product rules apply now as when it is created on approval.
+        ItemBody(**payload.product.model_dump(), category_id=uuid4())
+        proposal_body = ProposalBody(**payload.category.model_dump())
+    except ValidationError as exc:
+        raise HTTPException(422, exc.errors()[0]["msg"]) from None
+    currency_code = payload.preferred_currency_code.upper()
+    if not await prisma.currency.find_unique(where={"code": currency_code}):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Currency not found")
+    destination_address_id = await _destination_address(customer_profile, payload)
+    async with prisma.tx() as tx:
+        proposal = await create_proposal(tx, proposal_body, user)
+        pending = await tx.pendingrequest.create(
+            data={
+                "customer_profile_id": customer_profile.id,
+                "proposal_id": proposal.id,
+                "data": Json(
+                    {
+                        "product": payload.product.model_dump(),
+                        "quantity": payload.quantity,
+                        "currency_code": currency_code,
+                        "destination_address_id": destination_address_id,
+                        "characteristics": payload.requested_characteristics_json or {},
+                    }
+                ),
+            }
+        )
+    return {"status": "success", "pending_request_id": pending.id, "proposal_id": proposal.id}
+
+
+@router.get("/pending")
+async def list_pending_requests(user=Depends(require_roles("CUSTOMER"))):
+    customer_profile = await prisma.customerprofile.find_unique(where={"user_id": user.id})
+    if not customer_profile:
+        return []
+    rows = await prisma.pendingrequest.find_many(
+        where={"customer_profile_id": customer_profile.id, "status": {"not": "PUBLISHED"}},
+        include={"proposal": True},
+        order={"created_at": "desc"},
+    )
+    return [
+        {
+            "id": row.id,
+            "status": row.status,
+            "note": row.note,
+            "category_name": row.proposal.name if row.proposal else None,
+            "product_name": row.data["product"]["name"],
+            "unit": row.data["product"]["unit"],
+            "quantity": row.data["quantity"],
+            "created_at": row.created_at.isoformat(),
+        }
+        for row in rows
+    ]
+
+
+@router.delete("/pending/{pending_id}", response_model=MessageResponse)
+async def cancel_pending_request(pending_id: str, user=Depends(require_roles("CUSTOMER"))):
+    customer_profile = await prisma.customerprofile.find_unique(where={"user_id": user.id})
+    row = await prisma.pendingrequest.find_first(
+        where={
+            "id": _validate_uuid(pending_id, "pending_id", required=True),
+            "customer_profile_id": customer_profile.id if customer_profile else "",
+        }
+    )
+    if not row or row.status == "PUBLISHED":
+        raise HTTPException(404, "Waiting request not found")
+    await prisma.pendingrequest.delete(where={"id": row.id})
+    return MessageResponse(status="success", message="Waiting request removed")
+
+
+async def settle_pending_requests(proposal) -> None:
+    """Publishes the requests that waited for an approved category (creating or reusing their
+    product in it), or marks them rejected with the reviewer's note. Each request is settled on
+    its own, so one that no longer validates doesn't hold back the others or the decision."""
+    from routers.catalogue import ItemBody, create_locked
+
+    rows = await prisma.pendingrequest.find_many(
+        where={"proposal_id": proposal.id, "status": {"in": ["WAITING", "FAILED"]}}
+    )
+    if proposal.status == "REJECTED":
+        for row in rows:
+            await prisma.pendingrequest.update(
+                where={"id": row.id}, data={"status": "REJECTED", "note": proposal.decision_note}
+            )
+        return
+    if proposal.status != "APPROVED" or not proposal.category_id:
+        return
+    for row in rows:
+        data = row.data
+        try:
+            async with prisma.tx() as tx:
+                await catalogue_lock(tx)
+                profile = await tx.customerprofile.find_unique(
+                    where={"id": row.customer_profile_id}, include={"user": True}
+                )
+                product = ItemBody(**data["product"], category_id=proposal.category_id)
+                created = await create_locked(tx, "items", product, profile.user)
+                item = await tx.item.find_unique(where={"id": created["id"]})
+                request = await _insert_request(
+                    tx,
+                    profile,
+                    item,
+                    quantity=data["quantity"],
+                    currency_code=data["currency_code"],
+                    destination_address_id=data["destination_address_id"],
+                    characteristics=data["characteristics"],
+                )
+                await tx.pendingrequest.update(
+                    where={"id": row.id},
+                    data={"status": "PUBLISHED", "request_id": request.id, "note": None},
+                )
+        except (HTTPException, ValidationError) as exc:
+            note = exc.detail if isinstance(exc, HTTPException) else str(exc.errors()[0]["msg"])
+            await prisma.pendingrequest.update(
+                where={"id": row.id}, data={"status": "FAILED", "note": str(note)}
+            )
+
+
+async def _destination_address(customer_profile, payload) -> str:
+    """The chosen or typed destination, falling back to the customer's primary address."""
     destination_address_id = await _resolve_or_create_address(
         address_id=payload.destination_address_id,
         country_code=payload.destination_country_code,
@@ -483,37 +649,44 @@ async def create_request(
                 "is set on customer profile"
             ),
         )
+    return destination_address_id
 
-    destination_address = await prisma.address.find_first(
+
+async def _insert_request(
+    db, customer_profile, item, *, quantity, currency_code, destination_address_id, characteristics
+):
+    """Validates and stores a request for a catalogue product (used directly and when a request
+    that waited for its category is published)."""
+    category = await db.category.find_first(
+        where={"id": item.category_id, "deleted_at": None, "status": "ACTIVE"}
+    )
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    await eligible_category(db, category.id)
+    validate_attributes(getattr(category, "attributes_schema", None), characteristics)
+    validate_attributes(item.characteristics_schema, characteristics)
+    validate_identity(item, characteristics)
+    destination_address = await db.address.find_first(
         where={"id": destination_address_id, "deleted_at": None}
     )
     if not destination_address:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Destination address not found")
-
-    preferred_currency_code = payload.preferred_currency_code.upper()
-    currency = await prisma.currency.find_unique(where={"code": preferred_currency_code})
-    if not currency:
+    currency_code = currency_code.upper()
+    if not await db.currency.find_unique(where={"code": currency_code}):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Currency not found")
-
-    request_data: dict[str, Any] = {
-        "customer_profile": {"connect": {"id": customer_profile.id}},
-        "category": {"connect": {"id": category.id}},
-        "quantity": _to_decimal(payload.quantity),
-        "destination_address": {"connect": {"id": destination_address.id}},
-        "preferred_currency": {"connect": {"code": preferred_currency_code}},
-        "status": "PENDING",
-    }
-    request_data["item"] = {"connect": {"id": item.id}}
-    characteristics_json = dict(payload.requested_characteristics_json or {})
-    characteristics_json["quantity_unit"] = item.unit
-    request_data["requested_characteristics_json"] = Json(characteristics_json)
-
-    created_request = await prisma.request.create(data=request_data)
-
-    return CreateRequestResponse(
-        status="success",
-        request_id=created_request.id,
-        message="Request created successfully",
+    return await db.request.create(
+        data={
+            "customer_profile": {"connect": {"id": customer_profile.id}},
+            "category": {"connect": {"id": category.id}},
+            "item": {"connect": {"id": item.id}},
+            "quantity": _to_decimal(quantity),
+            "destination_address": {"connect": {"id": destination_address.id}},
+            "preferred_currency": {"connect": {"code": currency_code}},
+            "status": "PENDING",
+            "requested_characteristics_json": Json(
+                {**(characteristics or {}), "quantity_unit": item.unit}
+            ),
+        }
     )
 
 
