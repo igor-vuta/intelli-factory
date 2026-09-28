@@ -885,7 +885,6 @@ export const experienceTranslations = {
     kk: 'Жылдамырақ әрі сенімдірек жеткізудің бағасы.',
   },
   'The trade-off front': { ru: 'Фронт компромиссов', kk: 'Ымыралар шебі' },
-  'Total cost (KZT)': { ru: 'Общая стоимость (KZT)', kk: 'Жалпы құны (KZT)' },
   'Trade-offs': { ru: 'Компромиссы', kk: 'Ымыралар' },
   'Update each shipment as it moves': {
     ru: 'Обновляйте статус каждой отправки в пути',

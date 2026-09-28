@@ -14,11 +14,21 @@ if str(API_ROOT) not in sys.path:
     sys.path.append(str(API_ROOT))
 
 comparison_router = importlib.import_module("routers.comparison")
+requests_router = importlib.import_module("routers.requests")
 
 
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def _make_app(user=SimpleNamespace(id="admin-1", role="ADMIN")):
+    app = FastAPI()
+    app.include_router(comparison_router.router, prefix="/api/comparison")
+    app.dependency_overrides[comparison_router._ensure_db_connection] = lambda: None
+    if user is not None:
+        app.dependency_overrides[requests_router._require_authenticated_user] = lambda: user
+    return app
 
 
 def _make_fake_prisma():
@@ -62,8 +72,7 @@ def _make_fake_candidate(cid, total_cost, delivery_days, reliability=0.75):
 
 @pytest.mark.anyio
 async def test_compare_baselines_returns_expected_strategies(monkeypatch):
-    app = FastAPI()
-    app.include_router(comparison_router.router, prefix="/api/comparison")
+    app = _make_app()
 
     fake_prisma = _make_fake_prisma()
     fake_prisma.request.find_first = AsyncMock(return_value=_make_fake_request())
@@ -93,8 +102,7 @@ async def test_compare_baselines_returns_expected_strategies(monkeypatch):
 
 @pytest.mark.anyio
 async def test_compare_baselines_rejects_unknown_request_id(monkeypatch):
-    app = FastAPI()
-    app.include_router(comparison_router.router, prefix="/api/comparison")
+    app = _make_app()
 
     fake_prisma = _make_fake_prisma()
     fake_prisma.request.find_first = AsyncMock(return_value=None)
@@ -115,8 +123,7 @@ async def test_compare_baselines_rejects_unknown_request_id(monkeypatch):
 
 @pytest.mark.anyio
 async def test_comparison_catalog_exposes_supported_values():
-    app = FastAPI()
-    app.include_router(comparison_router.router, prefix="/api/comparison")
+    app = _make_app()
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
@@ -131,3 +138,25 @@ async def test_comparison_catalog_exposes_supported_values():
     assert "cost" in payload["priorities"]
     assert "speed" in payload["priorities"]
     assert "reliability" in payload["priorities"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("user", "expected_status"),
+    [(None, 401), (SimpleNamespace(id="customer-1", role="CUSTOMER"), 403)],
+)
+async def test_comparison_requires_admin(user, expected_status):
+    app = _make_app(user)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        catalog = await client.get("/api/comparison/catalog")
+        baselines = await client.post(
+            "/api/comparison/baselines",
+            json={"request_id": "req-1", "priority": "balanced"},
+        )
+
+    assert catalog.status_code == expected_status
+    assert baselines.status_code == expected_status

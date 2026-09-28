@@ -1,4 +1,5 @@
 """Shared publication and whole-request eligibility rules."""
+from datetime import datetime, timezone
 from decimal import Decimal
 import unicodedata
 from fastapi import HTTPException
@@ -23,6 +24,27 @@ def profile_complete(profile):
             getattr(profile, key, None)
             for key in ("legal_name", "contact_name", "phone", "primary_address_id")
         )
+    )
+
+
+async def confirm_category(db, factory_id, category_id):
+    """Record (or re-activate) a factory's confirmed selection of one category."""
+    now = datetime.now(timezone.utc)
+    await db.factorycategory.upsert(
+        where={
+            "factory_profile_id_category_id": {
+                "factory_profile_id": factory_id,
+                "category_id": category_id,
+            }
+        },
+        data={
+            "create": {
+                "factory_profile_id": factory_id,
+                "category_id": category_id,
+                "confirmed_at": now,
+            },
+            "update": {"is_active": True, "confirmed_at": now},
+        },
     )
 
 

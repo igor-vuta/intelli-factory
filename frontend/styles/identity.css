@@ -37,8 +37,8 @@
   --warning: 240 164 58;
   --info: 111 168 220;
 
-  --if-font: var(--font-plex-sans), 'IBM Plex Sans', system-ui, sans-serif;
-  --if-font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
+  --if-font: 'IBM Plex Sans', system-ui, sans-serif;
+  --if-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --if-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --if-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --if-radius-sm: 6px;

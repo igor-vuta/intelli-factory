@@ -4,14 +4,45 @@ import { useExperienceCopy } from '../hooks/useExperienceCopy';
 import { getLocaleFromQuery } from '../lib/i18n';
 import type { Candidate } from '../lib/tradeoff';
 
-const W = 560;
-const H = 320;
-const PAD = { left: 72, right: 16, top: 16, bottom: 48 };
+// `compact` sits in a workspace panel; `wide` is the landing figure, with more offers per scenario
+// (smaller dots, tighter margins, more ticks).
+const LAYOUTS = {
+  compact: {
+    width: 560,
+    height: 320,
+    pad: { left: 72, right: 16, top: 16, bottom: 48 },
+    marginX: 0.12,
+    marginY: 0.15,
+    dotMin: 6,
+    dotRange: 6,
+    tickCount: 3,
+  },
+  wide: {
+    width: 640,
+    height: 420,
+    pad: { left: 64, right: 20, top: 16, bottom: 52 },
+    marginX: 0.06,
+    marginY: 0.08,
+    dotMin: 4,
+    dotRange: 6,
+    tickCount: 5,
+  },
+};
+
+/** Round tick values (steps of 1, 2 or 5 × 10ⁿ, which the labels show exactly) inside [lo, hi],
+ * never below zero. */
+function ticks(lo: number, hi: number, count: number) {
+  const raw = (hi - lo || 1) / count;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * magnitude).find((s) => s >= raw) ?? raw;
+  const first = Math.max(0, Math.ceil(lo / step) * step);
+  return Array.from({ length: Math.floor((hi - first) / step) + 1 }, (_, i) => first + i * step);
+}
 
 /**
  * Offers plotted by total cost (x) and delivery days (y), with reliability as dot size. Callers
- * decide what each dot means through `classesOf` (e.g. `is-front`, `is-pick`, `is-cheapest`);
- * the arrow keys walk the offers by cost and Enter selects the current one.
+ * decide what each dot means through `classesOf` (e.g. `is-front`, `is-pick`, `is-cheapest`;
+ * `is-knee` also draws a ring); `current` is marked `is-active`. The arrow keys walk the offers by cost, Enter selects the current one and Escape clears it.
  */
 export default function TradeoffPlot({
   points,
@@ -21,6 +52,7 @@ export default function TradeoffPlot({
   label,
   onActive,
   onSelect,
+  layout = 'compact',
 }: {
   points: Candidate[];
   currency: string;
@@ -30,11 +62,20 @@ export default function TradeoffPlot({
   label: string;
   onActive?: (index: number | null) => void;
   onSelect?: (index: number) => void;
+  layout?: keyof typeof LAYOUTS;
 }) {
   const e = useExperienceCopy();
   const locale = getLocaleFromQuery(useRouter().query.lang);
-  const compact = new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 });
-  const decimal = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  const compact = useMemo(
+    () => new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }),
+    [locale]
+  );
+  const decimal = useMemo(
+    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+    [locale]
+  );
+  const L = LAYOUTS[layout];
+  const { width: W, height: H, pad: PAD } = L;
 
   const scale = useMemo(() => {
     if (!points.length) return null;
@@ -44,18 +85,21 @@ export default function TradeoffPlot({
     const [c0, c1] = [Math.min(...costs), Math.max(...costs)];
     const [d0, d1] = [Math.min(...days), Math.max(...days)];
     const [r0, r1] = [Math.min(...rels), Math.max(...rels)];
-    const padC = (c1 - c0) * 0.12 || c0 * 0.1 || 1;
-    const padD = (d1 - d0) * 0.15 || 1;
+    const padC = (c1 - c0) * L.marginX || c0 * 0.1 || 1;
+    const padD = (d1 - d0) * L.marginY || 1;
     return {
       x: (v: number) =>
-        PAD.left + ((v - (c0 - padC)) / (c1 - c0 + 2 * padC)) * (W - PAD.left - PAD.right),
+        L.pad.left +
+        ((v - (c0 - padC)) / (c1 - c0 + 2 * padC)) * (L.width - L.pad.left - L.pad.right),
       y: (v: number) =>
-        H - PAD.bottom - ((v - (d0 - padD)) / (d1 - d0 + 2 * padD)) * (H - PAD.top - PAD.bottom),
-      r: (v: number) => 6 + ((v - r0) / (r1 - r0 || 1)) * 6,
-      xTicks: [c0 - padC / 2, (c0 + c1) / 2, c1 + padC / 2],
-      yTicks: [Math.max(0, d0 - padD / 2), (d0 + d1) / 2, d1 + padD / 2],
+        L.height -
+        L.pad.bottom -
+        ((v - (d0 - padD)) / (d1 - d0 + 2 * padD)) * (L.height - L.pad.top - L.pad.bottom),
+      r: (v: number) => L.dotMin + ((v - r0) / (r1 - r0 || 1)) * L.dotRange,
+      xTicks: ticks(c0 - padC, c1 + padC, L.tickCount),
+      yTicks: ticks(d0 - padD, d1 + padD, L.tickCount),
     };
-  }, [points]);
+  }, [points, L]);
   const byCost = useMemo(
     () => points.map((_, i) => i).sort((a, b) => points[a].cost - points[b].cost),
     [points]
@@ -75,6 +119,10 @@ export default function TradeoffPlot({
           ArrowLeft: -1,
           ArrowUp: -1,
         };
+        if (event.key === 'Escape') {
+          onActive?.(null);
+          return;
+        }
         if (event.key === 'Enter' && current != null) {
           onSelect?.(current);
           return;
@@ -116,18 +164,24 @@ export default function TradeoffPlot({
         </text>
       </g>
       <g aria-hidden="true">
-        {points.map((p, i) => (
-          <g
-            key={i}
-            className={['offer', ...classesOf(i)].filter(Boolean).join(' ')}
-            style={{ transform: `translate(${scale.x(p.cost)}px, ${scale.y(p.days)}px)` }}
-            onPointerEnter={() => onActive?.(i)}
-            onPointerLeave={() => onActive?.(null)}
-            onClick={() => onSelect?.(i)}
-          >
-            <circle r={scale.r(p.reliability)} />
-          </g>
-        ))}
+        {points.map((p, i) => {
+          const classes = ['offer', ...classesOf(i), i === current && 'is-active'].filter(Boolean);
+          return (
+            <g
+              key={i}
+              className={classes.join(' ')}
+              style={{ transform: `translate(${scale.x(p.cost)}px, ${scale.y(p.days)}px)` }}
+              onPointerEnter={() => onActive?.(i)}
+              onPointerLeave={() => onActive?.(null)}
+              onClick={() => onSelect?.(i)}
+            >
+              <circle r={scale.r(p.reliability)} />
+              {classes.includes('is-knee') && (
+                <circle className="knee-ring" r={scale.r(p.reliability) + 6} />
+              )}
+            </g>
+          );
+        })}
       </g>
     </svg>
   );

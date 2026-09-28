@@ -290,7 +290,7 @@ def run_benchmark() -> None:
     for mode, label in [
         ("greedy", "Greedy"),
         ("fast",   "Fast Weighted"),
-        ("deep",   "Deep GA (NSGA-II)"),
+        ("deep",   "Deep GA"),
     ]:
         mc = mean(acc[mode]["cost"])
         mt = mean(acc[mode]["time"])

@@ -1,5 +1,12 @@
 import InteractionMotion from '../components/InteractionMotion';
-import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
+// IBM Plex ships with the app (Fontsource), so builds never fetch fonts from the network.
+// Each weight declares every subset with a unicode-range, so a page downloads only the subsets
+// its text uses (Latin for English, Cyrillic for Russian and Kazakh).
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
@@ -11,18 +18,6 @@ import '../styles/globals.css';
 import '../styles/experience.css';
 import '../styles/identity.css';
 import '../styles/landing.css';
-
-// Latin + Cyrillic (Russian and Kazakh letters live in both Cyrillic subsets).
-const plexSans = IBM_Plex_Sans({
-  subsets: ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext'],
-  weight: ['400', '500', '600'],
-  display: 'swap',
-});
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin', 'cyrillic', 'cyrillic-ext'],
-  weight: ['400', '500'],
-  display: 'swap',
-});
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -64,13 +59,6 @@ export default function App({ Component, pageProps }: AppProps) {
   if (!router.isReady || !validLocale(router.query.lang)) return null;
   return (
     <ErrorBoundary>
-      {/* The identity reads these on <html>, so they must be defined at the root. */}
-      <style jsx global>{`
-        :root {
-          --font-plex-sans: ${plexSans.style.fontFamily};
-          --font-plex-mono: ${plexMono.style.fontFamily};
-        }
-      `}</style>
       <InteractionMotion />
       <Component {...pageProps} />
     </ErrorBoundary>
