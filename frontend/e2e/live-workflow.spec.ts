@@ -9,6 +9,30 @@ async function post(page: Page, path: string, data: object) {
   expect(response.ok(), `${path}: ${JSON.stringify(result)}`).toBeTruthy();
   return result;
 }
+/** Completes factory setup (profile, location, one leaf category) and returns that category. */
+async function readyFactory(factory: Page) {
+  const call = async (method: string, path: string, data: object) => {
+    const response = await factory.request.fetch(`/api${path}`, { method, data });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+  };
+  await call('PATCH', '/categories/factory-profile', {
+    legal_name: 'Demo Factory',
+    contact_name: 'Demo Contact',
+    phone: '+7 700 000 0001',
+  });
+  await call('PUT', '/categories/factory-location', {
+    country_code: 'KZ',
+    region_name: 'Almaty Region',
+    city_name: 'Almaty',
+    street: 'Test factory 10',
+  });
+  const bootstrap = await (await factory.request.get('/api/requests/bootstrap')).json();
+  const categories = bootstrap.categories as { id: string; parent_id: string | null }[];
+  const leaf = categories.find((c) => !categories.some((child) => child.parent_id === c.id))!;
+  await call('PUT', '/categories/factory-selections', { category_ids: [leaf.id] });
+  return leaf.id;
+}
+
 async function login(page: Page, role: string) {
   await page.goto('/login?lang=en');
   await page.getByLabel('Email', { exact: true }).fill(`${role}.demo@intelli.local`);
@@ -43,9 +67,9 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
     ] as const)
       await login(page, role);
     const name = `UX steel ${Date.now()}`;
-    const bootstrap = await (await factory.request.get('/api/requests/bootstrap')).json();
+    const categoryId = await readyFactory(factory);
     await post(factory, '/requests/inventory-entries', {
-      category_id: bootstrap.categories[0].id,
+      category_id: categoryId,
       item_name: name,
       unit: 'pcs',
       stock_country_code: 'KZ',
@@ -127,18 +151,18 @@ test('real database: request, bid, quote, optimisation, three signatures, mock p
     await factory.goto('/app/factory?view=workflow&lang=en');
     await txRow(factory).getByRole('button', { name: 'Given to logist' }).click();
     await factory.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(txRow(factory)).toContainText('FULFILLMENT_STARTED');
+    await expect(txRow(factory).locator('[data-status="FULFILLMENT_STARTED"]')).toBeVisible();
     await logist.goto('/app/logist?view=workflow&lang=en');
     await txRow(logist).getByRole('button', { name: 'Delivered', exact: true }).click();
     await logist.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(txRow(logist)).toContainText('IN_PROGRESS');
+    await expect(txRow(logist).locator('[data-status="IN_PROGRESS"]')).toBeVisible();
     await customer.goto('/app/customer?view=workflow&lang=en');
     await txRow(customer).getByRole('button', { name: 'Accept', exact: true }).click();
     await customer
       .getByRole('dialog')
       .getByRole('button', { name: 'Confirm', exact: true })
       .click();
-    await expect(txRow(customer)).toContainText('COMPLETED');
+    await expect(txRow(customer).locator('[data-status="COMPLETED"]')).toBeVisible();
     await txRow(customer).getByRole('button', { name: 'Rate', exact: true }).click();
     await customer.getByRole('dialog').getByRole('button', { name: 'Submit rating' }).click();
     await expect(customer.getByText('Rating submitted. Thank you!')).toBeVisible();
@@ -164,6 +188,7 @@ test('real registration and verification link complete through the UI', async ({
     password: 'Localtest123!',
     role: 'CUSTOMER',
     display_name: 'Local UX Customer',
+    phone: '+7 700 000 0000',
     country_code: 'KZ',
     region_name: 'Almaty Region',
     city_name: 'Almaty',
@@ -183,4 +208,124 @@ test('real registration and verification link complete through the UI', async ({
   await page.getByLabel('Password', { exact: true }).fill('Localtest123!');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page).toHaveURL(/\/app\/customer/);
+});
+
+test('real database: record actions keep the lifecycle guards', async ({ browser, baseURL }) => {
+  expect(new URL(baseURL!).hostname).toBe('127.0.0.1');
+  const contexts = await Promise.all(
+    ['customer', 'factory', 'logist'].map(() => browser.newContext({ baseURL }))
+  );
+  const [customer, factory, logist] = await Promise.all(contexts.map((c) => c.newPage()));
+  const call = async (page: Page, method: string, path: string, data?: object) => {
+    const response = await page.request.fetch(`/api${path}`, { method, data });
+    return { status: response.status(), body: await response.json().catch(() => null) };
+  };
+  try {
+    for (const [page, role] of [
+      [customer, 'customer'],
+      [factory, 'factory'],
+      [logist, 'logist'],
+    ] as const)
+      await login(page, role);
+    const name = `Record steel ${Date.now()}`;
+    const categoryId = await readyFactory(factory);
+    await post(factory, '/requests/inventory-entries', {
+      category_id: categoryId,
+      item_name: name,
+      unit: 'pcs',
+      stock_country_code: 'KZ',
+      stock_region_name: 'Almaty Region',
+      stock_city_name: 'Almaty',
+      stock_street: 'Test factory 11',
+      quantity_available: 100,
+      price_per_unit: 25,
+      currency_code: 'KZT',
+    });
+    const entry = (
+      await (await factory.request.get('/api/requests/inventory-entries/mine')).json()
+    ).find((item: { item_name: string }) => item.item_name === name);
+    const request = await post(customer, '/requests/', {
+      category_id: entry.category_id ?? categoryId,
+      item_id: entry.item_id,
+      quantity: 10,
+      quantity_unit: 'pcs',
+      destination_country_code: 'KZ',
+      destination_region_name: 'Almaty Region',
+      destination_city_name: 'Almaty',
+      destination_street: 'Test customer 21',
+      preferred_currency_code: 'KZT',
+    });
+    const id = request.request_id;
+    const openIds = async () =>
+      (
+        (await (await factory.request.get('/api/pairing/open-requests')).json()) as { id: string }[]
+      ).map((r) => r.id);
+
+    // Edit before any bid; pausing hides the request from factories until it resumes.
+    expect((await call(customer, 'PATCH', `/requests/${id}`, { quantity: 12 })).status).toBe(200);
+    expect((await call(customer, 'POST', `/requests/${id}/pause`)).status).toBe(200);
+    expect(await openIds()).not.toContain(id);
+    expect(
+      (
+        await call(factory, 'POST', '/pairing/factory-bids', {
+          request_id: id,
+          inventory_entry_id: entry.id,
+          quoted_quantity: 12,
+        })
+      ).status
+    ).toBe(400);
+    expect((await call(customer, 'POST', `/requests/${id}/resume`)).status).toBe(200);
+    expect(await openIds()).toContain(id);
+
+    // After a bid: no editing, the stock price is locked, and withdrawing reopens both.
+    const bid = await post(factory, '/pairing/factory-bids', {
+      request_id: id,
+      inventory_entry_id: entry.id,
+      quoted_quantity: 12,
+    });
+    expect((await call(customer, 'PATCH', `/requests/${id}`, { quantity: 13 })).status).toBe(409);
+    expect(
+      (
+        await call(factory, 'PATCH', `/requests/inventory-entries/${entry.id}`, {
+          price_per_unit: 30,
+        })
+      ).status
+    ).toBe(409);
+    const quote = await post(logist, '/pairing/logist-quotes', {
+      factory_bid_id: bid.candidate_id,
+      title: 'Record test delivery',
+      base_price: 40,
+      delivery_price: 40,
+      delivery_days: 2,
+      currency_code: 'KZT',
+    });
+    expect(
+      (await call(logist, 'DELETE', `/pairing/logist-quotes/${quote.candidate_id}`)).status
+    ).toBe(200);
+    expect(
+      (await call(factory, 'DELETE', `/pairing/factory-bids/${bid.candidate_id}`)).status
+    ).toBe(200);
+    expect(
+      (
+        await call(factory, 'PATCH', `/requests/inventory-entries/${entry.id}`, {
+          price_per_unit: 30,
+        })
+      ).status
+    ).toBe(200);
+    const mine = (await (await customer.request.get('/api/requests/')).json()) as {
+      id: string;
+      status: string;
+    }[];
+    expect(mine.find((r) => r.id === id)?.status).toBe('PENDING');
+
+    // Cancel, then delete; a deleted request leaves the customer's list.
+    expect(
+      (await call(customer, 'PATCH', `/requests/${id}/status`, { status: 'CANCELLED' })).status
+    ).toBe(200);
+    expect((await call(customer, 'DELETE', `/requests/${id}`)).status).toBe(200);
+    const after = (await (await customer.request.get('/api/requests/')).json()) as { id: string }[];
+    expect(after.map((r) => r.id)).not.toContain(id);
+  } finally {
+    await Promise.all(contexts.map((c) => c.close()));
+  }
 });

@@ -129,6 +129,10 @@ async def _serialize_candidate_async(c) -> dict[str, Any]:
         "created_at": c.created_at.isoformat(),
     }
 
+# Requests that still accept bids and quotes.
+SEARCHING = ["PENDING", "PAIRING_IN_PROGRESS"]
+
+
 #  FACTORY  – see open requests and place bids
 
 @router.get("/open-requests")
@@ -253,6 +257,44 @@ async def list_my_factory_bids(user=Depends(_require_role("FACTORY"))):
     return [await _serialize_candidate_async(c) for c in candidates]
 
 
+@router.delete("/factory-bids/{candidate_id}")
+async def withdraw_factory_bid(candidate_id: str, user=Depends(_require_role("FACTORY"))):
+    # A bid and every complete proposal built on it (same request + stock line) go together.
+    factory_profile = await prisma.factoryprofile.find_unique(where={"user_id": user.id})
+    if not factory_profile:
+        raise HTTPException(400, "Factory profile not found")
+    bid = await prisma.matchcandidate.find_first(
+        where={"id": candidate_id, "deleted_at": None},
+        include={"inventory_entry": True, "request": True},
+    )
+    if not bid or bid.inventory_entry.factory_profile_id != factory_profile.id:
+        raise HTTPException(404, "Bid not found")
+    if bid.status != "PENDING" or bid.request.status not in (*SEARCHING, "PAUSED"):
+        raise HTTPException(409, "Only an open bid, before a proposal is chosen, can be withdrawn")
+    await prisma.matchcandidate.update_many(
+        where={
+            "request_id": bid.request_id,
+            "inventory_entry_id": bid.inventory_entry_id,
+            "deleted_at": None,
+            "status": "PENDING",
+        },
+        data={"deleted_at": _now()},
+    )
+    await _settle_request_after_withdrawal(bid.request_id, bid.request.status)
+    return {"status": "success", "message": "Bid withdrawn"}
+
+
+async def _settle_request_after_withdrawal(request_id: str, request_status: str) -> None:
+    # With no open offers left, a request that was collecting proposals waits for bids again.
+    remaining = await prisma.matchcandidate.count(
+        where={"request_id": request_id, "deleted_at": None, "status": "PENDING"}
+    )
+    if not remaining and request_status == "PAIRING_IN_PROGRESS":
+        await prisma.request.update(where={"id": request_id}, data={"status": "PENDING"})
+    elif remaining:
+        await OptimizationEngine().generate_candidates_for_request(request_id, mode="fast")
+
+
 #  LOGIST  – see factory bids and attach logistics quotes
 
 @router.get("/factory-bids-needing-logistics")
@@ -263,7 +305,13 @@ async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"
         raise HTTPException(400, "Logistics profile not found")
 
     candidates = await prisma.matchcandidate.find_many(
-        where={"logistic_offer_id": None, "deleted_at": None, "status": "PENDING"},
+        # Only bids on requests still collecting offers: not paused, cancelled or under contract.
+        where={
+            "logistic_offer_id": None,
+            "deleted_at": None,
+            "status": "PENDING",
+            "request": {"is": {"status": {"in": SEARCHING}, "deleted_at": None}},
+        },
         include={
             "request": {
                 "include": {
@@ -291,12 +339,12 @@ async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"
 
     # mark whether this logist already quoted each factory-bid pair
     quoted_pairs = await prisma.matchcandidate.find_many(
-        where={"logistic_offer_id": {"not": None}, "deleted_at": None},
+        where={"logistic_offer_id": {"not": None}, "deleted_at": None, "status": "PENDING"},
         include={"logistic_offer": True},
         take=500,
     )
-    quoted_keys = {
-        (row.request_id, row.inventory_entry_id)
+    my_quotes = {
+        (row.request_id, row.inventory_entry_id): row.id
         for row in quoted_pairs
         if row.logistic_offer
         and row.logistic_offer.deleted_at is None
@@ -306,7 +354,9 @@ async def get_factory_bids_needing_logistics(user=Depends(_require_role("LOGIST"
     enriched: list[dict[str, Any]] = []
     for c in candidates:
         serialized = await _serialize_candidate_async(c)
-        serialized["has_my_quote"] = (c.request_id, c.inventory_entry_id) in quoted_keys
+        quote_id = my_quotes.get((c.request_id, c.inventory_entry_id))
+        serialized["has_my_quote"] = quote_id is not None
+        serialized["my_quote_candidate_id"] = quote_id
         enriched.append(serialized)
     return enriched
 
@@ -339,6 +389,8 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
     )
     if not factory_bid:
         raise HTTPException(404, "Factory bid not found or already has a logistics quote")
+    if factory_bid.request.status not in SEARCHING:
+        raise HTTPException(400, f"Cannot quote on a request in status '{factory_bid.request.status}'")
 
     if (
         payload.estimated_days_min is not None
@@ -352,10 +404,19 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
     if not currency:
         raise HTTPException(404, "Currency not found")
 
+    # Quote with the most recent service that is not paused; refuse only if every one is.
     existing_offer = await prisma.logisticoffer.find_first(
-        where={"logist_profile_id": logist_profile.id, "deleted_at": None},
+        where={
+            "logist_profile_id": logist_profile.id,
+            "deleted_at": None,
+            "status": {"not": "PAUSED"},
+        },
         order={"updated_at": "desc"},
     )
+    if not existing_offer and await prisma.logisticoffer.find_first(
+        where={"logist_profile_id": logist_profile.id, "deleted_at": None, "status": "PAUSED"}
+    ):
+        raise HTTPException(409, "Your delivery services are paused; resume one to quote")
 
     offer_data: dict[str, Any] = {
         "title": payload.title,
@@ -454,6 +515,24 @@ async def create_logist_quote(payload: LogistQuoteBody, user=Depends(_require_ro
         "message": "Quote created",
     }
 
+@router.delete("/logist-quotes/{candidate_id}")
+async def withdraw_logist_quote(candidate_id: str, user=Depends(_require_role("LOGIST"))):
+    logist_profile = await prisma.logistprofile.find_unique(where={"user_id": user.id})
+    if not logist_profile:
+        raise HTTPException(400, "Logistics profile not found")
+    quote = await prisma.matchcandidate.find_first(
+        where={"id": candidate_id, "deleted_at": None, "logistic_offer_id": {"not": None}},
+        include={"logistic_offer": True, "request": True},
+    )
+    if not quote or quote.logistic_offer.logist_profile_id != logist_profile.id:
+        raise HTTPException(404, "Quote not found")
+    if quote.status != "PENDING" or quote.request.status not in (*SEARCHING, "PAUSED"):
+        raise HTTPException(409, "Only an open quote, before a proposal is chosen, can be withdrawn")
+    await prisma.matchcandidate.update(where={"id": quote.id}, data={"deleted_at": _now()})
+    await _settle_request_after_withdrawal(quote.request_id, quote.request.status)
+    return {"status": "success", "message": "Quote withdrawn"}
+
+
 #  CUSTOMER  – view complete proposals and select one
 
 @router.get("/candidates/{request_id}")
@@ -534,7 +613,8 @@ async def select_candidate(
         raise HTTPException(400, f"Candidate is already '{candidate.status}'")
 
     req = candidate.request
-    if req.status not in ("PAIRING_IN_PROGRESS", "PENDING"):
+    # A paused request takes no new offers, but the customer may still choose among existing ones.
+    if req.status not in ("PAIRING_IN_PROGRESS", "PENDING", "PAUSED"):
         raise HTTPException(400, f"Request cannot be matched in status '{req.status}'")
 
     require_verified(user)

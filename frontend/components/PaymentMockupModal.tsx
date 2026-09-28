@@ -142,21 +142,21 @@ export default function PaymentMockupModal({
           <button
             type="button"
             onClick={() => setPaymentMethod('CARD')}
-            className={`rounded-lg border px-3 py-2 text-xs ${paymentMethod === 'CARD' ? 'border-sky-600/70 text-sky-300' : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'}`}
+            className={`rounded-lg border px-3 py-2 text-xs ${paymentMethod === 'CARD' ? 'border-info/40 text-info' : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'}`}
           >
             Card
           </button>
           <button
             type="button"
             onClick={() => setPaymentMethod('BANK')}
-            className={`rounded-lg border px-3 py-2 text-xs ${paymentMethod === 'BANK' ? 'border-sky-600/70 text-sky-300' : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'}`}
+            className={`rounded-lg border px-3 py-2 text-xs ${paymentMethod === 'BANK' ? 'border-info/40 text-info' : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'}`}
           >
             Bank Transfer
           </button>
           <button
             type="button"
             onClick={() => setPaymentMethod('WALLET')}
-            className={`rounded-lg border px-3 py-2 text-xs ${paymentMethod === 'WALLET' ? 'border-sky-600/70 text-sky-300' : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'}`}
+            className={`rounded-lg border px-3 py-2 text-xs ${paymentMethod === 'WALLET' ? 'border-info/40 text-info' : 'border-[rgb(var(--stroke))] text-[rgb(var(--muted))]'}`}
           >
             Wallet
           </button>

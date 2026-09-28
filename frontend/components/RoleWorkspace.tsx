@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 
 import { logout, me, type AuthUser } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
-import { useTheme } from '../hooks/useTheme';
 
 type RoleWorkspaceProps = {
   expectedRole: AuthUser['role'];
@@ -16,7 +15,6 @@ export default function RoleWorkspace({ expectedRole }: RoleWorkspaceProps) {
   const locale = getLocaleFromQuery(router.query.lang);
   const copy = t(locale);
 
-  useTheme();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 

@@ -1,15 +1,15 @@
 import { Html, Head, Main, NextScript } from 'next/document';
+import { COLOR_MODE_SCRIPT } from '../lib/colorMode';
 
 export default function Document() {
   return (
-    <Html lang="en" data-scroll-behavior="smooth">
+    <Html lang="en" className="identity" data-scroll-behavior="smooth">
       <Head>
-        {/* Prevent FOUC: apply stored theme class to <html> before any paint */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var p=location.pathname;var t=p==='/app/customer'?'modernLight':(p==='/app/factory')?'whatsappEmerald':'modernDark';try{var s=localStorage.getItem('if-theme');if(s)t=(s==='modernLight'||s==='whatsappEmerald')?s:'modernDark';}catch(e){}var m={modernLight:'theme-modern-light',modernDark:'theme-modern-dark',whatsappEmerald:'theme-whatsapp-emerald'};document.documentElement.classList.add(m[t]);})();`,
-          }}
-        />
+        {/* Before the mode script, so it can set the colour for light mode too */}
+        <meta name="theme-color" content="#0E1214" />
+
+        {/* Apply the light/dark preference of the new identity before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_SCRIPT }} />
 
         {/* Standard favicons */}
         <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
@@ -29,7 +29,6 @@ export default function Document() {
         <meta name="msapplication-TileColor" content="#f97316" />
 
         {/* Theme */}
-        <meta name="theme-color" content="#0f1117" />
       </Head>
       <body>
         <Main />

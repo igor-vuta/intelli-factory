@@ -170,7 +170,7 @@ export default function AddressPicker({
           htmlFor={`${fieldId}-country`}
           className="mb-1 block text-sm text-[rgb(var(--muted))]"
         >
-          {copy.country} {required && <span className="text-red-400">*</span>}
+          {copy.country} {required && <span className="text-danger">*</span>}
         </label>
         <SelectField
           id={`${fieldId}-country`}
@@ -198,7 +198,7 @@ export default function AddressPicker({
             htmlFor={`${fieldId}-region`}
             className="mb-1 block text-sm text-[rgb(var(--muted))]"
           >
-            {copy.region} {required && <span className="text-red-400">*</span>}
+            {copy.region} {required && <span className="text-danger">*</span>}
           </label>
           {loadingGeo ? (
             <div className={`${INPUT_CLS} text-[rgb(var(--muted))]`}>{copy.loading}</div>
@@ -232,7 +232,7 @@ export default function AddressPicker({
             htmlFor={`${fieldId}-city`}
             className="mb-1 block text-sm text-[rgb(var(--muted))]"
           >
-            {copy.city} {required && <span className="text-red-400">*</span>}
+            {copy.city} {required && <span className="text-danger">*</span>}
           </label>
           <>
             <ChoiceField
@@ -263,7 +263,7 @@ export default function AddressPicker({
               htmlFor={`${fieldId}-street`}
               className="mb-1 block text-sm text-[rgb(var(--muted))]"
             >
-              {copy.street} {required && <span className="text-red-400">*</span>}
+              {copy.street} {required && <span className="text-danger">*</span>}
             </label>
             <input
               id={`${fieldId}-street`}

@@ -6,7 +6,15 @@ module.exports = {
     './styles/**/*.css',
   ],
   theme: {
-    extend: {},
+    extend: {
+      // Semantic colours from styles/identity.css; they switch with light and dark mode.
+      colors: Object.fromEntries(
+        ['danger', 'success', 'warning', 'info'].map((name) => [
+          name,
+          `rgb(var(--${name}) / <alpha-value>)`,
+        ])
+      ),
+    },
   },
   plugins: [],
 };

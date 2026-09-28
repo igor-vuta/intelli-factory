@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import AuthStory from '../components/AuthStory';
 import PresetIcon from '../components/PresetIcon';
 import Link from 'next/link';
@@ -6,6 +7,7 @@ import { FormEvent, useEffect, useState } from 'react';
 
 import { resendVerificationEmail, verifyEmail } from '../lib/authClient';
 import { getLocaleFromQuery, t } from '../lib/i18n';
+import ModeSwitcher from '../components/ModeSwitcher';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -61,97 +63,103 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <main
-      className={`auth-screen min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
-    >
-      <AuthStory />
-      <div className="auth-form-column mx-auto flex w-full max-w-xl flex-col gap-5">
-        <header className="flex items-center justify-between">
-          <Link
-            href={`/?lang=${locale}`}
-            className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
-          >
-            <PresetIcon
-              src="/presets/brand.svg"
-              alt="Intelli-Factory"
-              size={32}
-              className="rounded-md"
-            />
-            <span>{copy.brand}</span>
-          </Link>
-        </header>
-
-        <section className="surface-1 rounded-2xl p-6 sm:p-8">
-          <h1 className="text-2xl font-semibold sm:text-3xl">{copy.verifyEmailTitle}</h1>
-          <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.verifyEmailSubtitle}</p>
-          <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.verifyEmailHelp}</p>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label htmlFor="token" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.verifyEmailTokenLabel}
-              </label>
-              <input
-                id="token"
-                type="text"
-                required
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+    <>
+      <Head>
+        <title>{`${copy.verifyEmailTitle} · Intelli-Factory`}</title>
+      </Head>
+      <main
+        className={`auth-screen min-h-screen bg-[rgb(var(--bg))] px-4 py-8 text-[rgb(var(--text))] sm:px-8`}
+      >
+        <AuthStory />
+        <div className="auth-form-column mx-auto flex w-full max-w-xl flex-col gap-5">
+          <header className="flex items-center justify-between">
+            <Link
+              href={`/?lang=${locale}`}
+              className="inline-flex items-center gap-2 text-sm text-[rgb(var(--muted))]"
+            >
+              <PresetIcon
+                src="/presets/brand.svg"
+                alt="Intelli-Factory"
+                size={32}
+                className="rounded-md"
               />
-            </div>
+              <span>{copy.brand}</span>
+            </Link>
+            <ModeSwitcher />
+          </header>
 
-            {error && (
-              <p role="alert" className="rounded-lg bg-red-950/40 px-3 py-2 text-sm text-red-300">
-                {error}
-              </p>
-            )}
-            {success && (
-              <p
-                role="status"
-                className="rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+          <section className="surface-1 rounded-2xl p-6 sm:p-8">
+            <h1 className="text-2xl font-semibold sm:text-3xl">{copy.verifyEmailTitle}</h1>
+            <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.verifyEmailSubtitle}</p>
+            <p className="mt-2 text-sm text-[rgb(var(--muted))]">{copy.verifyEmailHelp}</p>
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div>
+                <label htmlFor="token" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.verifyEmailTokenLabel}
+                </label>
+                <input
+                  id="token"
+                  type="text"
+                  required
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                />
+              </div>
+
+              {error && (
+                <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                  {error}
+                </p>
+              )}
+              {success && (
+                <p
+                  role="status"
+                  className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success"
+                >
+                  {success}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary w-full justify-center"
               >
-                {success}
-              </p>
-            )}
+                {loading ? '...' : copy.verifyEmailAction}
+              </button>
+            </form>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full justify-center"
+            <form
+              onSubmit={handleResend}
+              className="mt-6 space-y-4 border-t border-[rgb(var(--stroke))]/40 pt-5"
             >
-              {loading ? '...' : copy.verifyEmailAction}
-            </button>
-          </form>
+              <div>
+                <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
+                  {copy.verifyEmailEmailLabel}
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
+                />
+              </div>
 
-          <form
-            onSubmit={handleResend}
-            className="mt-6 space-y-4 border-t border-[rgb(var(--stroke))]/40 pt-5"
-          >
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm text-[rgb(var(--muted))]">
-                {copy.verifyEmailEmailLabel}
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="focus-theme w-full rounded-xl border border-[rgb(var(--stroke))] bg-[rgb(var(--panel))] px-3 py-2"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={resendLoading}
-              className="btn btn-ghost w-full justify-center"
-            >
-              {resendLoading ? '...' : copy.resendVerificationAction}
-            </button>
-          </form>
-        </section>
-      </div>
-    </main>
+              <button
+                type="submit"
+                disabled={resendLoading}
+                className="btn btn-ghost w-full justify-center"
+              >
+                {resendLoading ? '...' : copy.resendVerificationAction}
+              </button>
+            </form>
+          </section>
+        </div>
+      </main>
+    </>
   );
 }
