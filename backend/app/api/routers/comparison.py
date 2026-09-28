@@ -3,15 +3,17 @@
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from db import prisma
+from routers.auth import _ensure_db_connection
+from routers.requests import require_roles
 from services.optimization_engine import WEIGHT_PROFILES, OptimizationEngine
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(_ensure_db_connection), Depends(require_roles("ADMIN"))])
 
 Priority = Literal["balanced", "cost", "speed", "reliability"]
 

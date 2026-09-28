@@ -55,21 +55,23 @@ Multi-Objective Supply Chain Optimisation Platform - BSc Computer Science, De Mo
 ## About
 
 Intelli-Factory is a B2B2C platform that automates supply chain matching between manufacturers, customers, and logistics providers.
-It solves the **Supply Chain Trilemma** - balancing cost, delivery speed, and reliability - using evolutionary computation (NSGA-II genetic algorithm via DEAP).
+It addresses the **Supply Chain Trilemma** - balancing cost, delivery speed, and reliability - with weighted multi-objective scoring, cross-checked by a genetic search (DEAP).
 
 **Research question:** does weighted multi-objective matching outperform a greedy, cheapest-first baseline under defined criteria? _Answer: yes - measurably (see [Benchmark Results](#benchmark-results))._
 
-The real-world motivation is the manual phone-and-WhatsApp coordination still common in the Almaty trading sector. The **measured** comparison, though, is algorithm against algorithm: the Greedy baseline strategy against the Deep GA, both implemented in this codebase and run over identical scenarios.
+The real-world motivation is the manual phone-and-WhatsApp coordination still common in the Almaty trading sector. The **measured** comparison, though, is algorithm against algorithm: the Greedy baseline against the weighted optimiser (Fast, cross-checked by the Deep GA), all implemented in this codebase and run over identical scenarios.
 
-The platform covers the full workflow - request → bidding → optimisation → three-party contract signing → payment → fulfilment tracking - across four user roles (Customer, Factory, Logistics Provider, Administrator), with a nine-state request lifecycle enforced by explicit state machines and atomic database transactions.
+The platform covers the full workflow - request → bidding → optimisation → three-party contract signing → payment → fulfilment tracking - across four user roles (Customer, Factory, Logistics Provider, Administrator). The request lifecycle is enforced by explicit status guards in the API, and factories can only publish and bid in categories they have confirmed.
 
 Three optimisation strategies are available per admin request:
 
-| Mode          | Description                                                                                                                                                              | Speed       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| **Greedy**    | Sort by lowest raw cost (baseline)                                                                                                                                       | instant     |
-| **Fast**      | Min-max normalised weighted-sum scoring                                                                                                                                  | < 0.001 s   |
-| **Deep (GA)** | NSGA-II Pareto-front search via DEAP - population 100, 80 generations, tournament selection (k=3), Hall-of-Fame elitism, knee-point selection by customer weight profile | 0.069 s avg |
+| Mode          | Description                                                                                                                                                                                  | Speed       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **Greedy**    | Sort by lowest raw cost (baseline)                                                                                                                                                           | instant     |
+| **Fast**      | Min-max normalised weighted-sum scoring by the customer's weight profile                                                                                                                     | < 0.001 s   |
+| **Deep (GA)** | Genetic search (DEAP) over the same weighted score - population 100, 80 generations, tournament selection (k=3), Hall-of-Fame elitism. It can match Fast but not beat it; it cross-checks it | 0.069 s avg |
+
+Fast and Deep both return the offer with the best weighted score. With positive weights that offer is Pareto-optimal (no other offer is at least as good on all three objectives), but neither mode builds the full Pareto front; the front shown in the interface is derived for display.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -77,7 +79,7 @@ Three optimisation strategies are available per admin request:
 
 ## Screenshots
 
-These screenshots show the earlier hosted version of the application. The current testing site is https://intelli-factory.duckdns.org/.
+These screenshots show an earlier version of the application, before the redesign (one identity in light and dark, work-first workspaces). The current testing site is https://intelli-factory.duckdns.org/.
 
 <div align="center">
 <img src="docs/screenshots/01-landing-page.png" alt="Landing page - the supply-chain orchestration hero over a live flow monitor showing request, match, contract and payment stages, with an EN/RU/KK language switcher and a six-theme selector in the header" width="88%" />
@@ -113,7 +115,8 @@ These screenshots show the earlier hosted version of the application. The curren
 | Reliability score  | 0.824           | 0.891                      | **+8.1%**                               |
 | Raw cost (avg KZT) | 21,296          | 51,648                     | +142.5% - deliberate trilemma trade-off |
 
-- Deep GA Pareto-front hypervolume: **0.852 ± 0.12** (normalised), converging by generations 50-60
+- Deep GA chooses the same offer as Fast on every benchmark scenario, because it searches the same weighted score
+- Deep GA solution-set hypervolume: **0.852 ± 0.12** (normalised), converging by generations 50-60
 - Feasibility rate: **100%** across all 120 scenarios
 - Deep GA response time: **0.069 s ± 0.015 s**
 - Datasets: 55+ products, 12 manufacturers, 9 logistics providers
@@ -126,14 +129,14 @@ These screenshots show the earlier hosted version of the application. The curren
 
 ```mermaid
 flowchart LR
-    U[Browser / PWA] --> FE["Next.js Pages Router<br/>TypeScript · Tailwind · Recharts<br/>(Oracle VM)"]
+    U[Browser / PWA] --> FE["Next.js Pages Router<br/>TypeScript · Tailwind · three.js<br/>(Oracle VM)"]
     FE --> API["FastAPI · Python 3.12 · Uvicorn<br/>(Oracle VM)"]
-    API --> ENGINE["Optimisation engine<br/>DEAP · NSGA-II"]
+    API --> ENGINE["Optimisation engine<br/>weighted scoring · DEAP GA"]
     API --> DB[("PostgreSQL 15<br/>~25 Prisma models<br/>(Oracle VM)")]
     API --> MAIL["Brevo SMTP<br/>email verification"]
 ```
 
-Three-tier Oracle testing deployment: Next.js, FastAPI and PostgreSQL in separate containers, with Caddy providing HTTPS. Role-based guards at the API layer across four task-separated routers (`/auth`, `/requests`, `/pairing`, `/automations`); Pydantic validation on all payloads; auto-generated OpenAPI docs.
+Three-tier Oracle testing deployment: Next.js, FastAPI and PostgreSQL in separate containers, with Caddy providing HTTPS. Role-based guards at the API layer across task-separated routers (`/auth`, `/requests`, `/pairing`, `/automations`, `/comparison`, `/transactions`, `/categories` and more); Pydantic validation on all payloads; auto-generated OpenAPI docs.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -157,9 +160,9 @@ Three-tier Oracle testing deployment: Next.js, FastAPI and PostgreSQL in separat
 ### Prerequisites
 
 - Python 3.12+
-- Node.js 18+
+- Node.js 20.9+ (required by Next.js 16)
 - Docker & Docker Compose
-- [Poetry](https://python-poetry.org/)
+- [uv](https://docs.astral.sh/uv/)
 
 ### Installation
 
@@ -180,7 +183,8 @@ npm install
 
 ```sh
 cd backend/app/api
-poetry install
+uv venv && uv pip install --require-hashes -r requirements.txt
+uv run --no-project prisma generate
 ```
 
 4. **Configure environment variables**
@@ -210,7 +214,7 @@ docker-compose up -d
 
 ```sh
 cd backend/app/api
-poetry run prisma migrate dev
+uv run --no-project prisma migrate deploy
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -222,12 +226,15 @@ The seed scripts populate reference data (countries, regions, cities) and workfl
 ```sh
 cd backend/app/api
 
-# 1 - Reference geography (countries / regions / cities)
-poetry run python seed_reference_geo.py
+# 1 - Reference geography, catalogue, demo users and base requests
+SEED_WITH_REFERENCE_GEO=1 uv run --no-project python seed.py
 
-# 2 - All workflow scenarios + large-scale optimisation demo
-poetry run python seed.py
+# 2 - Workflow scenarios for every lifecycle stage (also readies the demo factories:
+#     complete profiles and confirmed production categories)
+uv run --no-project python seed_workflow_scenarios.py
 ```
+
+Demo accounts: `customer.demo`, `factory.demo`, `logist.demo`, `admin.demo` at `@intelli.local`, password `password123`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -275,7 +282,7 @@ curl -X POST http://localhost:8000/api/automations/optimize \
 }'
 ```
 
-`mode` options: `fast` (default) · `deep` (NSGA-II GA)
+`mode` options: `fast` (default) · `deep` (genetic search over the same weighted score)
 
 **Response:**
 
@@ -298,14 +305,14 @@ curl -X POST http://localhost:8000/api/automations/optimize \
         "time_norm": 0.18,
         "reliability_norm": 0.91,
         "final_score": 0.8712,
-        "weights": { "cost": 0.34, "time": 0.33, "reliability": 0.33 }
+        "weights": { "cost": 0.4, "time": 0.3, "reliability": 0.3 }
       }
     }
   ]
 }
 ```
 
-**GET** `/api/automations/compare/{request_id}` - runs greedy, fast, and deep GA in parallel and returns a side-by-side scoreboard.
+**POST** `/api/automations/optimize/compare` with `{"request_id": "<uuid>", "profile": "balanced"}` - runs Greedy, Fast and Deep on the same candidate pool and returns each strategy's ranked picks plus the pool (admin only; the admin workspace's comparison view is built on it).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -326,19 +333,19 @@ Validated against the OWASP Password Storage and Session Management Cheat Sheets
 
 ## Testing
 
-**53 automated pytest unit & integration tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison router, requests router, and the full transaction → contract → fulfilment flow. TDD applied to the engine.
+**146 pytest tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance (against PostgreSQL in CI), and the full transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle.
 
 ```sh
 cd backend/app/api
 
 # full test suite
-poetry run pytest tests/ -v
+uv run --no-project pytest tests/ -q
 
 # optimisation engine only
-poetry run pytest tests/test_optimization_engine.py -v
+uv run --no-project pytest tests/test_optimization_engine.py -v
 
 # benchmark evaluation (120 synthetic scenarios)
-poetry run python benchmark_evaluation.py
+uv run --no-project python benchmark_evaluation.py
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -381,7 +388,7 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 
 ## Acknowledgments
 
-- [DEAP](https://github.com/DEAP/deap) - genetic algorithm / NSGA-II framework
+- [DEAP](https://github.com/DEAP/deap) - evolutionary computation framework
 - [FastAPI](https://fastapi.tiangolo.com/) - modern Python web framework
 - [Prisma](https://www.prisma.io/) - type-safe ORM
 - [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - README structure
@@ -400,5 +407,5 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 [nextjs-url]: https://nextjs.org
 [postgres-shield]: https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
 [postgres-url]: https://postgresql.org
-[tests-shield]: https://img.shields.io/badge/pytest-53%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/pytest-146%20passing-brightgreen?style=for-the-badge
 [license-shield]: https://img.shields.io/badge/License-Academic-lightgrey?style=for-the-badge

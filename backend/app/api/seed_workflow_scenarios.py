@@ -24,6 +24,7 @@ from seed_helpers import (  # noqa: E402
     _ensure_logistic_offer,
     _ensure_region,
     _ensure_user,
+    _ready_seeded_factories,
 )
 from seed_reference_geo import seed as seed_reference_geo  # noqa: E402
 
@@ -244,7 +245,7 @@ async def _upsert_request(prisma: Prisma, customer_profile_id: str, category_id:
         "quantity": qty,
         "destination_address_id": address_id,
         "preferred_currency_code": "EUR",
-        "requested_characteristics_json": Json({"quality": "99%", "quantity_unit": "tons"}),
+        "requested_characteristics_json": Json({"purity_percent": 99, "quantity_unit": "tons"}),
         "status": status,
         "deleted_at": None,
     }
@@ -532,7 +533,7 @@ async def create_large_scale_request_scenario(
         "quantity": req_qty,
         "destination_address_id": address_id,
         "preferred_currency_code": "EUR",
-        "requested_characteristics_json": Json({"quality": "99%", "quantity_unit": "tons"}),
+        "requested_characteristics_json": Json({"purity_percent": 99, "quantity_unit": "tons"}),
         "optimization_profile": optimization_profile,
         "status": "PAIRING_IN_PROGRESS",
         "deleted_at": None,
@@ -670,6 +671,8 @@ async def create_large_scale_request_scenario(
     print(f"  MatchCandidates:   {candidate_count}")
     print(f"  Seeding time:      {elapsed_seed:.2f}s")
 
+    await _ready_seeded_factories(prisma)
+
     # Run three strategies and print comparison 
     try:
         from services.optimization_engine import OptimizationEngine  # noqa: E402
@@ -706,18 +709,16 @@ async def create_large_scale_request_scenario(
             print(f"  {label:<14} {cost:>14,.0f} {days:>6} {rel:>12.3f} {score:>8.4f}")
             scoreboard.append((key, score))
 
-        scoreboard.sort(key=lambda kv: (kv[1], 1 if kv[0] == "deep" else 0), reverse=True)
+        scoreboard.sort(key=lambda kv: (kv[1], 1 if kv[0] == "fast" else 0), reverse=True)
         winner_key, winner_score = scoreboard[0]
         winner_pretty = {
             "greedy": "Greedy",
-            "fast": "Fast", "deep": "Deep (NSGA-II GA)",
+            "fast": "Fast", "deep": "Deep (GA)",
         }.get(winner_key, winner_key)
 
         print(f"\n  Winner: {winner_pretty} @ weighted score {winner_score:.4f}")
-        if winner_key == "deep":
-            print("  ✓ Deep GA wins with best balanced score")
-        else:
-            print(f"  Note: Deep GA matched the global optimum within {abs(winner_score - dict(scoreboard).get('deep', 0)):.4f}")
+        # Deep searches the same weighted score as Fast, so it can match it but never beat it.
+        print(f"  Deep GA vs Fast: {dict(scoreboard).get('deep', 0) - dict(scoreboard).get('fast', 0):+.4f}")
         print(f"\n  Total optimization time: {t_compare:.2f}s")
         print(f"{'='*62}\n")
 
@@ -807,19 +808,16 @@ def _print_comparison_summary(comparison: dict, candidate_count: int, request_na
         print(f"  {label:<14} {cost:>14,.0f} {days:>6} {rel:>12.3f} {score:>8.4f}")
         scoreboard.append((key, score))
 
-    scoreboard.sort(key=lambda kv: (kv[1], 1 if kv[0] == "deep" else 0), reverse=True)
+    scoreboard.sort(key=lambda kv: (kv[1], 1 if kv[0] == "fast" else 0), reverse=True)
     winner_key, winner_score = scoreboard[0]
     winner_pretty = {
         "greedy": "Greedy",
-        "fast": "Fast", "deep": "Deep (NSGA-II GA)",
+        "fast": "Fast", "deep": "Deep (GA)",
     }.get(winner_key, winner_key)
 
     print(f"\n  Winner: {winner_pretty} @ weighted score {winner_score:.4f}")
-    if winner_key == "deep":
-        print("  ✓ Deep GA wins with best balanced score")
-    else:
-        deep_score = dict(scoreboard).get("deep", 0.0)
-        print(f"  Note: Deep GA matched the global optimum within {abs(winner_score - deep_score):.4f}")
+    # Deep searches the same weighted score as Fast, so it can match it but never beat it.
+    print(f"  Deep GA vs Fast: {dict(scoreboard).get('deep', 0) - dict(scoreboard).get('fast', 0):+.4f}")
     print(f"\n  Total optimization time: {t_compare:.2f}s")
     print(f"{'='*62}\n")
 
@@ -1048,7 +1046,7 @@ async def create_random_large_scale_request(
             "quantity": req_qty,
             "destination_address_id": address.id,
             "preferred_currency_code": "EUR",
-            "requested_characteristics_json": Json({"quality": "99%", "quantity_unit": "tons"}),
+            "requested_characteristics_json": Json({"purity_percent": 99, "quantity_unit": "tons"}),
             "optimization_profile": "balanced",
             "status": "PAIRING_IN_PROGRESS",
             "deleted_at": None,
@@ -1121,6 +1119,8 @@ async def create_random_large_scale_request(
         print(f"  Logistics offers:  {len(logistic_offers)}")
         print(f"  MatchCandidates:   {candidate_count}  (target was {target})")
         print(f"  Seeding time:      {elapsed_seed:.2f}s")
+
+        await _ready_seeded_factories(prisma)
 
         # Auto-run compare_baselines 
         try:
@@ -1375,6 +1375,11 @@ async def seed(run_large: bool = False) -> None:
                 inventory_id=inventory.id,
                 logistic_offer_id=offer.id,
             )
+
+        # Category governance: seeded factories need a complete profile and confirmed categories
+        # before they can publish stock or bid.
+        ready = await _ready_seeded_factories(prisma)
+        print(f"Factories ready to publish and bid: {ready}")
 
         print("Workflow scenarios seeded successfully.")
         print("Demo users:")

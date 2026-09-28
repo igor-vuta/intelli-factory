@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useExperienceCopy } from '../../hooks/useExperienceCopy';
+import TradeoffPlot from '../TradeoffPlot';
 import { type Scenario, benchmark, scenarios } from '../../lib/benchmarkShowcase';
 import { getLocaleFromQuery } from '../../lib/i18n';
 import {
@@ -30,10 +31,6 @@ const STEPS = [
   },
 ] as const;
 
-const W = 640;
-const H = 420;
-const PAD = { left: 64, right: 20, top: 16, bottom: 52 };
-
 type WeightKey = keyof Weights;
 const WEIGHT_KEYS: WeightKey[] = ['cost', 'time', 'reliability'];
 const WEIGHT_LABELS: Record<WeightKey, string> = {
@@ -50,15 +47,6 @@ function rebalance(weights: Weights, key: WeightKey, value: number): Weights {
   for (const k of others)
     next[k] = rest > 0 ? ((1 - value) * weights[k]) / rest : (1 - value) / others.length;
   return next;
-}
-
-function ticks(lo: number, hi: number, count = 5) {
-  const span = hi - lo || 1;
-  const raw = span / count;
-  const magnitude = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= raw) ?? raw;
-  const first = Math.ceil(lo / step) * step;
-  return Array.from({ length: Math.floor((hi - first) / step) + 1 }, (_, i) => first + i * step);
 }
 
 export default function TradeoffExplorer({ initial }: { initial: Scenario }) {
@@ -80,10 +68,6 @@ export default function TradeoffExplorer({ initial }: { initial: Scenario }) {
       }),
     [locale]
   );
-  const compact = useMemo(
-    () => new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }),
-    [locale]
-  );
   const decimal = useMemo(
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
     [locale]
@@ -97,42 +81,9 @@ export default function TradeoffExplorer({ initial }: { initial: Scenario }) {
     [locale]
   );
 
-  const view = useMemo(() => {
-    const { pool } = scenario;
-    const costs = pool.map((c) => c.cost);
-    const days = pool.map((c) => c.days);
-    const rels = pool.map((c) => c.reliability);
-    const [c0, c1] = [Math.min(...costs), Math.max(...costs)];
-    const [d0, d1] = [Math.min(...days), Math.max(...days)];
-    const [r0, r1] = [Math.min(...rels), Math.max(...rels)];
-    const padC = (c1 - c0) * 0.06 || 1;
-    const padD = (d1 - d0) * 0.08 || 1;
-    const x = (v: number) =>
-      PAD.left + ((v - (c0 - padC)) / (c1 - c0 + 2 * padC)) * (W - PAD.left - PAD.right);
-    const y = (v: number) =>
-      H - PAD.bottom - ((v - (d0 - padD)) / (d1 - d0 + 2 * padD)) * (H - PAD.top - PAD.bottom);
-    const r = (v: number) => 4 + ((v - r0) / (r1 - r0 || 1)) * 6;
-    return {
-      x,
-      y,
-      r,
-      xTicks: ticks(c0 - padC, c1 + padC),
-      yTicks: ticks(d0 - padD, d1 + padD),
-    };
-  }, [scenario]);
-
   const scores = useMemo(() => weightedScores(scenario.pool, weights), [scenario, weights]);
   const pick = useMemo(() => weightedPick(scenario.pool, weights), [scenario, weights]);
   const cheapest = greedyPick(scenario.pool);
-  // Arrow keys walk the offers from cheapest to most expensive.
-  const byCost = useMemo(
-    () =>
-      scenario.pool
-        .map((c, i) => [c.cost, i])
-        .sort((a, b) => a[0] - b[0])
-        .map(([, i]) => i),
-    [scenario]
-  );
   const front = useMemo(() => new Set(scenario.front), [scenario]);
   const isEngineDefault = WEIGHT_KEYS.every(
     (k) => Math.abs(weights[k] - benchmark.weights[k]) < 0.005
@@ -204,91 +155,23 @@ export default function TradeoffExplorer({ initial }: { initial: Scenario }) {
 
       <div className="tradeoffs-figure">
         <figure className={`tradeoffs-chart step-${step}`}>
-          <svg
-            viewBox={`0 0 ${W} ${H}`}
-            role="group"
-            tabIndex={0}
-            aria-label={e(
+          <TradeoffPlot
+            key={scenario.id}
+            layout="wide"
+            points={scenario.pool}
+            currency="KZT"
+            label={e(
               'Offers by total cost and delivery days. Use the arrow keys to move between offers.'
             )}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setActive(null);
-                return;
-              }
-              const steps: Record<string, number> = {
-                ArrowRight: 1,
-                ArrowDown: 1,
-                ArrowLeft: -1,
-                ArrowUp: -1,
-              };
-              const step = steps[event.key];
-              if (step === undefined) return;
-              event.preventDefault();
-              // The first press selects the cheapest offer; later presses move along.
-              const at = active === null ? -step : byCost.indexOf(active);
-              const next = Math.min(byCost.length - 1, Math.max(0, at + step));
-              setActive(byCost[next]);
-            }}
-            onBlur={() => setActive(null)}
-          >
-            <g className="chart-axis" aria-hidden="true">
-              {view.xTicks.map((t) => (
-                <g key={`x${t}`} transform={`translate(${view.x(t)} ${H - PAD.bottom})`}>
-                  <line y2={6} />
-                  <text y={22} textAnchor="middle">
-                    {compact.format(t)}
-                  </text>
-                </g>
-              ))}
-              {view.yTicks.map((t) => (
-                <g key={`y${t}`} transform={`translate(${PAD.left} ${view.y(t)})`}>
-                  <line x2={W - PAD.left - PAD.right} className="chart-gridline" />
-                  <text x={-10} dy="0.32em" textAnchor="end">
-                    {decimal.format(t)}
-                  </text>
-                </g>
-              ))}
-              <text x={(W + PAD.left) / 2} y={H - 8} textAnchor="middle" className="chart-title">
-                {e('Total cost (KZT)')}
-              </text>
-              <text
-                transform={`translate(16 ${(H - PAD.bottom) / 2}) rotate(-90)`}
-                textAnchor="middle"
-                className="chart-title"
-              >
-                {e('Delivery days')}
-              </text>
-            </g>
-            <g aria-hidden="true">
-              {scenario.pool.map((c, i) => {
-                const classes = [
-                  'offer',
-                  front.has(i) && 'is-front',
-                  i === cheapest && 'is-cheapest',
-                  i === pick && 'is-pick',
-                  i === scenario.knee && 'is-knee',
-                  i === active && 'is-active',
-                ]
-                  .filter(Boolean)
-                  .join(' ');
-                return (
-                  <g
-                    key={`${scenario.id}-${i}`}
-                    className={classes}
-                    style={{ transform: `translate(${view.x(c.cost)}px, ${view.y(c.days)}px)` }}
-                    onPointerEnter={() => setActive(i)}
-                    onPointerLeave={() => setActive(null)}
-                  >
-                    <circle r={view.r(c.reliability)} />
-                    {i === scenario.knee && (
-                      <circle className="knee-ring" r={view.r(c.reliability) + 6} />
-                    )}
-                  </g>
-                );
-              })}
-            </g>
-          </svg>
+            current={active}
+            onActive={setActive}
+            classesOf={(i) => [
+              front.has(i) && 'is-front',
+              i === cheapest && 'is-cheapest',
+              i === pick && 'is-pick',
+              i === scenario.knee && 'is-knee',
+            ]}
+          />
           <figcaption className="tradeoffs-readout" aria-live="polite">
             {shown === null ? e('Hover or focus an offer to see its numbers.') : describe(shown)}
           </figcaption>

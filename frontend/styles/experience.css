@@ -2189,6 +2189,7 @@ td .guidance-hint {
     min-width: 0;
     padding: 0;
     border: 0;
+    white-space: normal;
     overflow-wrap: anywhere;
   }
   .record-table .status-badge {
