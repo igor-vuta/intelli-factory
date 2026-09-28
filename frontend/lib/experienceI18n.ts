@@ -1174,6 +1174,68 @@ export const experienceTranslations = {
     ru: 'Без оценки, данные неполные',
     kk: 'Бағаланбады, деректер толық емес',
   },
+  // Workflow story (landing)
+  'Follow one request.': {
+    ru: 'Проследите за одной заявкой.',
+    kk: 'Бір өтінімнің жолын бақылаңыз.',
+  },
+  'How a request moves through the platform, step by step.': {
+    ru: 'Как заявка проходит через платформу, шаг за шагом.',
+    kk: 'Өтінім платформа арқылы қалай өтеді — қадам-қадаммен.',
+  },
+  'A customer asks': { ru: 'Заказчик обращается', kk: 'Тапсырыс беруші сұрайды' },
+  'A buyer describes what they need: the item, the quantity and where it should arrive.': {
+    ru: 'Покупатель описывает, что ему нужно: товар, количество и куда доставить.',
+    kk: 'Сатып алушы не қажет екенін сипаттайды: тауар, саны және қайда жеткізу керек.',
+  },
+  'One among thousands': { ru: 'Одна из тысяч', kk: 'Мыңдардың бірі' },
+  'Every customer’s requests flow out at once to many factories. Ours goes only to the factory that makes that product.':
+    {
+      ru: 'Заявки всех заказчиков одновременно уходят на множество заводов. Наша попадает только на тот завод, который выпускает этот товар.',
+      kk: 'Барлық тапсырыс берушілердің өтінімдері бір мезгілде көптеген зауыттарға кетеді. Біздікі тек осы тауарды шығаратын зауытқа барады.',
+    },
+  'The factory answers': { ru: 'Завод отвечает', kk: 'Зауыт жауап береді' },
+  'The matching factory is notified, bids from its stock and hands the offer to logistics.': {
+    ru: 'Подходящий завод получает уведомление, предлагает товар со склада и передаёт предложение логисту.',
+    kk: 'Сәйкес зауыт хабарлама алып, қоймасынан ұсыныс береді және оны логистке тапсырады.',
+  },
+  'The carrier plans the route': {
+    ru: 'Перевозчик строит маршрут',
+    kk: 'Тасымалдаушы бағытты жоспарлайды',
+  },
+  'A logistics provider traces the route from the factory to the customer and prices the delivery.':
+    {
+      ru: 'Логист прокладывает маршрут от завода до заказчика и рассчитывает стоимость доставки.',
+      kk: 'Логист зауыттан тапсырыс берушіге дейінгі бағытты салып, жеткізу құнын есептейді.',
+    },
+  'Into the engine': { ru: 'В движок оптимизации', kk: 'Оңтайландыру қозғалтқышына' },
+  'Customer, factory and carrier meet, and every complete proposal goes into the optimisation engine.':
+    {
+      ru: 'Заказчик, завод и перевозчик встречаются, и каждое полное предложение уходит в движок оптимизации.',
+      kk: 'Тапсырыс беруші, зауыт және тасымалдаушы тоғысады, әр толық ұсыныс оңтайландыру қозғалтқышына түседі.',
+    },
+  'A list to choose from': { ru: 'Список для выбора', kk: 'Таңдауға арналған тізім' },
+  'The engine weighs cost, delivery time and reliability and returns the proposals with the balanced one marked. The customer makes the final choice.':
+    {
+      ru: 'Движок взвешивает стоимость, срок и надёжность и возвращает предложения, отметив сбалансированное. Окончательный выбор делает заказчик.',
+      kk: 'Қозғалтқыш құнды, мерзімді және сенімділікті салмақтап, теңгерімдісін белгілеп, ұсыныстарды қайтарады. Соңғы таңдауды тапсырыс беруші жасайды.',
+    },
+  'Proposals for this request': {
+    ru: 'Предложения по этой заявке',
+    kk: 'Осы өтінім бойынша ұсыныстар',
+  },
+  'Balanced pick': { ru: 'Сбалансированный выбор', kk: 'Теңгерімді таңдау' },
+  'Real engine output from benchmark scenario': {
+    ru: 'Реальный результат движка, сценарий бенчмарка',
+    kk: 'Қозғалтқыштың нақты нәтижесі, бенчмарк сценарийі',
+  },
+  'Story chapters': { ru: 'Главы истории', kk: 'Оқиға тараулары' },
+  'Play motion': { ru: 'Включить движение', kk: 'Қозғалысты қосу' },
+  'Pause motion': { ru: 'Остановить движение', kk: 'Қозғалысты тоқтату' },
+  'The scene is an illustration; the final list is real benchmark data.': {
+    ru: 'Сцена — иллюстрация; итоговый список — реальные данные бенчмарка.',
+    kk: 'Сахна — иллюстрация; соңғы тізім — бенчмарктің нақты деректері.',
+  },
   // Status labels (M3)
   DISPUTED: { ru: 'Спор', kk: 'Дау' },
   ACCEPTED: { ru: 'Выбрано', kk: 'Таңдалды' },

@@ -891,3 +891,341 @@
     position: static;
   }
 }
+
+/* Workflow story: a stage pinned under the header plays six chapters as the reader scrolls. */
+.story-live {
+  --story-top: 4.5625rem;
+  position: relative;
+  height: 640vh;
+  border-top: 1px solid var(--if-line);
+}
+.story-pin {
+  position: sticky;
+  top: var(--story-top);
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  height: calc(100dvh - var(--story-top));
+  overflow: hidden;
+}
+.story-text h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3.6vw, 3rem);
+}
+.story-chapters {
+  /* Every chapter shares one grid cell, so the tallest (in any language) sets the height. */
+  display: grid;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.story-chapters li {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 400ms var(--if-ease),
+    transform 500ms var(--if-ease-out);
+  pointer-events: none;
+}
+.story-chapters li.is-active {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.story-chapters h3,
+.story-stills h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  font-size: 1.375rem;
+}
+.story-chapters h3 .num,
+.story-stills h3 .num {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--if-accent);
+  color: var(--if-accent-ink);
+  font-family: var(--if-font-mono);
+  font-size: 0.875rem;
+}
+/* The chapter number pulses when a chapter opens: the text's half of the change cue. */
+@media (prefers-reduced-motion: no-preference) {
+  .story-chapters li.is-active .num {
+    animation: story-beat 700ms var(--if-ease-out);
+  }
+  .story-proposals-overlay {
+    animation: story-list-in 500ms var(--if-ease-out) 1.4s both;
+  }
+  .story-proposals .is-balanced {
+    background-image: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--if-accent) 22%, transparent) 50%,
+      transparent 70%
+    );
+    background-size: 250% 100%;
+    animation: story-shine 2.8s var(--if-ease) 2s infinite;
+  }
+}
+@keyframes story-beat {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--if-accent) 60%, transparent);
+  }
+  35% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0.9rem transparent;
+  }
+}
+@keyframes story-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.97);
+  }
+}
+@keyframes story-shine {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+.story-chapters p,
+.story-stills p {
+  max-width: 38ch;
+  margin: 0.75rem 0 0;
+  color: var(--if-muted);
+  font-size: 1.0625rem;
+}
+.story-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+.story-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+.story-dots button {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  position: relative;
+}
+.story-dot {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--if-line);
+  transform: translate(-50%, -50%);
+  transition:
+    background-color 200ms var(--if-ease),
+    width 300ms var(--if-ease-out);
+}
+.story-dots button[aria-current='step'] .story-dot {
+  width: 1.5rem;
+  border-radius: 999px;
+  background: var(--if-accent);
+}
+.story-pause {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--if-line);
+  border-radius: var(--if-radius-button);
+  background: none;
+  color: var(--if-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.story-note {
+  margin: 1.25rem 0 0;
+  color: var(--if-muted);
+  font-size: 0.8125rem;
+}
+.story-stage {
+  position: relative;
+  height: min(78dvh, 720px);
+  border-radius: var(--if-radius-card);
+  overflow: hidden;
+}
+.story-canvas,
+.story-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.story-still {
+  object-fit: cover;
+}
+.story-labels {
+  /* The canvas is appended after this layer, so lift the tags above it. */
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.story-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--if-line);
+  border-radius: 999px;
+  background: var(--if-raised);
+  color: var(--if-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    opacity 250ms var(--if-ease),
+    background-color 250ms var(--if-ease),
+    color 250ms var(--if-ease);
+  will-change: transform;
+}
+.story-label.is-active {
+  border-color: var(--if-accent);
+  background: var(--if-accent);
+  color: var(--if-accent-ink);
+}
+.story-proposals {
+  margin: 1rem 0 0;
+  padding: 1rem;
+  border: 1px solid var(--if-line);
+  border-radius: var(--if-radius-card);
+  background: var(--if-raised);
+  font-size: 0.875rem;
+}
+.story-proposals-overlay {
+  position: absolute;
+  z-index: 2;
+  inset: auto 0 1rem;
+  width: min(30rem, calc(100% - 2rem));
+  margin: 0 auto;
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 0.25);
+}
+.story-proposals figcaption {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.story-proposals ol {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.story-proposals li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--if-radius-button);
+  color: var(--if-muted);
+}
+.story-proposals li .num {
+  text-align: right;
+}
+.story-proposals li.is-balanced {
+  border-color: var(--if-accent);
+  background-color: color-mix(in srgb, var(--if-accent) 12%, transparent);
+  color: var(--if-text);
+  font-weight: 600;
+}
+.story-proposal-tag {
+  grid-column: 1 / -1;
+  /* Text colour: accent on the accent-tinted row misses AA in light mode. */
+  color: var(--if-text);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+.story-proposal-source {
+  margin: 0.6rem 0 0;
+  color: var(--if-muted);
+  font-size: 0.75rem;
+}
+.story-static .story-stills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 2rem;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.story-stills img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 1rem;
+  border-radius: var(--if-radius-card);
+  background: var(--if-surface);
+}
+
+@media (max-width: 1024px) {
+  .story-pin {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem 0 1.5rem;
+  }
+  .story-stage {
+    order: -1;
+    height: 52dvh;
+  }
+  .story-chapters {
+    margin-top: 1rem;
+  }
+  .story-text h2 {
+    font-size: 1.5rem;
+  }
+}
+/* The phone header scrolls away, so the stage pins to the top. */
+@media (max-width: 768px) {
+  .story-live {
+    --story-top: 0px;
+  }
+  .story-proposals-overlay {
+    bottom: 0.5rem;
+    width: calc(100% - 1rem);
+    padding: 0.6rem;
+    font-size: 0.75rem;
+  }
+  .story-proposals-overlay li {
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    padding: 0.3rem 0.4rem;
+    white-space: nowrap;
+  }
+  .story-dots {
+    gap: 0;
+  }
+  .story-dots button {
+    width: 2.25rem;
+  }
+  .story-proposals-overlay .story-proposal-source {
+    display: none;
+  }
+}

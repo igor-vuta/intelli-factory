@@ -246,6 +246,11 @@ test('unavailable storage and reduced motion do not break public routes', async 
   // Reduced motion never loads the WebGL stage; the still is the scene.
   await expect(page.locator('.pareto-still')).toBeVisible();
   await expect(page.locator('.pareto-canvas')).toHaveCount(0);
+  // The workflow story becomes six still frames with their text, ending on the list.
+  await expect(page.locator('.story-canvas')).toHaveCount(0);
+  await expect(page.locator('.story-stills > li')).toHaveCount(6);
+  await expect(page.locator('.story-proposals .is-balanced')).toHaveCount(1);
+  await expect(page.locator('.story-stills img').first()).toHaveAttribute('src', /chapter-1-/);
   await page.getByRole('radio', { name: 'Light' }).check();
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'light');
   await noOverflow(page);
@@ -456,7 +461,8 @@ test('language survives bare URLs and reloads while explicit links override it',
   await page.goto('/verify-email?token=sample');
   await expect(page).toHaveURL(/token=sample&lang=ru/);
   await page.goto('/?lang=en');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  // <html lang="en"> is also the server default, so wait for the stored choice instead.
+  await page.waitForFunction(() => localStorage.getItem('if-locale') === 'en');
   await page.goto('/login');
   await expect(page).toHaveURL(/lang=en/);
 });
@@ -974,4 +980,32 @@ test('switching proposal currency shows that currency only', async ({ page }) =>
   await expect(table).not.toContainText('Euro Mills');
   await expect(table).toContainText('KZT');
   await expect(table).not.toContainText('€');
+});
+
+test('workflow story follows scroll, jumps by chapter and can pause', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/?lang=en');
+  const story = page.locator('.story-live');
+  // A slow runner may swap the live scene for the chapter still; the scroll story remains.
+  await expect(story.locator('.story-canvas, .story-still')).toHaveCount(1, { timeout: 15000 });
+  const chapters = page.getByRole('navigation', { name: 'Story chapters' }).getByRole('button');
+  await expect(chapters).toHaveCount(6);
+  await chapters.nth(2).click();
+  await expect(chapters.nth(2)).toHaveAttribute('aria-current', 'step');
+  await expect(story.locator('.story-chapters li.is-active')).toContainText('The factory answers');
+  if (await story.locator('.story-still').count()) {
+    await expect(story.locator('.story-still')).toHaveAttribute('src', /chapter-3-/);
+  } else {
+    await story.getByRole('button', { name: 'Pause motion' }).click();
+    await expect(story.getByRole('button', { name: 'Play motion' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  }
+  // The story ends on a real list of proposals with the balanced pick as one entry.
+  await chapters.nth(5).click();
+  const list = story.locator('.story-proposals');
+  await expect(list.locator('li')).toHaveCount(5);
+  await expect(list.locator('li.is-balanced')).toContainText('Balanced pick');
+  await noOverflow(page);
 });

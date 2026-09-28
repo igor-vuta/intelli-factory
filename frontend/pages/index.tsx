@@ -5,6 +5,7 @@ import GuidanceHint from '../components/GuidanceHint';
 import LocaleSwitcher from '../components/LocaleSwitcher';
 import ModeSwitcher from '../components/ModeSwitcher';
 import Lifecycle from '../components/landing/Lifecycle';
+import WorkflowStory from '../components/landing/WorkflowStory';
 import ParetoStage from '../components/landing/ParetoStage';
 import Results from '../components/landing/Results';
 import TradeoffExplorer from '../components/landing/TradeoffExplorer';
@@ -165,6 +166,8 @@ export default function Home() {
             </div>
             <ParetoStage scenario={heroScenario} caption={caption} />
           </section>
+
+          <WorkflowStory />
 
           <Lifecycle />
 
