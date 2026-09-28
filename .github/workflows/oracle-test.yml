@@ -1,10 +1,10 @@
 name: Oracle stack test
 
 on:
+  # Pull requests into main and production, and the production deploy (workflow_call), each test
+  # the stack; a push to main would only repeat the release PR's run on the same commit.
   pull_request:
     branches: [main, production]
-  push:
-    branches: [main]
   workflow_call:
   workflow_dispatch:
 
