@@ -1,3 +1,18 @@
+<!-- project-presentation:start -->
+
+![Intelli-Factory — Multi-objective supply chain matching platform](.github/readme-header.svg)
+
+**[Open project](https://intelli-factory.duckdns.org/)** · [Repository activity](https://github.com/igor-vuta/intelli-factory/activity)
+
+[![Last commit](https://img.shields.io/github/last-commit/igor-vuta/intelli-factory?style=flat-square&color=6366f1)](https://github.com/igor-vuta/intelli-factory/commits)
+[![Repository size](https://img.shields.io/github/repo-size/igor-vuta/intelli-factory?style=flat-square&color=6366f1)](https://github.com/igor-vuta/intelli-factory)
+
+**3** Optimiser modes · **5** Product screenshots · **3,600** Benchmark evaluations
+
+_Project facts checked 2 October 2026. Activity badges update from GitHub._
+
+<!-- project-presentation:end -->
+
 <a id="readme-top"></a>
 
 <!-- SHIELDS -->
@@ -189,7 +204,7 @@ uv run --no-project prisma generate
 
 4. **Configure environment variables**
 
-Create `backend/app/api/.env`:
+Copy `backend/app/api/.env.example` to `backend/app/api/.env` and set its local values. At minimum, configure the database URL and secret; email delivery needs the SMTP or Brevo settings shown in the example:
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB
@@ -206,8 +221,8 @@ BACKEND_API_URL=http://localhost:8000
 5. **Start PostgreSQL** (Docker)
 
 ```sh
-# from project root
-docker-compose up -d
+# from backend/app/api, where docker-compose.yml lives
+docker compose up -d
 ```
 
 6. **Run database migrations**
@@ -333,7 +348,7 @@ Validated against the OWASP Password Storage and Session Management Cheat Sheets
 
 ## Testing
 
-**168 pytest tests** - optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance and the shared catalogue (against PostgreSQL in CI), and the full transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle.
+The pytest suite covers the optimisation engine (normalisation, weight profiles, feasibility, seeded reproducibility, large-scale pools), comparison and requests routers, record actions and their lifecycle guards, category governance and the shared catalogue (against PostgreSQL in CI), and the transaction → contract → fulfilment flow. The frontend has Jest unit tests and Playwright end-to-end tests on desktop and phone, including a live-database run of the whole lifecycle. Run the commands below for the current test count and results.
 
 ```sh
 cd backend/app/api
@@ -407,5 +422,5 @@ GitHub: https://github.com/igor-vuta · LinkedIn: https://www.linkedin.com/in/ig
 [nextjs-url]: https://nextjs.org
 [postgres-shield]: https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
 [postgres-url]: https://postgresql.org
-[tests-shield]: https://img.shields.io/badge/pytest-168%20passing-brightgreen?style=for-the-badge
+[tests-shield]: https://img.shields.io/badge/pytest-test%20suite-brightgreen?style=for-the-badge
 [license-shield]: https://img.shields.io/badge/License-Academic-lightgrey?style=for-the-badge
