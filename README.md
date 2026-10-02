@@ -13,6 +13,12 @@ _Project facts checked 2 October 2026. Activity badges update from GitHub._
 
 <!-- project-presentation:end -->
 
+<!-- project-pattern:start -->
+
+![A factory with a sawtooth roof, tall chimneys, windows, and loading door.](.github/project-pattern.svg)
+
+<!-- project-pattern:end -->
+
 <a id="readme-top"></a>
 
 <!-- SHIELDS -->
